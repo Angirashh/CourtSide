@@ -86,14 +86,14 @@ function GroupStageView({ matches, players, playersById }: { matches: Match[]; p
   }
 
   return (
-    <div className="grid gap-5 lg:grid-cols-2">
+    <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
       {groupIds.map((gid) => {
         const groupMatches = groups.get(gid)!
         const groupPlayers = playersInMatches(groupMatches, players)
         const rows = computeStandings(groupPlayers, groupMatches)
         const rounds = Array.from(new Set(groupMatches.map((m) => m.round_num))).sort((a, b) => a - b)
         return (
-          <div key={gid} className="space-y-4">
+          <div key={gid} className="min-w-0 space-y-4">
             <GroupStandingsTable title={gid.replace(/_/g, ' ')} rows={rows} />
             <div className="space-y-3">
               {rounds.map((round) => (

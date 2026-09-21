@@ -122,13 +122,13 @@ function StatCard({
   accent?: boolean
 }) {
   return (
-    <Card className={cn('p-4', accent && 'border-ember-300/60 bg-ember-100/30')}>
+    <Card className={cn('p-3 sm:p-4', accent && 'border-ember-300/60 bg-ember-100/30')}>
       <div className="flex items-center gap-2.5">
-        <div className={cn('flex size-8 shrink-0 items-center justify-center rounded-lg', accent ? 'bg-ember-500 text-cream-50' : 'bg-navy-100 text-navy-600')}>
+        <div className={cn('hidden size-8 shrink-0 items-center justify-center rounded-lg sm:flex', accent ? 'bg-ember-500 text-cream-50' : 'bg-navy-100 text-navy-600')}>
           <Icon className="size-4" />
         </div>
         <div className="min-w-0">
-          <p className={cn('truncate font-display text-lg font-medium leading-none', accent ? 'text-ember-600' : 'text-navy-900')}>{value}</p>
+          <p className={cn('font-display text-base font-medium leading-tight sm:truncate sm:text-lg sm:leading-none', accent ? 'text-ember-600' : 'text-navy-900')}>{value}</p>
           <p className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-navy-400">{label}</p>
         </div>
       </div>
@@ -157,7 +157,7 @@ function CourtScheduleCard({
           <span className="text-[11px] font-medium text-cream-200/50">₹{court.hourly_rate}/hr</span>
         </div>
         {booking && (
-          <div className="flex items-center gap-3 text-[11px] font-semibold text-cream-200/70">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] font-semibold text-cream-200/70">
             <span>
               Booked {formatTime(booking.booked_from)} – {formatTime(booking.booked_until)}
             </span>
@@ -174,19 +174,22 @@ function CourtScheduleCard({
       ) : (
         <ul className="divide-y divide-cream-200">
           {matches.map((m) => (
-            <li key={m.id} className="flex items-center gap-3 px-4 py-2.5">
-              <div className="w-[92px] shrink-0 text-xs font-semibold text-navy-500">
-                {formatTime(m.scheduled_start_time)} – {formatTime(m.scheduled_end_time)}
+            <li key={m.id} className="flex flex-col gap-1.5 px-4 py-3 sm:flex-row sm:items-center sm:gap-3 sm:py-2.5">
+              <div className="flex items-center gap-2 sm:contents">
+                <div className="whitespace-nowrap text-xs font-semibold text-navy-500 sm:w-[92px] sm:shrink-0 sm:whitespace-normal">
+                  {formatTime(m.scheduled_start_time)} – {formatTime(m.scheduled_end_time)}
+                </div>
+                <Badge variant="outline" className="shrink-0">
+                  {stageLabel[m.stage]} R{m.round_num}
+                </Badge>
+                <MatchStatusBadge status={m.status} className="ml-auto sm:hidden" />
               </div>
-              <Badge variant="outline" className="shrink-0">
-                {stageLabel[m.stage]} R{m.round_num}
-              </Badge>
               <div className="min-w-0 flex-1 truncate text-sm text-navy-800">
                 <span className={cn(m.winner_id === m.player1_id && 'font-bold text-navy-900')}>{playerLabel(m.player1_id, playersById)}</span>
                 <VsBadge />
                 <span className={cn(m.winner_id === m.player2_id && 'font-bold text-navy-900')}>{playerLabel(m.player2_id, playersById)}</span>
               </div>
-              <MatchStatusBadge status={m.status} />
+              <MatchStatusBadge status={m.status} className="hidden sm:inline-flex" />
             </li>
           ))}
         </ul>

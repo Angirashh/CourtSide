@@ -37,9 +37,9 @@ export function GroupStandingsTable({ title, rows, qualifySlots = 2 }: { title: 
               )}
             >
               <td className="px-4 py-2.5 font-bold text-navy-400">{idx + 1}</td>
-              <td className="px-2 py-2.5 font-semibold text-navy-900">
+              <td className="w-full max-w-0 px-2 py-2.5 font-semibold text-navy-900">
                 <span className="flex items-center gap-1.5">
-                  {row.name}
+                  <span className="truncate">{row.name}</span>
                   {row.isWithdrawn && <UserX className="size-3.5 text-danger" />}
                 </span>
               </td>

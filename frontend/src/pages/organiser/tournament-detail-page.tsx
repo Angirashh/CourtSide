@@ -46,8 +46,8 @@ export function TournamentDetailPage() {
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <div className="flex items-center gap-2.5">
-            <h1 className="font-display text-2xl font-medium text-navy-900 sm:text-3xl">{tournament.name}</h1>
+          <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
+            <h1 className="min-w-0 break-words font-display text-2xl font-medium text-navy-900 sm:text-3xl">{tournament.name}</h1>
             <TournamentStatusBadge status={tournament.status} />
           </div>
           <p className="mt-1 text-sm font-medium text-navy-500">
@@ -66,7 +66,7 @@ export function TournamentDetailPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3 lg:grid-cols-6">
         <StatTile icon={Users} label="Players" value={realPlayers.length} />
         <StatTile icon={MapPin} label="Courts" value={tournament.courts.length} />
         <StatTile icon={Swords} label="Matches" value={tournament.matches.length} />
@@ -76,7 +76,7 @@ export function TournamentDetailPage() {
       </div>
 
       {summary && (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4 sm:gap-3">
           <StatTile icon={IndianRupee} label="Total court cost" value={formatCurrency(totalCourtCost)} />
           <StatTile
             icon={CircleDot}
@@ -143,9 +143,9 @@ function StatTile({
   accent?: boolean
 }) {
   return (
-    <Card className={cn('p-4', accent && 'border-ember-300/60 bg-ember-100/30')}>
+    <Card className={cn('p-3 sm:p-4', accent && 'border-ember-300/60 bg-ember-100/30')}>
       <div className="flex items-center gap-2.5">
-        <div className={cn('flex size-8 shrink-0 items-center justify-center rounded-lg', accent ? 'bg-ember-500 text-cream-50' : 'bg-navy-100 text-navy-600')}>
+        <div className={cn('hidden size-8 shrink-0 items-center justify-center rounded-lg sm:flex', accent ? 'bg-ember-500 text-cream-50' : 'bg-navy-100 text-navy-600')}>
           <Icon className="size-4" />
         </div>
         <div className="min-w-0">
@@ -153,7 +153,7 @@ function StatTile({
           <p className="mt-0.5 text-[11px] font-semibold uppercase tracking-wide text-navy-400">{label}</p>
         </div>
       </div>
-      {sub && <p className="mt-2 text-xs text-navy-400">{sub}</p>}
+      {sub && <p className="mt-1.5 text-xs text-navy-400 sm:mt-2">{sub}</p>}
     </Card>
   )
 }
