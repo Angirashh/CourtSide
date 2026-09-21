@@ -4,9 +4,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { EmptyState } from '@/components/ui/empty-state'
 import { BracketTree } from './bracket-tree'
 import { SwissLadder } from './swiss-ladder'
-import { GroupStandingsTable } from './group-standings-table'
 import { FixtureMatchRow } from './fixture-match-row'
-import { computeStandings, groupMatchesByGroupId, playersInMatches } from '@/lib/standings'
+import { groupMatchesByGroupId } from '@/lib/standings'
 import type { Match, Player, TournamentFormat } from '@/types/api'
 
 export function FixtureVisualizer({
@@ -54,11 +53,11 @@ export function FixtureVisualizer({
 
       {format === 'GROUP_KNOCKOUT' ? (
         <TabsContent value="groups">
-          <GroupStageView matches={feederMatches} players={players} playersById={playersById} />
+          <GroupStageView matches={feederMatches} playersById={playersById} />
         </TabsContent>
       ) : (
         <TabsContent value="swiss">
-          <SwissLadder matches={feederMatches} players={players} playersById={playersById} />
+          <SwissLadder matches={feederMatches} playersById={playersById} />
         </TabsContent>
       )}
 
@@ -77,7 +76,7 @@ export function FixtureVisualizer({
   )
 }
 
-function GroupStageView({ matches, players, playersById }: { matches: Match[]; players: Player[]; playersById: Map<string, Player> }) {
+function GroupStageView({ matches, playersById }: { matches: Match[]; playersById: Map<string, Player> }) {
   const groups = groupMatchesByGroupId(matches)
   const groupIds = Array.from(groups.keys()).sort()
 
@@ -89,27 +88,23 @@ function GroupStageView({ matches, players, playersById }: { matches: Match[]; p
     <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
       {groupIds.map((gid) => {
         const groupMatches = groups.get(gid)!
-        const groupPlayers = playersInMatches(groupMatches, players)
-        const rows = computeStandings(groupPlayers, groupMatches)
         const rounds = Array.from(new Set(groupMatches.map((m) => m.round_num))).sort((a, b) => a - b)
         return (
-          <div key={gid} className="min-w-0 space-y-4">
-            <GroupStandingsTable title={gid.replace(/_/g, ' ')} rows={rows} />
-            <div className="space-y-3">
-              {rounds.map((round) => (
-                <div key={round}>
-                  <p className="mb-2 text-xs font-bold uppercase tracking-wide text-navy-500">Round {round}</p>
-                  <div className="space-y-2">
-                    {groupMatches
-                      .filter((m) => m.round_num === round)
-                      .sort((a, b) => a.id.localeCompare(b.id))
-                      .map((m) => (
-                        <FixtureMatchRow key={m.id} match={m} playersById={playersById} />
-                      ))}
-                  </div>
+          <div key={gid} className="min-w-0 space-y-3">
+            <h3 className="font-display text-base font-medium text-navy-900">{gid.replace(/_/g, ' ')}</h3>
+            {rounds.map((round) => (
+              <div key={round}>
+                <p className="mb-2 text-xs font-bold uppercase tracking-wide text-navy-500">Round {round}</p>
+                <div className="space-y-2">
+                  {groupMatches
+                    .filter((m) => m.round_num === round)
+                    .sort((a, b) => a.id.localeCompare(b.id))
+                    .map((m) => (
+                      <FixtureMatchRow key={m.id} match={m} playersById={playersById} />
+                    ))}
                 </div>
-              ))}
-            </div>
+              </div>
+            ))}
           </div>
         )
       })}

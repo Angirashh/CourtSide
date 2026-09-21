@@ -6,10 +6,11 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { TournamentStatusBadge, MatchStatusBadge } from '@/components/ui/status-badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
 import { FixtureVisualizer } from '@/components/fixtures/fixture-visualizer'
 import { PublicStandingsTable } from '@/components/public/public-standings-table'
 import { VsBadge } from '@/components/ui/vs-badge'
-import { formatLabel, formatPlainDate, formatTime, playerLabel } from '@/lib/utils'
+import { cn, formatLabel, formatPlainDate, formatTime, playerLabel } from '@/lib/utils'
 
 export function TournamentLivePage() {
   const { id } = useParams<{ id: string }>()
@@ -22,6 +23,7 @@ export function TournamentLivePage() {
   }
 
   const playersById = new Map(tournament.players.map((p) => [p.id, p]))
+  const courtsById = new Map(tournament.courts.map((c) => [c.id, c.name]))
   const upcomingMatches = tournament.matches
     .filter((m) => !m.is_completed && m.scheduled_start_time)
     .sort((a, b) => (a.scheduled_start_time ?? '').localeCompare(b.scheduled_start_time ?? ''))
@@ -78,16 +80,19 @@ export function TournamentLivePage() {
               ) : (
                 <div className="space-y-2.5">
                   {[...upcomingMatches.slice(0, 3), ...recentMatches.slice(0, 2)].map((m) => (
-                    <Card key={m.id} className="flex items-center gap-3 p-4">
-                      <div className="w-[76px] shrink-0 text-xs font-semibold text-navy-500">
-                        {m.scheduled_start_time ? formatTime(m.scheduled_start_time) : '—'}
+                    <Card key={m.id} className="flex flex-col gap-2 p-4 sm:flex-row sm:items-center sm:gap-3">
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 sm:contents">
+                        <div className="whitespace-nowrap text-xs font-semibold text-navy-500 sm:w-[76px] sm:shrink-0">
+                          {m.scheduled_start_time ? formatTime(m.scheduled_start_time) : '—'}
+                        </div>
+                        <CourtBadge name={m.court_id ? courtsById.get(m.court_id) : undefined} className="sm:order-3" />
+                        <MatchStatusBadge status={m.status} className="ml-auto sm:order-4 sm:ml-0" />
                       </div>
-                      <div className="flex min-w-0 flex-1 items-center truncate text-sm text-navy-800">
+                      <div className="min-w-0 flex-1 text-sm leading-relaxed text-navy-800 sm:order-2">
                         {playerLabel(m.player1_id, playersById)}
                         <VsBadge />
                         {playerLabel(m.player2_id, playersById)}
                       </div>
-                      <MatchStatusBadge status={m.status} />
                     </Card>
                   ))}
                 </div>
@@ -121,6 +126,16 @@ export function TournamentLivePage() {
         </TabsContent>
       </Tabs>
     </div>
+  )
+}
+
+function CourtBadge({ name, className }: { name?: string; className?: string }) {
+  if (!name) return null
+  return (
+    <Badge variant="outline" className={cn('shrink-0 whitespace-nowrap', className)}>
+      <MapPin className="size-3" />
+      {name}
+    </Badge>
   )
 }
 

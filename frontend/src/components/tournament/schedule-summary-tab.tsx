@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { CalendarClock, Clock, MapPin, PiggyBank } from 'lucide-react'
+import { CalendarClock, Clock, MapPin } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -52,7 +52,6 @@ export function ScheduleSummaryTab({ tournament }: { tournament: TournamentDetai
   const overallEnd = new Date(Math.max(...scheduledMatches.map((m) => new Date(m.scheduled_end_time!).getTime())))
   const durationMinutes = Math.round((overallEnd.getTime() - overallStart.getTime()) / 60000)
   const summary = tournament.schedule_summary
-  const savingsPct = summary && summary.flat_booking_cost > 0 ? Math.round((summary.savings / summary.flat_booking_cost) * 100) : 0
 
   return (
     <div className="space-y-5">
@@ -60,27 +59,6 @@ export function ScheduleSummaryTab({ tournament }: { tournament: TournamentDetai
         <StatCard icon={Clock} label="Duration" value={formatDuration(durationMinutes)} sub={formatDate(overallStart.toISOString())} />
         <StatCard icon={CalendarClock} label="Play window" value={`${formatTime(overallStart.toISOString())} – ${formatTime(overallEnd.toISOString())}`} />
       </div>
-
-      {summary && summary.savings > 0 && (
-        <Card className="border-ember-300/50 bg-gradient-to-br from-ember-100/60 via-cream-25 to-cream-25 p-4">
-          <div className="flex items-start gap-3">
-            <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-ember-500 text-cream-50 shadow-[0_4px_12px_-2px_rgba(232,136,58,0.5)]">
-              <PiggyBank className="size-4.5" />
-            </div>
-            <p className="text-sm leading-relaxed text-navy-700">
-              De-ramping each court as its rounds finish costs{' '}
-              <span className="font-bold text-navy-900">{formatCurrency(summary.total_estimated_cost)}</span>, versus{' '}
-              <span className="text-navy-400 line-through">{formatCurrency(summary.flat_booking_cost)}</span> for renting every
-              court for the full {formatDuration(summary.makespan_minutes)} — a saving of{' '}
-              <span className="font-bold text-ember-600">
-                {formatCurrency(summary.savings)}
-                {savingsPct > 0 && ` (${savingsPct}%)`}
-              </span>
-              .
-            </p>
-          </div>
-        </Card>
-      )}
 
       <Tabs defaultValue={tournament.courts[0]?.id}>
         <TabsList>
