@@ -207,12 +207,12 @@ export function CreateTournamentPage() {
                   <FieldGroup label="Courts available">
                     <div className="space-y-2.5">
                       {fields.map((field, idx) => (
-                        <div key={field.id} className="flex items-center gap-2.5">
+                        <div key={field.id} className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2.5 sm:flex">
                           <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-navy-100 text-navy-500">
                             <MapPin className="size-4" />
                           </div>
                           <Input placeholder="Court name" {...register(`courts.${idx}.name` as const)} />
-                          <div className="relative w-32 shrink-0">
+                          <div className="relative col-start-2 row-start-2 sm:w-32 sm:shrink-0">
                             <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs text-navy-400">
                               ₹/hr
                             </span>

@@ -8,7 +8,7 @@ export function TabsList({ className, ...props }: React.ComponentPropsWithoutRef
   return (
     <TabsPrimitive.List
       className={cn(
-        'inline-flex items-center gap-1 rounded-xl bg-navy-100/70 p-1 overflow-x-auto no-scrollbar',
+        'inline-flex max-w-full items-center gap-1 rounded-xl bg-navy-100/70 p-1 overflow-x-auto no-scrollbar',
         className
       )}
       {...props}
