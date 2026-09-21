@@ -23,10 +23,10 @@ const matchStatusMap: Record<MatchStatus, { label: string; variant: 'neutral' | 
   COMPLETED: { label: 'Completed', variant: 'success' },
 }
 
-export function MatchStatusBadge({ status }: { status: MatchStatus }) {
+export function MatchStatusBadge({ status, className }: { status: MatchStatus; className?: string }) {
   const cfg = matchStatusMap[status]
   return (
-    <Badge variant={cfg.variant} pulse={status === 'IN_PROGRESS'}>
+    <Badge variant={cfg.variant} pulse={status === 'IN_PROGRESS'} className={className}>
       {cfg.label}
     </Badge>
   )

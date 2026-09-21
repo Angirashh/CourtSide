@@ -316,7 +316,7 @@ function OperatorMatchCard({
                 <Play className="size-4" />
                 Start match
               </Button>
-              <Button variant="ghost" size="sm" className="h-10 w-full text-navy-500" onClick={onScore}>
+              <Button variant="ghost" size="sm" className="h-10 w-full text-navy-500 sm:h-10" onClick={onScore}>
                 Already played? Enter result
               </Button>
             </>
