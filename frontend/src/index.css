@@ -1,0 +1,211 @@
+@import 'tailwindcss';
+
+@import '@fontsource/fraunces/400.css';
+@import '@fontsource/fraunces/500.css';
+@import '@fontsource/fraunces/600.css';
+@import '@fontsource/fraunces/600-italic.css';
+@import '@fontsource/plus-jakarta-sans/400.css';
+@import '@fontsource/plus-jakarta-sans/500.css';
+@import '@fontsource/plus-jakarta-sans/600.css';
+@import '@fontsource/plus-jakarta-sans/700.css';
+
+@theme {
+  /* Brand */
+  --color-navy-950: #0e1622;
+  --color-navy-900: #1b2a3d;
+  --color-navy-800: #253a52;
+  --color-navy-700: #324965;
+  --color-navy-600: #435f80;
+  --color-navy-500: #5c7797;
+  --color-navy-400: #8298b3;
+  --color-navy-300: #b0c0d3;
+  --color-navy-200: #d7e0ea;
+  --color-navy-100: #eef2f6;
+
+  --color-cream-300: #d9cdb6;
+  --color-cream-200: #e8e0d1;
+  --color-cream-100: #f6f1e8;
+  --color-cream-50: #f1ece2;
+  --color-cream-25: #faf7f1;
+
+  --color-ember-600: #c96a24;
+  --color-ember-500: #e8883a;
+  --color-ember-400: #ee9f5c;
+  --color-ember-300: #f3bd8f;
+  --color-ember-100: #fbe6d2;
+
+  --color-success: #4f7d5c;
+  --color-success-bg: #e3ead9;
+  --color-danger: #b6483f;
+  --color-danger-bg: #f5ded9;
+  --color-warning: #b8842a;
+  --color-warning-bg: #f5ead0;
+
+  /* Fonts */
+  --font-display: 'Fraunces', 'Georgia', serif;
+  --font-sans: 'Plus Jakarta Sans', 'system-ui', sans-serif;
+
+  /* Radius scale, slightly larger than default = softer brand feel */
+  --radius-md: 0.625rem;
+  --radius-lg: 0.875rem;
+  --radius-xl: 1.25rem;
+  --radius-2xl: 1.75rem;
+
+  --animate-fade-up: fade-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-fade-in: fade-in 0.15s ease-out both;
+  --animate-scale-in: scale-in 0.2s cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-shimmer: shimmer 2s linear infinite;
+
+  @keyframes fade-up {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  @keyframes scale-in {
+    from {
+      opacity: 0;
+      transform: scale(0.96);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+  @keyframes shimmer {
+    from {
+      background-position: -200% 0;
+    }
+    to {
+      background-position: 200% 0;
+    }
+  }
+}
+
+@layer base {
+  * {
+    border-color: var(--color-cream-200);
+  }
+
+  html {
+    color-scheme: light;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    background-color: var(--color-cream-50);
+    color: var(--color-navy-900);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-display);
+    color: var(--color-navy-900);
+    letter-spacing: -0.01em;
+  }
+
+  ::selection {
+    background: var(--color-ember-300);
+    color: var(--color-navy-950);
+  }
+
+  /* Slim, brand-tinted scrollbars */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-navy-300) transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  *::-webkit-scrollbar-thumb {
+    background-color: var(--color-navy-300);
+    border-radius: 999px;
+  }
+}
+
+@layer utilities {
+  /* Warm atmospheric backdrop for hero/auth surfaces */
+  .bg-atmosphere {
+    background-color: var(--color-navy-900);
+    background-image:
+      radial-gradient(ellipse 80% 60% at 15% 0%, rgba(232, 136, 58, 0.22), transparent 60%),
+      radial-gradient(ellipse 70% 60% at 100% 100%, rgba(87, 118, 151, 0.35), transparent 60%),
+      linear-gradient(160deg, var(--color-navy-950) 0%, var(--color-navy-900) 55%, var(--color-navy-800) 100%);
+  }
+
+  .bg-paper {
+    background-color: var(--color-cream-50);
+    background-image: radial-gradient(ellipse 60% 40% at 50% -10%, rgba(232, 136, 58, 0.08), transparent 65%);
+  }
+
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .shimmer-bg {
+    background: linear-gradient(90deg, var(--color-cream-100) 25%, var(--color-cream-200) 37%, var(--color-cream-100) 63%);
+    background-size: 400% 100%;
+    animation: shimmer 1.6s ease-in-out infinite;
+  }
+}
+
+/* Live-tournament highlight: a bright arc that travels around the card border. */
+@property --live-angle {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+
+@keyframes live-border-spin {
+  to {
+    --live-angle: 360deg;
+  }
+}
+
+@layer utilities {
+  .live-border {
+    padding: 2px;
+    border-radius: 1.125rem;
+    background-color: rgba(232, 136, 58, 0.25);
+    background-image: conic-gradient(
+      from var(--live-angle),
+      rgba(232, 136, 58, 0) 0deg,
+      rgba(232, 136, 58, 0) 190deg,
+      var(--color-ember-500) 300deg,
+      var(--color-ember-300) 340deg,
+      rgba(232, 136, 58, 0) 360deg
+    );
+    box-shadow: 0 0 28px -8px rgba(232, 136, 58, 0.5);
+    animation: live-border-spin 3.5s linear infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .live-border {
+      animation: none;
+    }
+  }
+}

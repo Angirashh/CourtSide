@@ -1,0 +1,50 @@
+version: "3.8"
+
+services:
+  # -------------------------------------------------------------------
+  # 1. Redis Service (Task Queue Broker)
+  # -------------------------------------------------------------------
+  redis:
+    image: redis:alpine
+    container_name: tournament_redis
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+
+  # -------------------------------------------------------------------
+  # 2. FastAPI Web Application
+  # -------------------------------------------------------------------
+  web:
+    build: .
+    container_name: tournament_api
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    volumes:
+      # Mount current folder to enable instant hot-reloading when editing code
+      - .:/app
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      # Override broker URL to target the internal Redis container service name
+      - CELERY_BROKER_URL=redis://redis:6379/0
+    depends_on:
+      - redis
+    restart: unless-stopped
+
+  # -------------------------------------------------------------------
+  # 3. Celery Worker (CP-SAT Solver & Background Jobs)
+  # -------------------------------------------------------------------
+  celery_worker:
+    build: .
+    container_name: tournament_worker
+    command: celery -A app.worker.celery_app worker --loglevel=info
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+    depends_on:
+      - redis
+    restart: unless-stopped
