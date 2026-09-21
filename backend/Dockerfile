@@ -25,5 +25,6 @@ COPY . .
 # Set PYTHONPATH so Python always recognizes the "app" module
 ENV PYTHONPATH=/app
 
-# Default command (will be overridden for the Celery worker in docker-compose)
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Default command (will be overridden for the Celery worker in docker-compose).
+# Hosts like Render inject $PORT; fall back to 8000 for local Docker.
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --proxy-headers --forwarded-allow-ips='*'"]
