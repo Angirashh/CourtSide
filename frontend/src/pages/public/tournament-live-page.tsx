@@ -122,7 +122,7 @@ export function TournamentLivePage() {
           </TabsContent>
 
           <TabsContent value="fixtures">
-            <FixtureVisualizer format={tournament.format} matches={tournament.matches} players={tournament.players} />
+            <FixtureVisualizer format={tournament.format} matches={tournament.matches} players={tournament.players} courts={tournament.courts} />
           </TabsContent>
 
           <TabsContent value="standings" className="space-y-5">
