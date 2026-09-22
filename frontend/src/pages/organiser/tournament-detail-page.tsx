@@ -1,5 +1,6 @@
+import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { ArrowLeft, Trophy } from 'lucide-react'
+import { ArrowLeft, Check, Copy, Trophy } from 'lucide-react'
 import { useTournament } from '@/hooks/use-tournaments'
 import { FullPageSpinner } from '@/components/ui/spinner'
 import { EmptyState } from '@/components/ui/empty-state'
@@ -45,7 +46,7 @@ export function TournamentDetailPage() {
             {formatLabel(tournament.format)}
             {tournament.venue && <> · {tournament.venue}</>}
             {tournament.tournament_date && <> · {formatPlainDate(tournament.tournament_date)}</>}
-            {' '}· ID <span className="font-mono text-xs">{tournament.id}</span>
+            {' '}· ID <CopyTournamentId id={tournament.id} />
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2.5">
@@ -70,7 +71,7 @@ export function TournamentDetailPage() {
         </TabsList>
 
         <TabsContent value="fixtures">
-          <FixtureVisualizer format={tournament.format} matches={tournament.matches} players={tournament.players} />
+          <FixtureVisualizer format={tournament.format} matches={tournament.matches} players={tournament.players} courts={tournament.courts} />
         </TabsContent>
 
         <TabsContent value="standings">
@@ -94,5 +95,24 @@ export function TournamentDetailPage() {
         </TabsContent>
       </Tabs>
     </div>
+  )
+}
+
+function CopyTournamentId({ id }: { id: string }) {
+  const [copied, setCopied] = useState(false)
+  return (
+    <button
+      onClick={() => {
+        navigator.clipboard.writeText(id)
+        setCopied(true)
+        setTimeout(() => setCopied(false), 1500)
+      }}
+      className="inline-flex items-center gap-1 rounded px-1 py-0.5 font-mono text-xs text-navy-500 transition-colors hover:bg-navy-100 hover:text-navy-900"
+      title="Copy tournament ID"
+      aria-label="Copy tournament ID"
+    >
+      {id}
+      {copied ? <Check className="size-3 text-success" /> : <Copy className="size-3 opacity-60" />}
+    </button>
   )
 }

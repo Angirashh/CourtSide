@@ -1,14 +1,16 @@
 import { motion } from 'framer-motion'
-import { cn } from '@/lib/utils'
+import { cn, compareByScheduledTime } from '@/lib/utils'
 import { FixtureMatchRow } from './fixture-match-row'
 import type { Match, Player } from '@/types/api'
 
 export function SwissLadder({
   matches,
   playersById,
+  courtsById,
 }: {
   matches: Match[]
   playersById: Map<string, Player>
+  courtsById: Map<string, string>
 }) {
   const rounds = Array.from(new Set(matches.map((m) => m.round_num))).sort((a, b) => a - b)
 
@@ -16,7 +18,7 @@ export function SwissLadder({
     <div className="relative space-y-6 pl-6">
       <div className="absolute left-[9px] top-2 bottom-2 w-px bg-cream-300" aria-hidden />
       {rounds.map((round, idx) => {
-        const roundMatches = matches.filter((m) => m.round_num === round).sort((a, b) => a.id.localeCompare(b.id))
+        const roundMatches = matches.filter((m) => m.round_num === round).sort(compareByScheduledTime)
         const complete = roundMatches.every((m) => m.is_completed)
         return (
           <motion.div
@@ -37,7 +39,12 @@ export function SwissLadder({
             <p className="mb-2.5 text-xs font-bold uppercase tracking-wide text-navy-500">Round {round}</p>
             <div className="grid gap-2 sm:grid-cols-2">
               {roundMatches.map((match) => (
-                <FixtureMatchRow key={match.id} match={match} playersById={playersById} />
+                <FixtureMatchRow
+                  key={match.id}
+                  match={match}
+                  playersById={playersById}
+                  courtName={match.court_id ? courtsById.get(match.court_id) : undefined}
+                />
               ))}
             </div>
           </motion.div>
