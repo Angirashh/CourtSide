@@ -101,3 +101,14 @@ export function playerLabel(id: string | null | undefined, playersById: Map<stri
 export function parseUtcTimestamp(iso: string): Date {
   return new Date(/(Z|[+-]\d{2}:?\d{2})$/.test(iso) ? iso : `${iso}Z`)
 }
+
+// Orders matches within a round by scheduled time. Unscheduled matches (no time yet) sort
+// after scheduled ones, falling back to id so ordering stays stable either way.
+export function compareByScheduledTime<T extends { scheduled_start_time: string | null; id: string }>(a: T, b: T): number {
+  if (a.scheduled_start_time && b.scheduled_start_time) {
+    return a.scheduled_start_time.localeCompare(b.scheduled_start_time)
+  }
+  if (a.scheduled_start_time) return -1
+  if (b.scheduled_start_time) return 1
+  return a.id.localeCompare(b.id)
+}

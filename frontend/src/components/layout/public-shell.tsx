@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { Info, LayoutGrid, Trophy, UserRound } from 'lucide-react'
+import { Info, LayoutGrid, Trophy, UserRound, Users } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const publicNav = [
@@ -73,7 +73,6 @@ function Footer() {
       links: [
         { label: 'Tournaments', to: '/tournaments' },
         { label: 'Categories', to: '/tournaments' },
-        { label: 'How it works', to: '/about#how-it-works' },
       ],
     },
     {
@@ -171,11 +170,11 @@ function Topbar() {
       </NavLink>
       <div className="hidden font-display text-lg font-medium text-navy-900 lg:block">Courtside</div>
       <button
-        onClick={() => navigate('/players')}
+        onClick={() => navigate('/login?role=operator')}
         className="inline-flex items-center gap-2 rounded-xl border border-cream-200 bg-cream-25 px-3.5 py-2 text-xs font-bold text-navy-900 transition hover:border-ember-400"
       >
-        <UserRound className="size-4" />
-        Sign in
+        <Users className="size-4" />
+        Join as operator
       </button>
     </header>
   )

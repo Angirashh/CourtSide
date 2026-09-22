@@ -1,6 +1,6 @@
 import { useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
-import { Trophy, UserX } from 'lucide-react'
+import { MapPin, Trophy, UserX } from 'lucide-react'
 import { cn, formatDateTime, playerLabel } from '@/lib/utils'
 import { MatchStatusBadge } from '@/components/ui/status-badge'
 import type { Match, Player } from '@/types/api'
@@ -25,7 +25,15 @@ interface Edge {
 const LINE_IDLE = 'var(--color-navy-200)'
 const LINE_ADVANCED = 'var(--color-ember-500)'
 
-export function BracketTree({ matches, playersById }: { matches: Match[]; playersById: Map<string, Player> }) {
+export function BracketTree({
+  matches,
+  playersById,
+  courtsById,
+}: {
+  matches: Match[]
+  playersById: Map<string, Player>
+  courtsById: Map<string, string>
+}) {
   const byRound = useMemo(() => {
     const rounds = Array.from(new Set(matches.map((m) => m.round_num))).sort((a, b) => a - b)
     return rounds.map((r) => matches.filter((m) => m.round_num === r).sort((a, b) => a.id.localeCompare(b.id)))
@@ -124,6 +132,7 @@ export function BracketTree({ matches, playersById }: { matches: Match[]; player
                     key={match.id}
                     match={match}
                     playersById={playersById}
+                    courtName={match.court_id ? courtsById.get(match.court_id) : undefined}
                     delay={roundIdx * 0.08 + i * 0.04}
                     cardRef={(el) => {
                       if (el) cardRefs.current.set(match.id, el)
@@ -158,11 +167,13 @@ export function BracketTree({ matches, playersById }: { matches: Match[]; player
 function BracketMatchCard({
   match,
   playersById,
+  courtName,
   delay,
   cardRef,
 }: {
   match: Match
   playersById: Map<string, Player>
+  courtName?: string
   delay: number
   cardRef: (el: HTMLDivElement | null) => void
 }) {
@@ -196,7 +207,15 @@ function BracketMatchCard({
         score={match.scores?.map((s) => s.p2)}
       />
       <div className="flex items-center justify-between gap-2 border-t border-cream-200 bg-navy-100/40 px-2.5 py-1.5">
-        <MatchStatusBadge status={match.status} />
+        <div className="flex min-w-0 items-center gap-1.5">
+          <MatchStatusBadge status={match.status} />
+          {courtName && (
+            <span className="inline-flex min-w-0 items-center gap-1 truncate text-[10px] font-semibold text-navy-400">
+              <MapPin className="size-2.5 shrink-0" />
+              <span className="truncate">{courtName}</span>
+            </span>
+          )}
+        </div>
         {match.is_walkover && (
           <span className="text-[10px] font-bold uppercase tracking-wide text-navy-400">Walkover</span>
         )}

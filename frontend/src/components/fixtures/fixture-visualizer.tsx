@@ -6,18 +6,22 @@ import { BracketTree } from './bracket-tree'
 import { SwissLadder } from './swiss-ladder'
 import { FixtureMatchRow } from './fixture-match-row'
 import { groupMatchesByGroupId } from '@/lib/standings'
-import type { Match, Player, TournamentFormat } from '@/types/api'
+import { compareByScheduledTime } from '@/lib/utils'
+import type { Court, Match, Player, TournamentFormat } from '@/types/api'
 
 export function FixtureVisualizer({
   format,
   matches,
   players,
+  courts = [],
 }: {
   format: TournamentFormat
   matches: Match[]
   players: Player[]
+  courts?: Court[]
 }) {
   const playersById = useMemo(() => new Map(players.map((p) => [p.id, p])), [players])
+  const courtsById = useMemo(() => new Map(courts.map((c) => [c.id, c.name])), [courts])
   const knockoutMatches = matches.filter((m) => m.stage === 'KNOCKOUT')
   const feederMatches = matches.filter((m) => m.stage !== 'KNOCKOUT')
 
@@ -53,11 +57,11 @@ export function FixtureVisualizer({
 
       {format === 'GROUP_KNOCKOUT' ? (
         <TabsContent value="groups">
-          <GroupStageView matches={feederMatches} playersById={playersById} />
+          <GroupStageView matches={feederMatches} playersById={playersById} courtsById={courtsById} />
         </TabsContent>
       ) : (
         <TabsContent value="swiss">
-          <SwissLadder matches={feederMatches} playersById={playersById} />
+          <SwissLadder matches={feederMatches} playersById={playersById} courtsById={courtsById} />
         </TabsContent>
       )}
 
@@ -69,14 +73,22 @@ export function FixtureVisualizer({
             description={format === 'GROUP_KNOCKOUT' ? 'Finish the group stage to see qualifiers advance here.' : 'Finish the Swiss rounds to see the semifinal bracket here.'}
           />
         ) : (
-          <BracketTree matches={knockoutMatches} playersById={playersById} />
+          <BracketTree matches={knockoutMatches} playersById={playersById} courtsById={courtsById} />
         )}
       </TabsContent>
     </Tabs>
   )
 }
 
-function GroupStageView({ matches, playersById }: { matches: Match[]; playersById: Map<string, Player> }) {
+function GroupStageView({
+  matches,
+  playersById,
+  courtsById,
+}: {
+  matches: Match[]
+  playersById: Map<string, Player>
+  courtsById: Map<string, string>
+}) {
   const groups = groupMatchesByGroupId(matches)
   const groupIds = Array.from(groups.keys()).sort()
 
@@ -98,9 +110,14 @@ function GroupStageView({ matches, playersById }: { matches: Match[]; playersByI
                 <div className="space-y-2">
                   {groupMatches
                     .filter((m) => m.round_num === round)
-                    .sort((a, b) => a.id.localeCompare(b.id))
+                    .sort(compareByScheduledTime)
                     .map((m) => (
-                      <FixtureMatchRow key={m.id} match={m} playersById={playersById} />
+                      <FixtureMatchRow
+                        key={m.id}
+                        match={m}
+                        playersById={playersById}
+                        courtName={m.court_id ? courtsById.get(m.court_id) : undefined}
+                      />
                     ))}
                 </div>
               </div>

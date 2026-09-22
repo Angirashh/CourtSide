@@ -1,9 +1,17 @@
-import { Check, UserX } from 'lucide-react'
+import { Check, MapPin, UserX } from 'lucide-react'
 import { VsBadge } from '@/components/ui/vs-badge'
 import { cn, formatTime, playerLabel } from '@/lib/utils'
 import type { Match, Player } from '@/types/api'
 
-export function FixtureMatchRow({ match, playersById }: { match: Match; playersById: Map<string, Player> }) {
+export function FixtureMatchRow({
+  match,
+  playersById,
+  courtName,
+}: {
+  match: Match
+  playersById: Map<string, Player>
+  courtName?: string
+}) {
   const p1 = match.player1_id ? playersById.get(match.player1_id) : undefined
   const p2 = match.player2_id ? playersById.get(match.player2_id) : undefined
   const hasWinner = match.is_completed && !!match.winner_id
@@ -33,8 +41,14 @@ export function FixtureMatchRow({ match, playersById }: { match: Match; playersB
         />
       </div>
 
-      {(hasScores || match.is_walkover || (!match.is_completed && match.scheduled_start_time)) && (
-        <div className="mt-1.5 flex items-center justify-center gap-1.5">
+      {(hasScores || match.is_walkover || (!match.is_completed && match.scheduled_start_time) || courtName) && (
+        <div className="mt-1.5 flex flex-wrap items-center justify-center gap-1.5">
+          {courtName && (
+            <span className="inline-flex items-center gap-1 rounded-md bg-navy-100 px-1.5 py-0.5 text-[11px] font-medium text-navy-500">
+              <MapPin className="size-3" />
+              {courtName}
+            </span>
+          )}
           {hasScores &&
             match.scores!.map((game, i) => (
               <span

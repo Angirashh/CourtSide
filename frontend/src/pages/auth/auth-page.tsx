@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
@@ -15,7 +15,11 @@ import { cn } from '@/lib/utils'
 type Role = 'ORGANISER' | 'OPERATOR'
 
 export function AuthPage() {
-  const [role, setRole] = useState<Role>('ORGANISER')
+  // A "Join as operator" link elsewhere in the app can deep-link straight into the
+  // operator tab (e.g. `/login?role=operator`) instead of dropping people on Organiser
+  // and making them find the toggle themselves.
+  const [searchParams] = useSearchParams()
+  const [role, setRole] = useState<Role>(searchParams.get('role')?.toUpperCase() === 'OPERATOR' ? 'OPERATOR' : 'ORGANISER')
   const [mode, setMode] = useState<'login' | 'signup'>('login')
 
   return (

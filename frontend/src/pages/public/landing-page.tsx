@@ -121,21 +121,21 @@ function UpcomingTile({ tournament, isNearest }: { tournament: PublicTournamentS
 
   return (
     <Link to={`/tournaments/${tournament.id}`} className="group block h-full">
-      <Card className="relative flex h-full flex-col overflow-hidden border-navy-700 bg-navy-900 p-5 text-cream-50 shadow-lg transition-all duration-300 group-hover:-translate-y-1 sm:p-6">
-        <div className="pointer-events-none absolute -right-8 -top-14 size-40 rounded-full border border-ember-500/15" />
+      <Card className="relative flex h-full flex-col overflow-hidden p-5 transition-all duration-300 group-hover:-translate-y-1 group-hover:border-ember-300/60 group-hover:shadow-lg group-hover:shadow-navy-900/10 sm:p-6">
+        <div className="pointer-events-none absolute -right-8 -top-14 size-40 rounded-full border border-ember-200" />
         <div className="relative flex flex-1 flex-col gap-4">
           <div>
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="font-mono text-[10px] uppercase tracking-[.18em] text-ember-400">Coming up</p>
+              <p className="font-mono text-[10px] uppercase tracking-[.18em] text-ember-600">Coming up</p>
               {category && (
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-ember-500/15 px-2.5 py-1 text-[11px] font-bold leading-none text-ember-300">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-ember-100 px-2.5 py-1 text-[11px] font-bold leading-none text-ember-600">
                   <category.icon className="size-3" />
                   {category.label}
                 </span>
               )}
             </div>
-            <h3 className="mt-1.5 font-display text-xl font-medium leading-snug text-cream-50 sm:text-2xl">{tournament.name}</h3>
-            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-navy-300">
+            <h3 className="mt-1.5 font-display text-xl font-medium leading-snug text-navy-900 sm:text-2xl">{tournament.name}</h3>
+            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-navy-500">
               <span className="flex items-center gap-1.5">
                 <MapPin className="size-3.5" /> {tournament.venue ?? 'Venue TBD'}
               </span>
@@ -147,17 +147,17 @@ function UpcomingTile({ tournament, isNearest }: { tournament: PublicTournamentS
 
           <div className="min-w-0">
             <p className="mb-1.5 font-mono text-[10px] uppercase tracking-[.16em] text-navy-400">Registered so far</p>
-            <p className="flex items-center gap-1.5 text-sm text-navy-200">
+            <p className="flex items-center gap-1.5 text-sm text-navy-600">
               <Users className="size-3.5 text-navy-400" />
               {tournament.players_count} player{tournament.players_count === 1 ? '' : 's'} joined
             </p>
           </div>
 
-          {showCountdown && target && <Countdown target={target} />}
+          {showCountdown && target && <Countdown target={target} variant="light" />}
 
-          <div className="mt-auto flex items-center justify-between border-t border-navy-700 pt-3.5">
+          <div className="mt-auto flex items-center justify-between border-t border-cream-200 pt-3.5">
             <TournamentStatusBadge status={tournament.status} />
-            <span className="inline-flex items-center gap-1 text-xs font-bold text-ember-400 group-hover:text-ember-300">
+            <span className="inline-flex items-center gap-1 text-xs font-bold text-navy-900 group-hover:text-ember-600">
               Details <ArrowRight className="size-3.5" />
             </span>
           </div>
