@@ -16,6 +16,7 @@ from app.services.fixture_engine.datatypes import (
     Match as EngineMatch,
     MatchStage as EngineMatchStage,
 )
+from app.services.court_queues import build_court_queues
 from app.services.standings import StandingsEngine
 
 router = APIRouter(prefix="/public", tags=["Public Showcase"])
@@ -72,6 +73,7 @@ def list_public_tournaments(db: Session = Depends(get_db)):
                 courts_count=len(t.courts),
                 created_at=t.created_at,
                 live_matches=live_matches,
+                court_queues=build_court_queues(t) if t.status == models.TournamentStatus.IN_PROGRESS else [],
             )
         )
     return result

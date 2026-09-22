@@ -13,7 +13,7 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { FullPageSpinner } from '@/components/ui/spinner'
 import { useInviteOperator, useOperators, useRevokeOperator } from '@/hooks/use-operators'
 import { extractErrorMessage } from '@/lib/api/client'
-import { cn, initials } from '@/lib/utils'
+import { cn, formatDate, initials } from '@/lib/utils'
 import type { OperatorStatus } from '@/types/api'
 
 const inviteSchema = z
@@ -155,44 +155,58 @@ const OperatorRow = memo(
     onRevoke: (op: OperatorStatus) => void
   }) {
     return (
-      <Card className="flex flex-wrap items-center gap-3 p-4">
-        <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-navy-900 text-xs font-bold text-cream-50">
-          {initials(operator.name)}
+      <Card className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center">
+        <div className="flex min-w-0 items-start gap-3 sm:flex-1 sm:items-center">
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-navy-900 text-xs font-bold text-cream-50">
+            {initials(operator.name)}
+          </div>
+          <div className="min-w-0 flex-1 space-y-0.5">
+            <p className="break-words text-sm font-semibold text-navy-900">{operator.name}</p>
+            {operator.email && <p className="break-all text-xs text-navy-500">{operator.email}</p>}
+            {operator.phone && <p className="break-words text-xs text-navy-500">{operator.phone}</p>}
+            {!operator.email && !operator.phone && <p className="text-xs text-navy-400">—</p>}
+            <p className="text-[11px] text-navy-400">Invited {formatDate(operator.invited_at)}</p>
+          </div>
         </div>
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold text-navy-900">{operator.name}</p>
-          <p className="truncate text-xs text-navy-400">{operator.email ?? operator.phone ?? '—'}</p>
+
+        <div className="flex flex-wrap items-center gap-2 sm:shrink-0 sm:flex-nowrap">
+          <OperatorLiveStatusBadge operator={operator} />
+
+          {code ? (
+            <InviteCodeChip code={code} />
+          ) : (
+            <Button variant="outline" size="sm" onClick={() => onIssueCode(operator)}>
+              <KeyRound className="size-3.5" />
+              Get code
+            </Button>
+          )}
+
+          <div className="ml-auto flex items-center gap-1 sm:ml-0">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="sm:h-10 sm:w-10 sm:px-0"
+              title="Issue a new code"
+              aria-label="Issue a new code"
+              onClick={() => onIssueCode(operator)}
+            >
+              <RefreshCw className="size-4 text-navy-400" />
+              <span className="sm:hidden">New code</span>
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="sm:h-10 sm:w-10 sm:px-0"
+              title="Revoke access"
+              aria-label="Revoke access"
+              disabled={operator.is_revoked}
+              onClick={() => onRevoke(operator)}
+            >
+              <ShieldOff className="size-4 text-navy-400" />
+              <span className="sm:hidden">Revoke</span>
+            </Button>
+          </div>
         </div>
-
-        <OperatorLiveStatusBadge operator={operator} />
-
-        {code ? (
-          <InviteCodeChip code={code} />
-        ) : (
-          <Button variant="outline" size="sm" onClick={() => onIssueCode(operator)}>
-            <KeyRound className="size-3.5" />
-            Get code
-          </Button>
-        )}
-
-        <Button
-          variant="ghost"
-          size="icon"
-          title="Issue a new code"
-          onClick={() => onIssueCode(operator)}
-        >
-          <RefreshCw className="size-4 text-navy-400" />
-        </Button>
-
-        <Button
-          variant="ghost"
-          size="icon"
-          title="Revoke access"
-          disabled={operator.is_revoked}
-          onClick={() => onRevoke(operator)}
-        >
-          <ShieldOff className="size-4 text-navy-400" />
-        </Button>
       </Card>
     )
   },

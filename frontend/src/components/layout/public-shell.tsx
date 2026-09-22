@@ -1,11 +1,12 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { ArrowRight, LayoutGrid, Sparkles, Trophy, UserRound } from 'lucide-react'
+import { ArrowRight, Info, LayoutGrid, Sparkles, Trophy, UserRound } from 'lucide-react'
 import { useAuthStore } from '@/stores/auth-store'
 import { cn } from '@/lib/utils'
 
 const publicNav = [
   { to: '/', label: 'Overview', icon: LayoutGrid, end: true },
   { to: '/tournaments', label: 'Tournaments', icon: Trophy, end: false },
+  { to: '/about', label: 'About', icon: Info, end: false },
   { to: '/players', label: 'My profile', icon: UserRound, end: false },
 ]
 
@@ -32,7 +33,7 @@ function BottomNav() {
       style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
       aria-label="Main navigation"
     >
-      <div className="mx-auto grid max-w-3xl grid-cols-3">
+      <div className="mx-auto grid max-w-3xl grid-cols-4">
         {publicNav.map((item) => (
           <NavLink
             key={item.to}
@@ -66,7 +67,7 @@ function Footer() {
       links: [
         { label: 'Tournaments', to: '/tournaments' },
         { label: 'Categories', to: '/tournaments' },
-        { label: 'How it works', to: '/#how-it-works' },
+        { label: 'How it works', to: '/about#how-it-works' },
       ],
     },
     {
@@ -80,8 +81,8 @@ function Footer() {
     {
       title: 'Company',
       links: [
-        { label: 'About', to: '/' },
-        { label: 'Contact', to: '/' },
+        { label: 'About', to: '/about' },
+        { label: 'Contact', to: '/about' },
       ],
     },
   ]

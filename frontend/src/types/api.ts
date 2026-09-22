@@ -115,6 +115,25 @@ export interface PublicLiveMatch {
   player2_name: string
 }
 
+export interface PublicCourtMatch {
+  id: string
+  stage: MatchStage
+  round_num: number
+  status: MatchStatus
+  scheduled_start_time: string | null
+  player1_name: string
+  player2_name: string
+  player1_is_placeholder: boolean
+  player2_is_placeholder: boolean
+}
+
+export interface PublicCourtQueue {
+  court_id: string
+  court_name: string
+  matches: PublicCourtMatch[]
+  more_upcoming: number
+}
+
 export interface PublicTournamentSummary {
   id: string
   name: string
@@ -127,6 +146,7 @@ export interface PublicTournamentSummary {
   courts_count: number
   created_at: string
   live_matches: PublicLiveMatch[]
+  court_queues: PublicCourtQueue[]
 }
 
 export interface PublicTournamentDetail {

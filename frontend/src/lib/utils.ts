@@ -29,11 +29,17 @@ export function formatDate(iso: string | null | undefined): string {
 // tournament's date). Parses the digits directly instead of via `Date`, which
 // would otherwise anchor the string to UTC midnight and can roll the date back
 // a day once converted to the viewer's local timezone for display.
+export function parsePlainDate(isoDate: string): Date | null {
+  const [year, month, day] = isoDate.split('-').map(Number)
+  if (!year || !month || !day) return null
+  return new Date(year, month - 1, day)
+}
+
 export function formatPlainDate(isoDate: string | null | undefined): string {
   if (!isoDate) return '—'
-  const [year, month, day] = isoDate.split('-').map(Number)
-  if (!year || !month || !day) return '—'
-  return new Date(year, month - 1, day).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+  const date = parsePlainDate(isoDate)
+  if (!date) return '—'
+  return date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
 }
 
 export function formatDuration(minutes: number): string {
@@ -66,7 +72,7 @@ export function formatLabel(format: 'GROUP_KNOCKOUT' | 'SWISS_KNOCKOUT'): string
  * Placeholder rows carry the raw internal slot id as their name (e.g. "TBD_Seed_1",
  * "TBD_R1_M1_Win") — this turns that into something a reader can parse at a glance.
  */
-function prettifyPlaceholderName(raw: string): string {
+export function prettifyPlaceholderName(raw: string): string {
   const seedMatch = raw.match(/^TBD_Seed_?(\d+)$/)
   if (seedMatch) return `Seed ${seedMatch[1]}`
 
