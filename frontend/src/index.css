@@ -101,6 +101,9 @@
 
   html {
     color-scheme: light;
+    /* Stop rubber-band overscroll at the top/bottom of the page — on mobile that bounce
+       drags our `position: fixed` bottom nav along with it instead of keeping it pinned. */
+    overscroll-behavior-y: none;
   }
 
   body {
@@ -109,6 +112,7 @@
     color: var(--color-navy-900);
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
+    overscroll-behavior-y: none;
   }
 
   h1,
