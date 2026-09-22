@@ -1,7 +1,7 @@
 from datetime import date, datetime
 from typing import List, Optional
 from pydantic import BaseModel, ConfigDict
-from app.db.models import TournamentFormat, TournamentStatus, TournamentCategory
+from app.db.models import MatchStatus, TournamentFormat, TournamentStatus, TournamentCategory
 from app.schemas.player import PlayerResponse
 from app.schemas.match import MatchResponse
 from app.schemas.tournament import CourtResponse
@@ -21,6 +21,28 @@ class PublicLiveMatch(BaseModel):
     player2_name: str
 
 
+class PublicCourtMatch(BaseModel):
+    id: str
+    stage: str
+    round_num: int
+    status: MatchStatus
+    scheduled_start_time: Optional[datetime] = None
+    player1_name: str
+    player2_name: str
+    # Knockout slots not yet decided are placeholder players with machine-ish names
+    # (e.g. "TBD_R1_M1_Win"); the client prettifies those, so it needs to know which are.
+    player1_is_placeholder: bool = False
+    player2_is_placeholder: bool = False
+
+
+class PublicCourtQueue(BaseModel):
+    """One court's live match (if any) and its next upcoming matches."""
+    court_id: str
+    court_name: str
+    matches: List[PublicCourtMatch]
+    more_upcoming: int = 0  # upcoming matches beyond the ones listed
+
+
 class PublicTournamentSummary(BaseModel):
     id: str
     name: str
@@ -33,6 +55,7 @@ class PublicTournamentSummary(BaseModel):
     courts_count: int
     created_at: datetime
     live_matches: List[PublicLiveMatch] = []
+    court_queues: List[PublicCourtQueue] = []
 
     model_config = ConfigDict(from_attributes=True)
 

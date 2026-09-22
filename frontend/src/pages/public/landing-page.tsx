@@ -1,108 +1,42 @@
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowRight, Baby, Briefcase, CalendarDays, CalendarSearch, GraduationCap, Handshake, MapPin, PlayCircle, Swords, Trophy } from 'lucide-react'
-import type { LucideIcon } from 'lucide-react'
-import { usePublicHubStats, usePublicTournaments } from '@/hooks/use-public'
+import { ArrowRight, CalendarDays, MapPin, PlayCircle, Timer, Trophy, Users } from 'lucide-react'
+import { usePublicTournaments } from '@/hooks/use-public'
 import { Card } from '@/components/ui/card'
 import { Carousel } from '@/components/ui/carousel'
 import { EmptyState } from '@/components/ui/empty-state'
 import { TournamentStatusBadge } from '@/components/ui/status-badge'
 import { VsBadge } from '@/components/ui/vs-badge'
 import { PublicTournamentCard } from '@/components/public/public-tournament-card'
-import { cn, formatPlainDate } from '@/lib/utils'
-import type { PublicTournamentSummary } from '@/types/api'
+import { categoryMeta } from '@/lib/tournament-category'
+import { cn, formatPlainDate, formatTime, parsePlainDate, prettifyPlaceholderName } from '@/lib/utils'
+import type { PublicCourtQueue, PublicTournamentSummary } from '@/types/api'
+
+const COUNTDOWN_WINDOW_MS = 30 * 24 * 60 * 60 * 1000 // "less than a month away"
 
 export function LandingPage() {
   const { data: tournaments, isLoading } = usePublicTournaments()
-  const { data: stats } = usePublicHubStats()
 
   const live = tournaments?.filter((t) => t.status === 'IN_PROGRESS') ?? []
   const upcoming = (tournaments ?? [])
     .filter((t) => t.status === 'DRAFT' || t.status === 'SCHEDULING')
     .sort((a, b) => (a.tournament_date ?? '9999').localeCompare(b.tournament_date ?? '9999'))
-  const featured = live[0]
   const completed = (tournaments ?? [])
     .filter((t) => t.status === 'COMPLETED')
     .sort((a, b) => (b.tournament_date ?? '').localeCompare(a.tournament_date ?? ''))
 
-  const categoryCounts = {
-    CORPORATE: (tournaments ?? []).filter((t) => t.category === 'CORPORATE').length,
-    COLLEGE: (tournaments ?? []).filter((t) => t.category === 'COLLEGE').length,
-    JUNIOR: (tournaments ?? []).filter((t) => t.category === 'JUNIOR').length,
-    FRIENDLY: (tournaments ?? []).filter((t) => t.category === 'FRIENDLY').length,
-  }
-
   return (
     <div className="mx-auto max-w-[1400px] space-y-10">
-      <section className="grid gap-5">
-        <div className="relative">
-          <div className="absolute right-4 top-0 z-10 -translate-y-1/2 rounded-xl border border-cream-200 bg-cream-25 px-3.5 py-2 shadow-lg shadow-navy-950/20 sm:right-6">
-            <div className="flex items-center gap-2.5">
-              <span className={cn('relative flex size-2', live.length > 0 ? 'text-ember-500' : 'text-navy-300')}>
-                {live.length > 0 && <span className="absolute inline-flex size-full animate-ping rounded-full bg-current opacity-75" />}
-                <span className="relative inline-flex size-2 rounded-full bg-current" />
-              </span>
-              <p className="font-mono text-[10px] uppercase tracking-[.15em] text-navy-500">Live now</p>
-              <p className="font-display text-xl font-medium leading-none text-navy-900">{live.length}</p>
-            </div>
-          </div>
-
-          <div className="relative overflow-hidden rounded-2xl bg-navy-900 p-6 pt-9 text-cream-50 shadow-lg sm:p-8 sm:pt-10 md:p-10 md:pt-12">
-            <div className="pointer-events-none absolute -right-10 -top-20 size-64 rounded-full border border-ember-500/20" />
-            <div className="pointer-events-none absolute bottom-[-90px] right-[18%] size-52 rounded-full border-[26px] border-ember-500/10" />
-            <div className="relative flex flex-col gap-8">
-              <div>
-                <p className="font-mono text-[10px] uppercase tracking-[.2em] text-navy-300">The pulse of play</p>
-                <h1 className="mt-4 max-w-lg font-display text-4xl font-medium leading-[1.02] tracking-tight text-cream-50 md:text-5xl">
-                  Every rally.
-                  <br />
-                  <span className="text-ember-400">One place.</span>
-                </h1>
-              </div>
-              <div className="flex flex-wrap items-center gap-3">
-                {featured && (
-                  <Link
-                    to={`/tournaments/${featured.id}`}
-                    className="inline-flex items-center gap-2 rounded-xl bg-ember-500 px-4 py-3 text-sm font-bold text-navy-950 transition hover:bg-ember-400"
-                  >
-                    <PlayCircle className="size-4" /> Watch live centre
-                  </Link>
-                )}
-                <Link
-                  to="/tournaments"
-                  className="inline-flex items-center gap-2 rounded-xl border border-navy-600 px-4 py-3 text-sm font-bold text-cream-50 transition hover:border-ember-400"
-                >
-                  Browse tournaments <ArrowRight className="size-4" />
-                </Link>
-              </div>
-
-              {stats && (
-                <div className="border-t border-navy-700 pt-6">
-                  <p className="mb-3 font-mono text-[10px] uppercase tracking-[.2em] text-ember-400">Today at a glance</p>
-                  <div className="grid grid-cols-3 gap-2.5 sm:gap-3">
-                    <HeroStat value={stats.upcoming_tournaments} label="upcoming tournaments" />
-                    <HeroStat value={stats.athletes_in_competition} label="athletes competing" />
-                    <HeroStat value={stats.courts_in_use} label="courts in rotation" />
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {live.length === 0 ? (
-          <Card className="flex flex-col items-center justify-center gap-2 p-6 py-10 text-center">
-            <Trophy className="size-8 text-navy-300" />
-            <p className="text-sm font-semibold text-navy-700">Nothing live right now</p>
-            <p className="text-xs text-navy-400">Check back when a tournament kicks off.</p>
-          </Card>
-        ) : (
+      {live.length > 0 && (
+        <section>
+          <LiveSectionHeading count={live.length} />
           <div className="space-y-3">
             {live.map((t) => (
               <OnCourtCard key={t.id} tournament={t} />
             ))}
           </div>
-        )}
-      </section>
+        </section>
+      )}
 
       {upcoming.length > 0 && (
         <section>
@@ -115,25 +49,20 @@ export function LandingPage() {
               Full calendar <ArrowRight className="size-3.5" />
             </Link>
           </div>
-          <div className="grid gap-3 md:grid-cols-2">
-            {upcoming.slice(0, 6).map((t) => (
-              <Link key={t.id} to={`/tournaments/${t.id}`}>
-                <Card className="flex items-center gap-4 px-5 py-4 transition-colors hover:bg-cream-100/60">
-                  <div className="grid size-11 shrink-0 place-items-center rounded-xl bg-navy-100 text-navy-700">
-                    <CalendarDays className="size-4" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-bold text-navy-900">{t.name}</p>
-                    <p className="mt-1 truncate font-mono text-[10px] text-navy-400">
-                      {t.venue ?? 'Venue TBD'} · {t.tournament_date ? formatPlainDate(t.tournament_date) : 'Date TBD'}
-                    </p>
-                  </div>
-                  <ArrowRight className="size-4 text-navy-300" />
-                </Card>
-              </Link>
+          <Carousel>
+            {upcoming.slice(0, 8).map((t, i) => (
+              <UpcomingTile key={t.id} tournament={t} isNearest={i === 0} />
             ))}
-          </div>
+          </Carousel>
         </section>
+      )}
+
+      {!isLoading && live.length === 0 && upcoming.length === 0 && (
+        <Card className="flex flex-col items-center justify-center gap-2 p-6 py-10 text-center">
+          <Trophy className="size-8 text-navy-300" />
+          <p className="text-sm font-semibold text-navy-700">Nothing live or upcoming right now</p>
+          <p className="text-xs text-navy-400">Check back soon, or browse the archive below.</p>
+        </Card>
       )}
 
       <section>
@@ -159,130 +88,126 @@ export function LandingPage() {
           </Carousel>
         )}
       </section>
-
-      <section className="relative overflow-hidden rounded-2xl bg-navy-900 p-6 text-cream-50 shadow-lg sm:p-8 md:p-10">
-        <h2 className="max-w-lg font-display text-3xl font-medium leading-tight tracking-tight text-cream-50 md:text-4xl">
-          Built for every kind of competitor
-        </h2>
-        <p className="mt-3 max-w-md text-sm text-navy-300">Four tracks, one platform. Pick the world you play in.</p>
-
-        <div className="mt-6 grid grid-cols-2 gap-3 sm:mt-8 sm:gap-4 lg:grid-cols-4">
-          <CompetitorTrackCard
-            icon={Briefcase}
-            title="Corporate"
-            description="Inter-company leagues and invitationals that turn colleagues into rivals and clients into fans."
-            count={categoryCounts.CORPORATE}
-          />
-          <CompetitorTrackCard
-            icon={GraduationCap}
-            title="College"
-            description="Fast, high-energy campus circuits with Swiss stages, group play and knockout drama."
-            count={categoryCounts.COLLEGE}
-          />
-          <CompetitorTrackCard
-            icon={Baby}
-            title="Juniors"
-            description="Friendly, well-organised events that give young athletes their first taste of real competition."
-            count={categoryCounts.JUNIOR}
-          />
-          <CompetitorTrackCard
-            icon={Handshake}
-            title="Friendly"
-            description="Relaxed get-togethers among friends and clubs — all the fixtures, none of the pressure."
-            count={categoryCounts.FRIENDLY}
-          />
-        </div>
-      </section>
-
-      <section id="how-it-works" className="grid scroll-mt-20 gap-8 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] lg:items-start">
-        <div>
-          <p className="mb-1 font-mono text-[10px] uppercase tracking-[.2em] text-ember-600">How it works</p>
-          <h2 className="font-display text-3xl font-medium leading-tight tracking-tight text-navy-900 md:text-4xl">
-            From first serve to final whistle
-          </h2>
-          <p className="mt-4 max-w-sm text-sm leading-relaxed text-navy-500">
-            Courtside keeps players, organisers and supporters on the same page — no spreadsheets, no group-chat chaos.
-          </p>
-        </div>
-
-        <div className="space-y-4">
-          <HowItWorksStep
-            icon={CalendarSearch}
-            number="01"
-            title="Discover"
-            description="Browse upcoming tournaments across corporate, college and junior tracks and pick the ones you care about."
-          />
-          <HowItWorksStep
-            icon={Swords}
-            number="02"
-            title="Follow the action"
-            description="Jump into any live event to see fixtures, court assignments and match scores update as they happen."
-          />
-          <HowItWorksStep
-            icon={Trophy}
-            number="03"
-            title="Track standings"
-            description="Watch athletes climb the leaderboard with points, win-loss records and rank movement at a glance."
-          />
-        </div>
-      </section>
     </div>
   )
 }
 
-function CompetitorTrackCard({
-  icon: Icon,
-  title,
-  description,
-  count,
-}: {
-  icon: LucideIcon
-  title: string
-  description: string
-  count: number
-}) {
+function LiveSectionHeading({ count }: { count: number }) {
   return (
-    <div className="rounded-xl border border-navy-700 bg-navy-800/40 p-4 sm:p-6">
-      <div className="flex size-10 items-center justify-center rounded-xl bg-ember-500 text-navy-950 sm:size-11">
-        <Icon className="size-5" />
-      </div>
-      <h3 className="mt-4 font-display text-lg font-medium text-cream-50 sm:mt-5 sm:text-xl">{title}</h3>
-      <p className="mt-2.5 hidden text-sm leading-relaxed text-navy-300 sm:block">{description}</p>
-      <p className="mt-2 text-sm font-bold text-ember-400 sm:mt-6">
-        {count} tournament{count === 1 ? '' : 's'}
-      </p>
-    </div>
-  )
-}
-
-function HowItWorksStep({
-  icon: Icon,
-  number,
-  title,
-  description,
-}: {
-  icon: LucideIcon
-  number: string
-  title: string
-  description: string
-}) {
-  return (
-    <Card className="flex items-start gap-4 p-6">
-      <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-navy-900 text-ember-400">
-        <Icon className="size-5" />
-      </div>
+    <div className="mb-5 flex items-end justify-between gap-4">
       <div>
-        <p className="flex items-center gap-2">
-          <span className="font-mono text-xs font-bold text-navy-400">{number}</span>
-          <span className="font-display text-lg font-medium text-navy-900">{title}</span>
-        </p>
-        <p className="mt-1.5 text-sm leading-relaxed text-navy-500">{description}</p>
+        <p className="mb-1 font-mono text-[10px] uppercase tracking-[.2em] text-ember-600">On court now</p>
+        <h2 className="font-display text-2xl font-medium text-navy-900">Live tournaments</h2>
       </div>
-    </Card>
+      <div className="flex shrink-0 items-center gap-2 rounded-full border border-ember-200 bg-ember-100/60 px-3 py-1.5">
+        <span className="relative flex size-2 text-ember-500">
+          <span className="absolute inline-flex size-full animate-ping rounded-full bg-current opacity-75" />
+          <span className="relative inline-flex size-2 rounded-full bg-current" />
+        </span>
+        <span className="font-display text-sm font-medium leading-none text-ember-700">{count} live</span>
+      </div>
+    </div>
+  )
+}
+
+function UpcomingTile({ tournament, isNearest }: { tournament: PublicTournamentSummary; isNearest: boolean }) {
+  const category = tournament.category ? categoryMeta[tournament.category] : null
+
+  // Lazy initializer runs once on mount rather than on every render — good enough for a
+  // "is this within a month" gate that only needs to settle once per page load.
+  const [renderedAt] = useState(() => Date.now())
+  const target = tournament.tournament_date ? parsePlainDate(tournament.tournament_date) : null
+  const msUntil = target ? target.getTime() - renderedAt : null
+  const showCountdown = isNearest && target !== null && msUntil !== null && msUntil < COUNTDOWN_WINDOW_MS
+
+  return (
+    <Link to={`/tournaments/${tournament.id}`} className="group block h-full">
+      <Card className="relative flex h-full flex-col overflow-hidden border-navy-700 bg-navy-900 p-5 text-cream-50 shadow-lg transition-all duration-300 group-hover:-translate-y-1 sm:p-6">
+        <div className="pointer-events-none absolute -right-8 -top-14 size-40 rounded-full border border-ember-500/15" />
+        <div className="relative flex flex-1 flex-col gap-4">
+          <div>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="font-mono text-[10px] uppercase tracking-[.18em] text-ember-400">Coming up</p>
+              {category && (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-ember-500/15 px-2.5 py-1 text-[11px] font-bold leading-none text-ember-300">
+                  <category.icon className="size-3" />
+                  {category.label}
+                </span>
+              )}
+            </div>
+            <h3 className="mt-1.5 font-display text-xl font-medium leading-snug text-cream-50 sm:text-2xl">{tournament.name}</h3>
+            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-navy-300">
+              <span className="flex items-center gap-1.5">
+                <MapPin className="size-3.5" /> {tournament.venue ?? 'Venue TBD'}
+              </span>
+              <span className="flex items-center gap-1.5">
+                <CalendarDays className="size-3.5" /> {tournament.tournament_date ? formatPlainDate(tournament.tournament_date) : 'Date TBD'}
+              </span>
+            </div>
+          </div>
+
+          <div className="min-w-0">
+            <p className="mb-1.5 font-mono text-[10px] uppercase tracking-[.16em] text-navy-400">Registered so far</p>
+            <p className="flex items-center gap-1.5 text-sm text-navy-200">
+              <Users className="size-3.5 text-navy-400" />
+              {tournament.players_count} player{tournament.players_count === 1 ? '' : 's'} joined
+            </p>
+          </div>
+
+          {showCountdown && target && <Countdown target={target} />}
+
+          <div className="mt-auto flex items-center justify-between border-t border-navy-700 pt-3.5">
+            <TournamentStatusBadge status={tournament.status} />
+            <span className="inline-flex items-center gap-1 text-xs font-bold text-ember-400 group-hover:text-ember-300">
+              Details <ArrowRight className="size-3.5" />
+            </span>
+          </div>
+        </div>
+      </Card>
+    </Link>
+  )
+}
+
+function Countdown({ target }: { target: Date }) {
+  const [now, setNow] = useState(() => Date.now())
+
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(id)
+  }, [])
+
+  const remainingMs = Math.max(0, target.getTime() - now)
+  const days = Math.floor(remainingMs / 86_400_000)
+  const hours = Math.floor((remainingMs % 86_400_000) / 3_600_000)
+  const minutes = Math.floor((remainingMs % 3_600_000) / 60_000)
+  const seconds = Math.floor((remainingMs % 60_000) / 1_000)
+
+  return (
+    <div>
+      <p className="mb-1.5 flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[.16em] text-ember-400">
+        <Timer className="size-3" /> Countdown to first serve
+      </p>
+      <div className="grid grid-cols-4 gap-1.5">
+        <CountdownUnit value={days} label="days" />
+        <CountdownUnit value={hours} label="hrs" />
+        <CountdownUnit value={minutes} label="min" />
+        <CountdownUnit value={seconds} label="sec" />
+      </div>
+    </div>
+  )
+}
+
+function CountdownUnit({ value, label }: { value: number; label: string }) {
+  return (
+    <div className="rounded-lg border border-navy-700 bg-navy-800/60 py-2 text-center">
+      <p className="font-display text-lg font-medium tabular-nums text-cream-50 sm:text-xl">{String(value).padStart(2, '0')}</p>
+      <p className="mt-0.5 text-[9px] font-bold uppercase tracking-wide text-navy-400">{label}</p>
+    </div>
   )
 }
 
 function OnCourtCard({ tournament }: { tournament: PublicTournamentSummary }) {
+  const courtQueues = tournament.court_queues ?? []
   return (
     <div className="live-border">
       <Card className="bg-cream-25 p-5 shadow-none">
@@ -303,41 +228,69 @@ function OnCourtCard({ tournament }: { tournament: PublicTournamentSummary }) {
           </div>
           <Link
             to={`/tournaments/${tournament.id}`}
-            className="flex shrink-0 items-center gap-1.5 text-xs font-bold text-navy-900 hover:text-ember-600"
+            className="inline-flex w-fit shrink-0 self-start items-center gap-2 rounded-xl bg-ember-500 px-3.5 py-2.5 text-xs font-bold text-navy-950 transition hover:bg-ember-400"
           >
-            <span>Open match centre</span>
-            <ArrowRight className="size-3.5" />
+            <PlayCircle className="size-4" /> All matches
           </Link>
         </div>
 
-        {tournament.live_matches.length > 0 && (
-          <div className="mt-4 space-y-2 border-t border-cream-200 pt-4">
-            {tournament.live_matches.map((m) => (
-              <div key={m.id} className="flex items-center gap-3 rounded-xl bg-ember-100/30 px-3.5 py-2.5">
-                <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-ember-600">
-                  <span className="relative flex size-1.5">
-                    <span className="absolute inline-flex size-full animate-ping rounded-full bg-current opacity-75" />
-                    <span className="relative inline-flex size-1.5 rounded-full bg-current" />
-                  </span>
-                  Live
-                </span>
-                <span className="flex min-w-0 flex-1 items-center truncate text-sm text-navy-800">
-                  {m.player1_name}
-                  <VsBadge />
-                  {m.player2_name}
-                </span>
-                {m.court_name && (
-                  <span className="flex shrink-0 items-center gap-1 font-mono text-[10px] text-navy-400">
-                    <Swords className="size-3" /> {m.court_name}
-                  </span>
-                )}
-              </div>
+        {courtQueues.length > 0 && (
+          <div className="mt-4 grid gap-2.5 border-t border-cream-200 pt-4 sm:grid-cols-2 xl:grid-cols-3">
+            {courtQueues.map((q) => (
+              <CourtQueuePanel key={q.court_id} queue={q} />
             ))}
           </div>
         )}
       </Card>
     </div>
   )
+}
+
+function CourtQueuePanel({ queue }: { queue: PublicCourtQueue }) {
+  const match = queue.matches[0]
+  if (!match) return null
+  const live = match.status === 'IN_PROGRESS'
+
+  return (
+    <div
+      className={cn(
+        'rounded-xl border p-3.5 transition-colors',
+        live ? 'border-ember-300/70 bg-ember-100/25' : 'border-cream-200 bg-cream-50/60'
+      )}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <span className="flex min-w-0 items-center gap-1.5 text-xs font-bold text-navy-700">
+          <MapPin className="size-3.5 shrink-0 text-navy-400" />
+          <span className="truncate">{queue.court_name}</span>
+        </span>
+        {live ? (
+          <span className="flex shrink-0 items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-ember-600">
+            <span className="relative flex size-1.5">
+              <span className="absolute inline-flex size-full animate-ping rounded-full bg-current opacity-75" />
+              <span className="relative inline-flex size-1.5 rounded-full bg-current" />
+            </span>
+            Live
+          </span>
+        ) : (
+          <span className="shrink-0 whitespace-nowrap text-[11px] font-semibold text-navy-400">{formatTime(match.scheduled_start_time)}</span>
+        )}
+      </div>
+
+      <p className="mt-2.5 text-sm font-semibold leading-snug text-navy-900">
+        {sideName(match.player1_name, match.player1_is_placeholder)}
+        <VsBadge />
+        {sideName(match.player2_name, match.player2_is_placeholder)}
+      </p>
+
+      {queue.more_upcoming > 0 && (
+        <p className="mt-2 text-[11px] font-semibold text-navy-400">+{queue.more_upcoming} more upcoming</p>
+      )}
+    </div>
+  )
+}
+
+function sideName(name: string, isPlaceholder: boolean) {
+  return isPlaceholder ? prettifyPlaceholderName(name) : name
 }
 
 function ArchiveHeading({ controls }: { controls?: React.ReactNode }) {
@@ -353,15 +306,6 @@ function ArchiveHeading({ controls }: { controls?: React.ReactNode }) {
           View all <ArrowRight className="size-3.5" />
         </Link>
       </div>
-    </div>
-  )
-}
-
-function HeroStat({ value, label }: { value: number; label: string }) {
-  return (
-    <div className="rounded-xl border border-navy-700 bg-navy-800/50 p-3 sm:p-4">
-      <p className="font-display text-2xl font-medium tracking-tight text-cream-50 sm:text-3xl">{value}</p>
-      <p className="mt-1.5 text-[11px] font-bold leading-tight text-navy-300 sm:text-xs">{label}</p>
     </div>
   )
 }
