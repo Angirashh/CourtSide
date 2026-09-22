@@ -281,10 +281,6 @@ function CourtQueuePanel({ queue }: { queue: PublicCourtQueue }) {
         <VsBadge />
         {sideName(match.player2_name, match.player2_is_placeholder)}
       </p>
-
-      {queue.more_upcoming > 0 && (
-        <p className="mt-2 text-[11px] font-semibold text-navy-400">+{queue.more_upcoming} more upcoming</p>
-      )}
     </div>
   )
 }

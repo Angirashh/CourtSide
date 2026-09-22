@@ -1,6 +1,5 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { ArrowRight, Info, LayoutGrid, Sparkles, Trophy, UserRound } from 'lucide-react'
-import { useAuthStore } from '@/stores/auth-store'
+import { Info, LayoutGrid, Trophy, UserRound } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const publicNav = [
@@ -71,14 +70,6 @@ function Footer() {
       ],
     },
     {
-      title: 'Organisers',
-      links: [
-        { label: 'Create event', to: '/organiser/new' },
-        { label: 'Fixtures', to: '/tournaments' },
-        { label: 'Standings', to: '/tournaments' },
-      ],
-    },
-    {
       title: 'Company',
       links: [
         { label: 'About', to: '/about' },
@@ -105,7 +96,7 @@ function Footer() {
           </p>
         </div>
 
-        <div className="grid grid-cols-2 gap-8 sm:grid-cols-3 lg:gap-16">
+        <div className="grid grid-cols-2 gap-8 lg:gap-16">
           {columns.map((col) => (
             <div key={col.title}>
               <p className="text-sm font-bold text-cream-50">{col.title}</p>
@@ -131,8 +122,6 @@ function Footer() {
 }
 
 function Sidebar() {
-  const user = useAuthStore((s) => s.user)
-
   return (
     <aside className="fixed inset-y-0 left-0 z-50 hidden w-64 flex-col bg-navy-900 px-5 py-6 text-cream-50 lg:flex">
       <Brand />
@@ -156,32 +145,11 @@ function Sidebar() {
           </NavLink>
         ))}
       </nav>
-
-      <div className="mt-auto">
-        <div className="mb-5 rounded-2xl border border-navy-700 bg-navy-800/60 p-4">
-          <div className="flex items-center gap-2 text-ember-400">
-            <Sparkles className="size-3.5" />
-            <span className="font-mono text-[10px] uppercase tracking-[.14em]">Organiser desk</span>
-          </div>
-          <p className="mt-3 text-sm font-semibold leading-5 text-cream-50">
-            Running the event?
-            <br />
-            Manage it here.
-          </p>
-          <NavLink
-            to={user ? (user.role === 'ORGANISER' ? '/organiser' : '/operator') : '/login'}
-            className="mt-4 flex items-center gap-1.5 text-xs font-bold text-ember-400 hover:text-cream-50"
-          >
-            {user ? 'Go to dashboard' : 'Organiser sign in'} <ArrowRight className="size-3.5" />
-          </NavLink>
-        </div>
-      </div>
     </aside>
   )
 }
 
 function Topbar() {
-  const user = useAuthStore((s) => s.user)
   const navigate = useNavigate()
 
   return (
@@ -196,11 +164,11 @@ function Topbar() {
       </NavLink>
       <div className="hidden font-display text-lg font-medium text-navy-900 lg:block">Courtside</div>
       <button
-        onClick={() => navigate(user ? (user.role === 'ORGANISER' ? '/organiser' : '/operator') : '/login')}
+        onClick={() => navigate('/players')}
         className="inline-flex items-center gap-2 rounded-xl border border-cream-200 bg-cream-25 px-3.5 py-2 text-xs font-bold text-navy-900 transition hover:border-ember-400"
       >
         <UserRound className="size-4" />
-        {user ? 'Dashboard' : 'Sign in'}
+        Sign in
       </button>
     </header>
   )
