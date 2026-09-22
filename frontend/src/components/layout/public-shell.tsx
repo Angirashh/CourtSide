@@ -11,9 +11,16 @@ const publicNav = [
 
 export function PublicShell() {
   return (
-    <div className="min-h-svh bg-paper text-navy-900">
+    // Pinned to the viewport (not normal document flow) so `body` itself never has
+    // anything to scroll — all scrolling happens in the inner pane below. That keeps
+    // the elastic rubber-band bounce (nice to keep!) while stopping it from ever
+    // dragging our `position: fixed` sidebar/bottom-nav chrome along with it.
+    <div className="fixed inset-0 bg-paper text-navy-900">
       <Sidebar />
-      <div className="min-h-svh pb-[calc(4rem+env(safe-area-inset-bottom))] lg:pb-0 lg:pl-64">
+      <div
+        className="h-full overflow-y-auto overscroll-contain pb-[calc(4rem+env(safe-area-inset-bottom))] lg:pb-0 lg:pl-64"
+        style={{ WebkitOverflowScrolling: 'touch' }}
+      >
         <Topbar />
         <main className="px-4 py-7 sm:px-6 lg:px-10 lg:py-9">
           <Outlet />
