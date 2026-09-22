@@ -69,7 +69,7 @@ export function Carousel({
         className="relative -my-2 flex snap-x snap-mandatory gap-4 overflow-x-auto py-2 no-scrollbar"
       >
         {slides.map((slide, i) => (
-          <div key={i} className="shrink-0 basis-[88%] snap-start sm:basis-[62%] lg:basis-[52%]">
+          <div key={i} className="shrink-0 basis-full snap-start sm:basis-[62%] lg:basis-[52%]">
             {slide}
           </div>
         ))}
