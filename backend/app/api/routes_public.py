@@ -1,6 +1,8 @@
-from typing import Dict, List
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session, joinedload
+import time
+from typing import Callable, Dict, List, TypeVar
+
+from fastapi import APIRouter, Depends, HTTPException, Response
+from sqlalchemy.orm import Session, selectinload
 
 from app.api.dependencies import get_db
 from app.db import models
@@ -21,19 +23,56 @@ from app.services.standings import StandingsEngine
 
 router = APIRouter(prefix="/public", tags=["Public Showcase"])
 
+T = TypeVar("T")
+
+
+class _TTLCache:
+    """Tiny in-process cache for read-heavy public GET endpoints.
+
+    The showcase homepage is hit far more often than tournament data actually
+    changes, so a few seconds of caching removes most of the repeat DB round
+    trips without making live scores feel stale. Good enough for a single
+    backend instance; a multi-instance deploy would want Redis instead.
+    """
+
+    def __init__(self) -> None:
+        self._store: Dict[str, tuple[float, object]] = {}
+
+    def get_or_set(self, key: str, ttl_seconds: float, compute: Callable[[], T]) -> T:
+        now = time.monotonic()
+        cached = self._store.get(key)
+        if cached is not None and now < cached[0]:
+            return cached[1]  # type: ignore[return-value]
+        value = compute()
+        self._store[key] = (now + ttl_seconds, value)
+        return value
+
+
+_cache = _TTLCache()
+
 
 # =====================================================================
 # TOURNAMENT DISCOVERY (read-only, unauthenticated)
 # =====================================================================
 @router.get("/tournaments", response_model=List[PublicTournamentSummary])
-def list_public_tournaments(db: Session = Depends(get_db)):
+def list_public_tournaments(response: Response, db: Session = Depends(get_db)):
     """Every tournament, for the public showcase/discovery page. No organiser-only fields."""
+    response.headers["Cache-Control"] = "public, max-age=5"
+    return _cache.get_or_set("tournaments", 5.0, lambda: _load_public_tournaments(db))
+
+
+def _load_public_tournaments(db: Session) -> List[PublicTournamentSummary]:
+    # selectinload issues one extra query per relationship (players, courts, matches)
+    # instead of joinedload's single query joining all three at once — joining three
+    # sibling one-to-many collections in one go multiplies their row counts together
+    # (players × courts × matches per tournament), which for even a modest tournament
+    # balloons into thousands of duplicate rows. selectinload keeps each query flat.
     tournaments = (
         db.query(models.Tournament)
         .options(
-            joinedload(models.Tournament.players),
-            joinedload(models.Tournament.courts),
-            joinedload(models.Tournament.matches),
+            selectinload(models.Tournament.players),
+            selectinload(models.Tournament.courts),
+            selectinload(models.Tournament.matches),
         )
         .order_by(models.Tournament.tournament_date.desc().nullslast(), models.Tournament.created_at.desc())
         .all()
@@ -80,14 +119,15 @@ def list_public_tournaments(db: Session = Depends(get_db)):
 
 
 @router.get("/tournaments/{tournament_id}", response_model=PublicTournamentDetail)
-def get_public_tournament(tournament_id: str, db: Session = Depends(get_db)):
+def get_public_tournament(tournament_id: str, response: Response, db: Session = Depends(get_db)):
     """A single tournament's fixtures/roster for the public live view. No cost/financial data."""
+    response.headers["Cache-Control"] = "public, max-age=3"
     tournament = (
         db.query(models.Tournament)
         .options(
-            joinedload(models.Tournament.courts),
-            joinedload(models.Tournament.players),
-            joinedload(models.Tournament.matches),
+            selectinload(models.Tournament.courts),
+            selectinload(models.Tournament.players),
+            selectinload(models.Tournament.matches),
         )
         .filter(models.Tournament.id == tournament_id)
         .first()
@@ -174,10 +214,15 @@ def get_public_standings(tournament_id: str, db: Session = Depends(get_db)):
 # HUB-WIDE ACTIVITY STATS (for the landing page's "at a glance" tiles)
 # =====================================================================
 @router.get("/stats", response_model=PublicHubStats)
-def get_public_hub_stats(db: Session = Depends(get_db)):
+def get_public_hub_stats(response: Response, db: Session = Depends(get_db)):
+    response.headers["Cache-Control"] = "public, max-age=10"
+    return _cache.get_or_set("hub_stats", 10.0, lambda: _load_public_hub_stats(db))
+
+
+def _load_public_hub_stats(db: Session) -> PublicHubStats:
     live_tournaments = db.query(models.Tournament).filter(
         models.Tournament.status == models.TournamentStatus.IN_PROGRESS
-    ).options(joinedload(models.Tournament.players), joinedload(models.Tournament.matches)).all()
+    ).options(selectinload(models.Tournament.players), selectinload(models.Tournament.matches)).all()
 
     upcoming_tournaments = db.query(models.Tournament).filter(
         models.Tournament.status.in_([models.TournamentStatus.DRAFT, models.TournamentStatus.SCHEDULING])
