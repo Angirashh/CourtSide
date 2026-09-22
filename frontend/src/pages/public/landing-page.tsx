@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowRight, CalendarDays, MapPin, PlayCircle, Timer, Trophy, Users } from 'lucide-react'
+import { ArrowRight, CalendarDays, MapPin, PlayCircle, Trophy, Users } from 'lucide-react'
 import { usePublicTournaments } from '@/hooks/use-public'
 import { Card } from '@/components/ui/card'
 import { Carousel } from '@/components/ui/carousel'
+import { Countdown, COUNTDOWN_WINDOW_MS } from '@/components/ui/countdown'
 import { EmptyState } from '@/components/ui/empty-state'
 import { TournamentStatusBadge } from '@/components/ui/status-badge'
 import { VsBadge } from '@/components/ui/vs-badge'
@@ -11,8 +12,6 @@ import { PublicTournamentCard } from '@/components/public/public-tournament-card
 import { categoryMeta } from '@/lib/tournament-category'
 import { cn, formatPlainDate, formatTime, parsePlainDate, prettifyPlaceholderName } from '@/lib/utils'
 import type { PublicCourtQueue, PublicTournamentSummary } from '@/types/api'
-
-const COUNTDOWN_WINDOW_MS = 30 * 24 * 60 * 60 * 1000 // "less than a month away"
 
 export function LandingPage() {
   const { data: tournaments, isLoading } = usePublicTournaments()
@@ -165,44 +164,6 @@ function UpcomingTile({ tournament, isNearest }: { tournament: PublicTournamentS
         </div>
       </Card>
     </Link>
-  )
-}
-
-function Countdown({ target }: { target: Date }) {
-  const [now, setNow] = useState(() => Date.now())
-
-  useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 1000)
-    return () => clearInterval(id)
-  }, [])
-
-  const remainingMs = Math.max(0, target.getTime() - now)
-  const days = Math.floor(remainingMs / 86_400_000)
-  const hours = Math.floor((remainingMs % 86_400_000) / 3_600_000)
-  const minutes = Math.floor((remainingMs % 3_600_000) / 60_000)
-  const seconds = Math.floor((remainingMs % 60_000) / 1_000)
-
-  return (
-    <div>
-      <p className="mb-1.5 flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[.16em] text-ember-400">
-        <Timer className="size-3" /> Countdown to first serve
-      </p>
-      <div className="grid grid-cols-4 gap-1.5">
-        <CountdownUnit value={days} label="days" />
-        <CountdownUnit value={hours} label="hrs" />
-        <CountdownUnit value={minutes} label="min" />
-        <CountdownUnit value={seconds} label="sec" />
-      </div>
-    </div>
-  )
-}
-
-function CountdownUnit({ value, label }: { value: number; label: string }) {
-  return (
-    <div className="rounded-lg border border-navy-700 bg-navy-800/60 py-2 text-center">
-      <p className="font-display text-lg font-medium tabular-nums text-cream-50 sm:text-xl">{String(value).padStart(2, '0')}</p>
-      <p className="mt-0.5 text-[9px] font-bold uppercase tracking-wide text-navy-400">{label}</p>
-    </div>
   )
 }
 
