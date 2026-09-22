@@ -18,6 +18,7 @@ const OperatorMatchesPage = lazy(() =>
   import('@/pages/operator/operator-matches-page').then((m) => ({ default: m.OperatorMatchesPage }))
 )
 const LandingPage = lazy(() => import('@/pages/public/landing-page').then((m) => ({ default: m.LandingPage })))
+const AboutPage = lazy(() => import('@/pages/public/about-page').then((m) => ({ default: m.AboutPage })))
 const TournamentsBrowsePage = lazy(() =>
   import('@/pages/public/tournaments-browse-page').then((m) => ({ default: m.TournamentsBrowsePage }))
 )
@@ -36,6 +37,7 @@ export const router = createBrowserRouter([
     element: <PublicShell />,
     children: [
       { path: '/', element: suspended(<LandingPage />) },
+      { path: '/about', element: suspended(<AboutPage />) },
       { path: '/tournaments', element: suspended(<TournamentsBrowsePage />) },
       { path: '/tournaments/:id', element: suspended(<TournamentLivePage />) },
       {
