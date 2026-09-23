@@ -47,6 +47,16 @@ class TournamentCreate(TournamentBase):
     courts: Optional[List[CourtCreate]] = Field(default_factory=list)
 
 
+class TournamentDetailsUpdate(BaseModel):
+    """
+    Organiser-side edit of pure logistics info — deliberately narrower than TournamentUpdate:
+    no status/format/scheduling-parameter fields here, so this endpoint can't be used to sidestep
+    the dedicated lifecycle/schedule-generation routes. Safe to call at any tournament status.
+    """
+    venue: Optional[str] = Field(None, min_length=2, max_length=200, examples=["Koramangala Indoor Stadium"])
+    tournament_date: Optional[date] = Field(None, examples=["2026-10-12"])
+
+
 class TournamentUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=2, max_length=150)
     status: Optional[TournamentStatus] = None

@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
-import { LayoutGrid, KeyRound, Mail, ShieldCheck, Users } from 'lucide-react'
+import { Clock3, LayoutGrid, KeyRound, Mail, ShieldCheck, Users } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -139,7 +139,7 @@ const organiserSignupSchema = z
   .refine((data) => data.email || data.phone, { message: 'Add an email or phone number', path: ['email'] })
 
 function OrganiserSignupForm({ onDone }: { onDone: () => void }) {
-  const navigate = useNavigate()
+  const [pending, setPending] = useState(false)
   const signup = useOrganiserSignup()
   const { register, handleSubmit, formState: { errors } } = useForm<z.infer<typeof organiserSignupSchema>>({
     resolver: zodResolver(organiserSignupSchema),
@@ -149,14 +149,32 @@ function OrganiserSignupForm({ onDone }: { onDone: () => void }) {
     signup.mutate(
       { name: values.name, email: values.email || undefined, phone: values.phone || undefined, pin: values.pin },
       {
-        onSuccess: () => navigate('/organiser'),
-        onError: (err) => {
-          toast.error(extractErrorMessage(err))
-          onDone()
-        },
+        // No token comes back — the account is pending until a superadmin approves it — so
+        // show a confirmation state instead of navigating in.
+        onSuccess: () => setPending(true),
+        onError: (err) => toast.error(extractErrorMessage(err)),
       }
     )
   })
+
+  if (pending) {
+    return (
+      <div className="flex flex-col items-center gap-3 py-4 text-center">
+        <div className="flex size-12 items-center justify-center rounded-full bg-ember-100 text-ember-600">
+          <Clock3 className="size-6" />
+        </div>
+        <div>
+          <p className="font-display text-lg font-medium text-cream-50">Request sent</p>
+          <p className="mt-1 text-sm text-cream-200/70">
+            Your account is pending approval from the tournament admin. You'll be able to log in once it's approved.
+          </p>
+        </div>
+        <Button variant="outline" className="mt-1 border-cream-50/20 text-cream-100 hover:bg-cream-50/10" onClick={onDone}>
+          Back to log in
+        </Button>
+      </div>
+    )
+  }
 
   return (
     <form onSubmit={onSubmit} className="space-y-3.5">

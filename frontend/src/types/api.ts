@@ -6,6 +6,7 @@ export interface User {
   email: string | null
   phone: string | null
   role: UserRole
+  is_superadmin: boolean
   created_at: string
 }
 
@@ -15,6 +16,19 @@ export interface TokenResponse {
   role: UserRole
   user: User
   tournament_id?: string | null
+}
+
+export interface OrganiserSignupResponse {
+  status: string
+  message: string
+}
+
+export interface PendingOrganiser {
+  id: string
+  name: string
+  email: string | null
+  phone: string | null
+  created_at: string
 }
 
 export type TournamentFormat = 'GROUP_KNOCKOUT' | 'SWISS_KNOCKOUT'
@@ -196,6 +210,14 @@ export interface ScheduleGenerationResponse {
   savings: number
   court_bookings: Record<string, CourtBookingWindow>
   scheduled_matches_count: number
+}
+
+export interface CoOrganiser {
+  organiser_id: string
+  name: string
+  email: string | null
+  phone: string | null
+  added_at: string
 }
 
 export interface OperatorInvite {

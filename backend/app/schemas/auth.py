@@ -13,6 +13,7 @@ class UserResponse(BaseModel):
     email: Optional[str] = None
     phone: Optional[str] = None
     role: UserRole
+    is_superadmin: bool = False
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
@@ -49,6 +50,25 @@ class OrganiserLogin(BaseModel):
     pin: str
 
 
+class OrganiserSignupResponse(BaseModel):
+    """
+    Returned instead of a TokenResponse: a new organiser signup has no session until a
+    superadmin approves it, so there's no token to hand back yet.
+    """
+    status: str = "pending"
+    message: str = "Your request has been sent to the tournament admin. You'll be able to log in once it's approved."
+
+
+class PendingOrganiserResponse(BaseModel):
+    id: str
+    name: str
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 # =====================================================================
 # OPERATOR INVITE / LOGIN
 # =====================================================================
@@ -80,6 +100,20 @@ class OperatorLogin(BaseModel):
 class OperatorCourtInfo(BaseModel):
     id: str
     name: str
+
+
+class CoOrganiserAddRequest(BaseModel):
+    identifier: str = Field(..., description="Email or phone of an existing, approved organiser account.")
+
+
+class CoOrganiserResponse(BaseModel):
+    organiser_id: str
+    name: str
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    added_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 class OperatorStatusResponse(BaseModel):
