@@ -8,6 +8,8 @@ import { TournamentStatusBadge } from '@/components/ui/status-badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { RosterTab } from '@/components/tournament/roster-tab'
 import { OperatorsTab } from '@/components/tournament/operators-tab'
+import { CoOrganisersTab } from '@/components/tournament/co-organisers-tab'
+import { EditTournamentDetailsDialog } from '@/components/tournament/edit-tournament-details-dialog'
 import { ScheduleDialog } from '@/components/tournament/schedule-dialog'
 import { TournamentLifecycleActions } from '@/components/tournament/tournament-lifecycle-actions'
 import { ScheduleSummaryTab } from '@/components/tournament/schedule-summary-tab'
@@ -42,16 +44,27 @@ export function TournamentDetailPage() {
             <h1 className="min-w-0 break-words font-display text-2xl font-medium text-navy-900 sm:text-3xl">{tournament.name}</h1>
             <TournamentStatusBadge status={tournament.status} />
           </div>
-          <p className="mt-1 text-sm font-medium text-navy-500">
-            {formatLabel(tournament.format)}
-            {tournament.venue && <> · {tournament.venue}</>}
-            {tournament.tournament_date && <> · {formatPlainDate(tournament.tournament_date)}</>}
-            {' '}· ID <CopyTournamentId id={tournament.id} />
+          <p className="mt-1 flex flex-wrap items-center gap-x-1 text-sm font-medium text-navy-500">
+            <span>
+              {formatLabel(tournament.format)}
+              {tournament.venue && <> · {tournament.venue}</>}
+              {tournament.tournament_date && <> · {formatPlainDate(tournament.tournament_date)}</>}
+            </span>
+            <EditTournamentDetailsDialog tournamentId={tournament.id} venue={tournament.venue} tournamentDate={tournament.tournament_date} />
+            <span>
+              · ID <CopyTournamentId id={tournament.id} />
+            </span>
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2.5">
-          {tournament.status === 'DRAFT' && realPlayers.length >= 2 && (
-            <ScheduleDialog tournamentId={tournament.id} format={tournament.format} tournamentDate={tournament.tournament_date} playerCount={realPlayers.length} />
+          {(tournament.status === 'DRAFT' || tournament.status === 'SCHEDULING') && realPlayers.length >= 2 && (
+            <ScheduleDialog
+              tournamentId={tournament.id}
+              format={tournament.format}
+              tournamentDate={tournament.tournament_date}
+              playerCount={realPlayers.length}
+              isRegenerate={tournament.status === 'SCHEDULING'}
+            />
           )}
           <TournamentLifecycleActions tournamentId={tournament.id} status={tournament.status} />
           <DeleteTournamentDialog tournamentId={tournament.id} name={tournament.name} status={tournament.status} />
@@ -68,6 +81,7 @@ export function TournamentDetailPage() {
           <TabsTrigger value="stats">Stats</TabsTrigger>
           <TabsTrigger value="roster">Roster</TabsTrigger>
           <TabsTrigger value="operators">Operators</TabsTrigger>
+          <TabsTrigger value="co-organisers">Co-organisers</TabsTrigger>
         </TabsList>
 
         <TabsContent value="fixtures">
@@ -92,6 +106,10 @@ export function TournamentDetailPage() {
 
         <TabsContent value="operators">
           <OperatorsTab tournamentId={tournament.id} />
+        </TabsContent>
+
+        <TabsContent value="co-organisers">
+          <CoOrganisersTab tournamentId={tournament.id} />
         </TabsContent>
       </Tabs>
     </div>

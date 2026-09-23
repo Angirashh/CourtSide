@@ -1,5 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { tournamentsApi, type CreateTournamentPayload, type GenerateSchedulePayload } from '@/lib/api/tournaments'
+import {
+  tournamentsApi,
+  type CreateTournamentPayload,
+  type GenerateSchedulePayload,
+  type UpdateTournamentDetailsPayload,
+} from '@/lib/api/tournaments'
 
 export const tournamentKeys = {
   all: ['tournaments'] as const,
@@ -35,6 +40,17 @@ export function useFinalizeSeeding(tournamentId: string) {
   return useMutation({
     mutationFn: () => tournamentsApi.finalizeSeeding(tournamentId),
     onSuccess: () => qc.invalidateQueries({ queryKey: tournamentKeys.detail(tournamentId) }),
+  })
+}
+
+export function useUpdateTournamentDetails(tournamentId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (payload: UpdateTournamentDetailsPayload) => tournamentsApi.updateDetails(tournamentId, payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: tournamentKeys.detail(tournamentId) })
+      qc.invalidateQueries({ queryKey: tournamentKeys.all })
+    },
   })
 }
 

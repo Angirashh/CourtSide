@@ -2,6 +2,7 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { LayoutGrid, LogOut, PlusCircle, Trophy, User as UserIcon } from 'lucide-react'
 import { useAuthStore } from '@/stores/auth-store'
 import { cn, initials } from '@/lib/utils'
+import { OrganiserApprovalsBell } from './organiser-approvals-bell'
 
 const organiserNav = [
   { to: '/organiser', label: 'Tournaments', icon: Trophy, end: true },
@@ -23,7 +24,10 @@ export function AppShell() {
       {/* Desktop sidebar */}
       <div className="hidden lg:fixed lg:inset-y-0 lg:left-0 lg:z-40 lg:flex lg:w-64 lg:flex-col">
         <div className="flex grow flex-col gap-y-6 bg-atmosphere px-6 py-8">
-          <Brand />
+          <div className="flex items-center justify-between gap-2">
+            <Brand />
+            <OrganiserApprovalsBell />
+          </div>
           <nav className="flex flex-1 flex-col gap-1">
             {organiserNav.map((item) => (
               <NavLink
@@ -51,13 +55,16 @@ export function AppShell() {
       {/* Mobile top bar */}
       <header className="sticky top-0 z-30 flex items-center justify-between border-b border-cream-200 bg-cream-50/90 px-4 py-3 backdrop-blur-md lg:hidden">
         <Brand compact />
-        <button
-          onClick={handleLogout}
-          className="flex size-9 items-center justify-center rounded-full bg-navy-100 text-navy-600 active:scale-95"
-          aria-label="Log out"
-        >
-          <LogOut className="size-4" />
-        </button>
+        <div className="flex items-center gap-2">
+          <OrganiserApprovalsBell compact />
+          <button
+            onClick={handleLogout}
+            className="flex size-9 items-center justify-center rounded-full bg-navy-100 text-navy-600 active:scale-95"
+            aria-label="Log out"
+          >
+            <LogOut className="size-4" />
+          </button>
+        </div>
       </header>
 
       <main className="pb-24 lg:pb-10 lg:pl-64">

@@ -20,6 +20,11 @@ export interface GenerateSchedulePayload {
   num_swiss_rounds?: number
 }
 
+export interface UpdateTournamentDetailsPayload {
+  venue?: string
+  tournament_date?: string
+}
+
 export const tournamentsApi = {
   list: () => api.get<Tournament[]>('/tournaments').then((r) => r.data),
 
@@ -30,6 +35,9 @@ export const tournamentsApi = {
 
   finalizeSeeding: (id: string) =>
     api.post(`/tournaments/${id}/finalize-seeding`).then((r) => r.data),
+
+  updateDetails: (id: string, payload: UpdateTournamentDetailsPayload) =>
+    api.patch<Tournament>(`/tournaments/${id}`, payload).then((r) => r.data),
 
   generateSchedule: (id: string, payload: GenerateSchedulePayload) =>
     api

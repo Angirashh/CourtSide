@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { toast } from 'sonner'
-import { CalendarClock, Wand2 } from 'lucide-react'
+import { CalendarClock, RefreshCw, Wand2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Input, Label } from '@/components/ui/input'
@@ -14,11 +14,13 @@ export function ScheduleDialog({
   format,
   tournamentDate,
   playerCount,
+  isRegenerate = false,
 }: {
   tournamentId: string
   format: TournamentFormat
   tournamentDate: string | null
   playerCount: number
+  isRegenerate?: boolean
 }) {
   const [open, setOpen] = useState(false)
   const [startTime, setStartTime] = useState('09:00')
@@ -45,7 +47,8 @@ export function ScheduleDialog({
       {
         onSuccess: (res) => {
           const savingsNote = res.savings > 0 ? ` Saved ₹${res.savings.toFixed(0)} vs. flat booking.` : ''
-          toast.success(`Schedule generated — ${res.scheduled_matches_count} matches, ~${res.total_billable_hours}h, ₹${res.total_estimated_cost.toFixed(0)}.${savingsNote}`)
+          const verb = isRegenerate ? 'Schedule regenerated' : 'Schedule generated'
+          toast.success(`${verb} — ${res.scheduled_matches_count} matches, ~${res.total_billable_hours}h, ₹${res.total_estimated_cost.toFixed(0)}.${savingsNote}`)
           setOpen(false)
         },
         onError: (err) => toast.error(extractErrorMessage(err)),
@@ -56,16 +59,25 @@ export function ScheduleDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button size="lg">
-          <Wand2 className="size-4" />
-          Generate schedule
-        </Button>
+        {isRegenerate ? (
+          <Button size="lg" variant="outline">
+            <RefreshCw className="size-4" />
+            Regenerate schedule
+          </Button>
+        ) : (
+          <Button size="lg">
+            <Wand2 className="size-4" />
+            Generate schedule
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Generate court schedule</DialogTitle>
+          <DialogTitle>{isRegenerate ? 'Regenerate court schedule' : 'Generate court schedule'}</DialogTitle>
           <DialogDescription>
-            The solver builds every fixture and assigns courts/times to minimize total duration, then cost.
+            {isRegenerate
+              ? 'Rebuilds every fixture from the current roster — any withdrawn players are dropped and newly added ones are included. The existing schedule is replaced; this only works before the tournament has started.'
+              : 'The solver builds every fixture and assigns courts/times to minimize total duration, then cost.'}
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-3.5">
@@ -112,7 +124,7 @@ export function ScheduleDialog({
             Cancel
           </Button>
           <Button loading={generate.isPending} disabled={!startTime || !date || roundsInvalid} onClick={handleSubmit}>
-            Generate
+            {isRegenerate ? 'Regenerate' : 'Generate'}
           </Button>
         </DialogFooter>
       </DialogContent>

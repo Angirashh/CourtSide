@@ -79,6 +79,15 @@ class User(Base):
     # Only set for ORGANISER accounts; operators log in via OperatorAssignment.pin_hash instead.
     pin_hash = Column(String, nullable=True)
 
+    # Gate on self-service ORGANISER signup: new signups default to False and can't log in
+    # until a superadmin approves them. Defaults True at the column level so it never locks
+    # out operators (invited directly, never self-signed-up) or organiser rows that existed
+    # before this flag was introduced.
+    is_approved = Column(Boolean, default=True, nullable=False)
+    # Grants access to the pending-organiser approval queue. Not exposed via any signup path —
+    # only ever set directly in the database.
+    is_superadmin = Column(Boolean, default=False, nullable=False)
+
     created_at = Column(DateTime, default=datetime.utcnow)
 
     operator_assignments = relationship(
@@ -104,6 +113,27 @@ class OperatorAssignment(Base):
 
     operator = relationship("User", back_populates="operator_assignments")
     tournament = relationship("Tournament", back_populates="operator_assignments")
+
+
+class TournamentCoOrganiser(Base):
+    """
+    Grants a second ORGANISER account the same standing as the tournament's creator: full
+    fixtures/roster/schedule/operator management, not a reduced role. Unlike OperatorAssignment,
+    there's no PIN here — co-organisers already have their own login, this just links their
+    existing account to someone else's tournament.
+    """
+    __tablename__ = "tournament_co_organisers"
+    __table_args__ = (
+        Index("ix_tournament_co_organiser_unique", "tournament_id", "organiser_id", unique=True),
+    )
+
+    id = Column(String, primary_key=True, default=lambda: f"COORG_{uuid.uuid4().hex[:8]}")
+    tournament_id = Column(String, ForeignKey("tournaments.id"), nullable=False)
+    organiser_id = Column(String, ForeignKey("users.id"), nullable=False)
+    added_at = Column(DateTime, default=datetime.utcnow)
+
+    tournament = relationship("Tournament", back_populates="co_organisers")
+    organiser = relationship("User")
 
 
 # =====================================================================
@@ -177,6 +207,9 @@ class Tournament(Base):
     matches = relationship("Match", back_populates="tournament", cascade="all, delete-orphan")
     operator_assignments = relationship(
         "OperatorAssignment", back_populates="tournament", cascade="all, delete-orphan"
+    )
+    co_organisers = relationship(
+        "TournamentCoOrganiser", back_populates="tournament", cascade="all, delete-orphan"
     )
 
 

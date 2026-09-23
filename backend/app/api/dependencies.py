@@ -28,6 +28,7 @@ class CurrentUser:
     name: str
     role: models.UserRole
     tournament_id: Optional[str] = None  # set only on OPERATOR tokens
+    is_superadmin: bool = False
 
 
 def get_current_user(
@@ -48,12 +49,19 @@ def get_current_user(
         name=user.name,
         role=user.role,
         tournament_id=payload.get("tournament_id"),
+        is_superadmin=user.is_superadmin,
     )
 
 
 def require_organiser(current_user: CurrentUser = Depends(get_current_user)) -> CurrentUser:
     if current_user.role != models.UserRole.ORGANISER:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Organiser access required.")
+    return current_user
+
+
+def require_superadmin(current_user: CurrentUser = Depends(require_organiser)) -> CurrentUser:
+    if not current_user.is_superadmin:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required.")
     return current_user
 
 
@@ -66,13 +74,21 @@ def require_operator_or_organiser(current_user: CurrentUser = Depends(get_curren
 def ensure_tournament_access(tournament: models.Tournament, current_user: CurrentUser, db: Session) -> None:
     """
     Authorization gate for a specific tournament's resources.
-    - Organisers may act on any tournament they own, or any legacy tournament with no owner.
+    - Organisers may act on any tournament they own, any they've been added to as a
+      co-organiser (full parity with the owner — see TournamentCoOrganiser), or any legacy
+      tournament with no owner.
     - Operators may act only on a tournament they hold a live (non-revoked) invite for,
       and only when their token was scoped to that same tournament at login.
     """
     if current_user.role == models.UserRole.ORGANISER:
-        if tournament.organiser_id and tournament.organiser_id != current_user.id:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You do not own this tournament.")
+        if not tournament.organiser_id or tournament.organiser_id == current_user.id:
+            return
+        is_co_organiser = db.query(models.TournamentCoOrganiser).filter(
+            models.TournamentCoOrganiser.tournament_id == tournament.id,
+            models.TournamentCoOrganiser.organiser_id == current_user.id,
+        ).first()
+        if not is_co_organiser:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You do not have access to this tournament.")
         return
 
     # OPERATOR

@@ -11,7 +11,7 @@ services:
     buildFilter:
       paths:
         - backend/**
-    plan: starter # use "free" to try it out; it sleeps when idle, so upgrade before a live tournament
+    plan: free # sleeps after 15 min idle; upgrade to "starter" before a live tournament to keep it always-on
     healthCheckPath: /health
     envVars:
       # Supabase Postgres connection string (transaction pooler, port 6543). Enter it in the dashboard.

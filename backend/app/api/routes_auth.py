@@ -3,10 +3,12 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import or_
 from sqlalchemy.orm import Session, joinedload
 
-from app.api.dependencies import CurrentUser, get_current_user, get_db, require_organiser
+from app.api.dependencies import CurrentUser, ensure_tournament_access, get_current_user, get_db, require_organiser, require_superadmin
 from app.core.security import create_access_token, generate_invite_code, hash_pin, verify_pin
 from app.db import models
 from app.schemas.auth import (
+    CoOrganiserAddRequest,
+    CoOrganiserResponse,
     OperatorCourtInfo,
     OperatorInviteRequest,
     OperatorInviteResponse,
@@ -14,6 +16,8 @@ from app.schemas.auth import (
     OperatorStatusResponse,
     OrganiserLogin,
     OrganiserSignup,
+    OrganiserSignupResponse,
+    PendingOrganiserResponse,
     TokenResponse,
     UserResponse,
 )
@@ -30,9 +34,13 @@ def _find_user_by_identifier(identifier: str, db: Session) -> models.User:
 # =====================================================================
 # ORGANISER SIGNUP / LOGIN
 # =====================================================================
-@router.post("/organiser/signup", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/organiser/signup", response_model=OrganiserSignupResponse, status_code=status.HTTP_201_CREATED)
 def organiser_signup(payload: OrganiserSignup, db: Session = Depends(get_db)):
-    """Creates an organiser account, identified by email and/or phone, secured with a PIN."""
+    """
+    Registers an organiser's request for an account, identified by email and/or phone and
+    secured with a PIN. The account starts unapproved and can't log in until a superadmin
+    approves it from the pending-requests queue, so no token is issued here.
+    """
     existing = None
     if payload.email:
         existing = db.query(models.User).filter(models.User.email == payload.email).first()
@@ -47,13 +55,12 @@ def organiser_signup(payload: OrganiserSignup, db: Session = Depends(get_db)):
         phone=payload.phone,
         role=models.UserRole.ORGANISER,
         pin_hash=hash_pin(payload.pin),
+        is_approved=False,
     )
     db.add(user)
     db.commit()
-    db.refresh(user)
 
-    token = create_access_token({"sub": user.id, "role": user.role.value})
-    return TokenResponse(access_token=token, role=user.role, user=UserResponse.model_validate(user))
+    return OrganiserSignupResponse()
 
 
 @router.post("/organiser/login", response_model=TokenResponse)
@@ -61,9 +68,63 @@ def organiser_login(payload: OrganiserLogin, db: Session = Depends(get_db)):
     user = _find_user_by_identifier(payload.identifier, db)
     if not user or user.role != models.UserRole.ORGANISER or not user.pin_hash or not verify_pin(payload.pin, user.pin_hash):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials.")
+    if not user.is_approved:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Your account is pending approval from the tournament admin.")
 
     token = create_access_token({"sub": user.id, "role": user.role.value})
     return TokenResponse(access_token=token, role=user.role, user=UserResponse.model_validate(user))
+
+
+# =====================================================================
+# ORGANISER APPROVAL QUEUE (SUPERADMIN ONLY)
+# =====================================================================
+@router.get("/organiser/pending", response_model=List[PendingOrganiserResponse])
+def list_pending_organisers(
+    current_user: CurrentUser = Depends(require_superadmin),
+    db: Session = Depends(get_db),
+):
+    """Superadmin-only. Every organiser signup awaiting approval, oldest first."""
+    return (
+        db.query(models.User)
+        .filter(models.User.role == models.UserRole.ORGANISER, models.User.is_approved == False)
+        .order_by(models.User.created_at.asc())
+        .all()
+    )
+
+
+@router.post("/organiser/{user_id}/approve", status_code=status.HTTP_200_OK)
+def approve_organiser(
+    user_id: str,
+    current_user: CurrentUser = Depends(require_superadmin),
+    db: Session = Depends(get_db),
+):
+    """Superadmin-only. Grants a pending organiser signup the ability to log in."""
+    user = db.query(models.User).filter(models.User.id == user_id, models.User.role == models.UserRole.ORGANISER).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="No such organiser request.")
+    user.is_approved = True
+    db.commit()
+    return {"message": "Organiser approved."}
+
+
+@router.post("/organiser/{user_id}/reject", status_code=status.HTTP_200_OK)
+def reject_organiser(
+    user_id: str,
+    current_user: CurrentUser = Depends(require_superadmin),
+    db: Session = Depends(get_db),
+):
+    """
+    Superadmin-only. Declines a pending organiser signup and removes the request. Safe to
+    delete outright: a pending account owns no tournaments and was never able to log in.
+    """
+    user = db.query(models.User).filter(
+        models.User.id == user_id, models.User.role == models.UserRole.ORGANISER, models.User.is_approved == False
+    ).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="No such organiser request.")
+    db.delete(user)
+    db.commit()
+    return {"message": "Organiser request rejected."}
 
 
 # =====================================================================
@@ -225,6 +286,116 @@ def revoke_operator(
     assignment.is_revoked = True
     db.commit()
     return {"message": "Operator access revoked."}
+
+
+
+# =====================================================================
+# CO-ORGANISER MANAGEMENT
+# =====================================================================
+@router.get(
+    "/tournaments/{tournament_id}/co-organisers",
+    response_model=List[CoOrganiserResponse],
+)
+def list_co_organisers(
+    tournament_id: str,
+    current_user: CurrentUser = Depends(require_organiser),
+    db: Session = Depends(get_db),
+):
+    """Anyone with access to this tournament (owner or co-organiser) can see who else has it."""
+    tournament = db.query(models.Tournament).filter(models.Tournament.id == tournament_id).first()
+    if not tournament:
+        raise HTTPException(status_code=404, detail="Tournament not found")
+    ensure_tournament_access(tournament, current_user, db)
+
+    rows = (
+        db.query(models.TournamentCoOrganiser)
+        .options(joinedload(models.TournamentCoOrganiser.organiser))
+        .filter(models.TournamentCoOrganiser.tournament_id == tournament_id)
+        .order_by(models.TournamentCoOrganiser.added_at.asc())
+        .all()
+    )
+    return [
+        CoOrganiserResponse(
+            organiser_id=row.organiser_id,
+            name=row.organiser.name,
+            email=row.organiser.email,
+            phone=row.organiser.phone,
+            added_at=row.added_at,
+        )
+        for row in rows
+    ]
+
+
+@router.post(
+    "/tournaments/{tournament_id}/co-organisers",
+    response_model=CoOrganiserResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def add_co_organiser(
+    tournament_id: str,
+    payload: CoOrganiserAddRequest,
+    current_user: CurrentUser = Depends(require_organiser),
+    db: Session = Depends(get_db),
+):
+    """
+    Grants an existing, approved organiser account the same standing as the tournament's
+    owner — full fixtures/roster/schedule/operator access. Unlike operators, co-organisers
+    already have their own login, so this is a lookup + grant, not a PIN issuance.
+    """
+    tournament = db.query(models.Tournament).filter(models.Tournament.id == tournament_id).first()
+    if not tournament:
+        raise HTTPException(status_code=404, detail="Tournament not found")
+    ensure_tournament_access(tournament, current_user, db)
+
+    target = _find_user_by_identifier(payload.identifier, db)
+    if not target or target.role != models.UserRole.ORGANISER:
+        raise HTTPException(status_code=404, detail="No organiser account found with that email/phone.")
+    if not target.is_approved:
+        raise HTTPException(status_code=400, detail=f"{target.name}'s organiser account is still pending approval.")
+    if target.id == tournament.organiser_id or target.id == current_user.id:
+        raise HTTPException(status_code=400, detail=f"{target.name} already has access to this tournament.")
+
+    existing = db.query(models.TournamentCoOrganiser).filter(
+        models.TournamentCoOrganiser.tournament_id == tournament_id,
+        models.TournamentCoOrganiser.organiser_id == target.id,
+    ).first()
+    if existing:
+        raise HTTPException(status_code=400, detail=f"{target.name} already has access to this tournament.")
+
+    row = models.TournamentCoOrganiser(tournament_id=tournament_id, organiser_id=target.id)
+    db.add(row)
+    db.commit()
+
+    return CoOrganiserResponse(
+        organiser_id=target.id, name=target.name, email=target.email, phone=target.phone, added_at=row.added_at
+    )
+
+
+@router.delete(
+    "/tournaments/{tournament_id}/co-organisers/{organiser_id}",
+    status_code=status.HTTP_200_OK,
+)
+def remove_co_organiser(
+    tournament_id: str,
+    organiser_id: str,
+    current_user: CurrentUser = Depends(require_organiser),
+    db: Session = Depends(get_db),
+):
+    """Anyone with access to this tournament can remove a co-organiser (including themselves)."""
+    tournament = db.query(models.Tournament).filter(models.Tournament.id == tournament_id).first()
+    if not tournament:
+        raise HTTPException(status_code=404, detail="Tournament not found")
+    ensure_tournament_access(tournament, current_user, db)
+
+    row = db.query(models.TournamentCoOrganiser).filter(
+        models.TournamentCoOrganiser.tournament_id == tournament_id,
+        models.TournamentCoOrganiser.organiser_id == organiser_id,
+    ).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="No such co-organiser for this tournament.")
+    db.delete(row)
+    db.commit()
+    return {"message": "Co-organiser access removed."}
 
 
 @router.post("/operator/login", response_model=TokenResponse)
