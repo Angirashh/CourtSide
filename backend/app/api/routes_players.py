@@ -33,10 +33,12 @@ def register_player(
         raise HTTPException(status_code=404, detail="Tournament not found")
     ensure_tournament_access(tournament, current_user, db)
 
-    if tournament.status != models.TournamentStatus.DRAFT:
+    # Allowed through SCHEDULING too (schedule already generated but not started) so a
+    # late entrant can be added and the schedule regenerated to include them.
+    if tournament.status not in (models.TournamentStatus.DRAFT, models.TournamentStatus.SCHEDULING):
         raise HTTPException(
             status_code=400,
-            detail="Cannot add players once scheduling has started or the tournament is in progress."
+            detail="Cannot add players once the tournament is in progress or completed."
         )
 
     player = models.Player(
@@ -65,10 +67,10 @@ def register_players_batch(
         raise HTTPException(status_code=404, detail="Tournament not found")
     ensure_tournament_access(tournament, current_user, db)
 
-    if tournament.status != models.TournamentStatus.DRAFT:
+    if tournament.status not in (models.TournamentStatus.DRAFT, models.TournamentStatus.SCHEDULING):
         raise HTTPException(
             status_code=400,
-            detail="Cannot add players once scheduling has started."
+            detail="Cannot add players once the tournament is in progress or completed."
         )
 
     created_players = []
@@ -121,10 +123,10 @@ def delete_all_players(
         raise HTTPException(status_code=404, detail="Tournament not found")
     ensure_tournament_access(tournament, current_user, db)
 
-    if tournament.status != models.TournamentStatus.DRAFT:
+    if tournament.status not in (models.TournamentStatus.DRAFT, models.TournamentStatus.SCHEDULING):
         raise HTTPException(
             status_code=400,
-            detail="Cannot remove players once scheduling has started or the tournament is in progress."
+            detail="Cannot remove players once the tournament is in progress or completed."
         )
 
     if db.query(models.Match).filter(models.Match.tournament_id == tournament_id).first():
@@ -152,10 +154,10 @@ async def upload_roster_file(
         raise HTTPException(status_code=404, detail="Tournament not found")
     ensure_tournament_access(tournament, current_user, db)
 
-    if tournament.status != models.TournamentStatus.DRAFT:
+    if tournament.status not in (models.TournamentStatus.DRAFT, models.TournamentStatus.SCHEDULING):
         raise HTTPException(
             status_code=400,
-            detail="Cannot add players once scheduling has started."
+            detail="Cannot add players once the tournament is in progress or completed."
         )
 
     # 1. Read and parse the file

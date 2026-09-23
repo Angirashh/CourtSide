@@ -12,6 +12,7 @@ from app.schemas.tournament import (
     TournamentCreate,
     TournamentResponse,
     TournamentDetailResponse,
+    TournamentDetailsUpdate,
     ScheduleGenerationRequest,
     ScheduleGenerationResponse,
     CourtBookingWindow,
@@ -136,9 +137,14 @@ def list_tournaments(
     current_user: CurrentUser = Depends(require_organiser),
     db: Session = Depends(get_db),
 ):
-    """Lists tournaments owned by the current organiser (plus legacy, unowned tournaments)."""
+    """Lists tournaments the current organiser owns, co-organises, or (legacy) are unowned."""
+    co_organised_ids = db.query(models.TournamentCoOrganiser.tournament_id).filter(
+        models.TournamentCoOrganiser.organiser_id == current_user.id
+    )
     return db.query(models.Tournament).filter(
-        (models.Tournament.organiser_id == current_user.id) | (models.Tournament.organiser_id.is_(None))
+        (models.Tournament.organiser_id == current_user.id)
+        | (models.Tournament.organiser_id.is_(None))
+        | (models.Tournament.id.in_(co_organised_ids))
     ).order_by(models.Tournament.created_at.desc()).all()
 
 
@@ -161,6 +167,33 @@ def get_tournament(
         if derived:
             tournament.schedule_summary = derived
 
+    return tournament
+
+
+@router.patch("/{tournament_id}", response_model=TournamentResponse)
+def update_tournament_details(
+    tournament_id: str,
+    payload: TournamentDetailsUpdate,
+    current_user: CurrentUser = Depends(require_organiser),
+    db: Session = Depends(get_db),
+):
+    """
+    Edits venue/date — pure logistics, so allowed at any status, including after a schedule
+    is generated or the event has started. Note: this doesn't touch already-persisted match
+    times, which were fixed to whatever start time was given when the schedule was generated.
+    """
+    tournament = db.query(models.Tournament).filter(models.Tournament.id == tournament_id).first()
+    if not tournament:
+        raise HTTPException(status_code=404, detail="Tournament not found")
+    ensure_tournament_access(tournament, current_user, db)
+
+    if payload.venue is not None:
+        tournament.venue = payload.venue
+    if payload.tournament_date is not None:
+        tournament.tournament_date = payload.tournament_date
+
+    db.commit()
+    db.refresh(tournament)
     return tournament
 
 
@@ -283,6 +316,31 @@ def generate_tournament_schedule(
     if not tournament:
         raise HTTPException(status_code=404, detail="Tournament not found")
     ensure_tournament_access(tournament, current_user, db)
+
+    # Regeneration wipes every match below, so it's only safe before real play has begun.
+    # DRAFT = first-ever generation; SCHEDULING = a schedule already exists but nothing's
+    # started, so re-running it (after a withdrawal / roster change) just rebuilds from scratch.
+    if tournament.status not in (models.TournamentStatus.DRAFT, models.TournamentStatus.SCHEDULING):
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot regenerate the schedule after the tournament has started or finished."
+        )
+
+    # Belt-and-braces: even in SCHEDULING, refuse if a real operator-submitted score has
+    # somehow already been recorded — regenerating would silently erase it. Byes and
+    # withdrawal walkovers are auto-resolved bookkeeping, not played results, so they're
+    # fine to wipe — in fact a withdrawal walkover is exactly what regeneration is for.
+    has_recorded_result = db.query(models.Match).filter(
+        models.Match.tournament_id == tournament_id,
+        models.Match.is_completed == True,
+        models.Match.is_bye == False,
+        models.Match.is_walkover == False,
+    ).first()
+    if has_recorded_result:
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot regenerate — at least one match already has a recorded result, which would be lost."
+        )
 
     real_players = db.query(models.Player).filter(
         models.Player.tournament_id == tournament_id,

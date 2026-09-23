@@ -3,7 +3,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { toast } from 'sonner'
-import { FileUp, Plus, Shuffle, Trash2, Upload, UserX, Users } from 'lucide-react'
+import { FileUp, Info, Plus, Shuffle, Trash2, Upload, UserX, Users } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog'
@@ -19,10 +19,20 @@ import type { Player, TournamentStatus } from '@/types/api'
 export function RosterTab({ tournamentId, status, players }: { tournamentId: string; status: TournamentStatus; players: Player[] }) {
   const realPlayers = players.filter((p) => !p.is_placeholder).sort((a, b) => (a.seed ?? 999) - (b.seed ?? 999))
   const finalizeSeeding = useFinalizeSeeding(tournamentId)
-  const canEditRoster = status === 'DRAFT'
+  // A schedule already exists once SCHEDULING, but nothing's played yet, so roster edits
+  // (add / upload / withdraw) are still safe — the organiser just needs to regenerate after.
+  const canEditRoster = status === 'DRAFT' || status === 'SCHEDULING'
 
   return (
     <div className="space-y-5">
+      {status === 'SCHEDULING' && (
+        <div className="flex items-start gap-2 rounded-lg border border-ember-300 bg-ember-100/40 px-3.5 py-2.5 text-xs font-medium text-navy-700">
+          <Info className="mt-0.5 size-3.5 shrink-0 text-ember-600" />
+          Changed the roster? Use "Regenerate schedule" at the top of this page so fixtures reflect withdrawals and
+          new players.
+        </div>
+      )}
+
       <div className="flex flex-wrap items-center gap-2.5">
         {canEditRoster && (
           <>
@@ -43,7 +53,9 @@ export function RosterTab({ tournamentId, status, players }: { tournamentId: str
               <Shuffle className="size-3.5" />
               Finalize seeding
             </Button>
-            {realPlayers.length > 0 && <DeleteAllPlayersDialog tournamentId={tournamentId} count={realPlayers.length} />}
+            {status === 'DRAFT' && realPlayers.length > 0 && (
+              <DeleteAllPlayersDialog tournamentId={tournamentId} count={realPlayers.length} />
+            )}
           </>
         )}
         <span className="ml-auto text-xs font-semibold text-navy-400">{realPlayers.length} registered</span>
