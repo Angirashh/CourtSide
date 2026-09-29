@@ -112,3 +112,51 @@ export function compareByScheduledTime<T extends { scheduled_start_time: string 
   if (b.scheduled_start_time) return 1
   return a.id.localeCompare(b.id)
 }
+
+interface RoundLabelMatch {
+  stage: 'GROUP' | 'SWISS' | 'KNOCKOUT'
+  round_num: number
+  group_id?: string | null
+}
+
+// Human-readable round name for a match, e.g. "Swiss Round 2", "Group A Round 1", "Semi Finals".
+// Knockout rounds are named by position from the end of the bracket (not the raw round_num),
+// since the bracket size varies by tournament and round_num alone doesn't say how many rounds remain.
+export function matchRoundLabel(match: RoundLabelMatch, allMatches: RoundLabelMatch[]): string {
+  if (match.stage === 'SWISS') return `Swiss Round ${match.round_num}`
+  if (match.stage === 'GROUP') {
+    const groupName = match.group_id ? match.group_id.replace(/_/g, ' ') : 'Group stage'
+    return `${groupName} Round ${match.round_num}`
+  }
+  const koRounds = Array.from(new Set(allMatches.filter((m) => m.stage === 'KNOCKOUT').map((m) => m.round_num))).sort(
+    (a, b) => a - b
+  )
+  const roundIdx = koRounds.indexOf(match.round_num)
+  const fromEnd = koRounds.length - roundIdx
+  if (fromEnd === 1) return 'Finals'
+  if (fromEnd === 2) return 'Semi Finals'
+  if (fromEnd === 3) return 'Quarter Finals'
+  return `Round of ${2 ** fromEnd}`
+}
+
+interface PodiumMatch {
+  stage: 'GROUP' | 'SWISS' | 'KNOCKOUT'
+  round_num: number
+  is_completed: boolean
+  is_bye: boolean
+  winner_id: string | null
+  player1_id: string | null
+  player2_id: string | null
+}
+
+// Reads 1st/2nd place off the completed final (the last-round KNOCKOUT match) — both supported
+// formats (GROUP_KNOCKOUT, SWISS_KNOCKOUT) always end in a single knockout final.
+export function finalPodium(matches: PodiumMatch[]): { first: string | null; second: string | null } {
+  const koRounds = matches.filter((m) => m.stage === 'KNOCKOUT').map((m) => m.round_num)
+  if (koRounds.length === 0) return { first: null, second: null }
+  const maxRound = Math.max(...koRounds)
+  const final = matches.find((m) => m.stage === 'KNOCKOUT' && m.round_num === maxRound)
+  if (!final || !final.is_completed || final.is_bye || !final.winner_id) return { first: null, second: null }
+  const second = final.player1_id === final.winner_id ? final.player2_id : final.player1_id
+  return { first: final.winner_id, second }
+}

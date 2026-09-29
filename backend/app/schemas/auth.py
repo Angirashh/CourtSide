@@ -94,7 +94,9 @@ class OperatorInviteResponse(BaseModel):
 class OperatorLogin(BaseModel):
     identifier: str = Field(..., description="Email or phone the operator was invited with.")
     tournament_id: str
-    pin: str = Field(..., description="The invite code shared by the organiser.")
+    # Optional while PIN verification is disabled (see routes_auth.operator_login) — kept on the
+    # schema so it keeps working unchanged once that check is switched back on.
+    pin: Optional[str] = Field(None, description="The invite code shared by the organiser.")
 
 
 class OperatorCourtInfo(BaseModel):

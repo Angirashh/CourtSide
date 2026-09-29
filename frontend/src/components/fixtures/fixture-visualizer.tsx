@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { GitBranch, Network } from 'lucide-react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { EmptyState } from '@/components/ui/empty-state'
@@ -6,7 +6,7 @@ import { BracketTree } from './bracket-tree'
 import { SwissLadder } from './swiss-ladder'
 import { FixtureMatchRow } from './fixture-match-row'
 import { groupMatchesByGroupId } from '@/lib/standings'
-import { compareByScheduledTime } from '@/lib/utils'
+import { cn, compareByScheduledTime } from '@/lib/utils'
 import type { Court, Match, Player, TournamentFormat } from '@/types/api'
 
 export function FixtureVisualizer({
@@ -80,6 +80,14 @@ export function FixtureVisualizer({
   )
 }
 
+// The round a group should open on: the first one that isn't fully played yet, or its last
+// round if the group is done — so picking a group doesn't dump you back at round 1 every time.
+function currentRoundOf(groupMatches: Match[]): number {
+  const rounds = Array.from(new Set(groupMatches.map((m) => m.round_num))).sort((a, b) => a - b)
+  const idx = rounds.findIndex((r) => groupMatches.some((m) => m.round_num === r && !m.is_completed))
+  return idx === -1 ? rounds[rounds.length - 1] : rounds[idx]
+}
+
 function GroupStageView({
   matches,
   playersById,
@@ -89,42 +97,61 @@ function GroupStageView({
   playersById: Map<string, Player>
   courtsById: Map<string, string>
 }) {
-  const groups = groupMatchesByGroupId(matches)
-  const groupIds = Array.from(groups.keys()).sort()
+  const groups = useMemo(() => groupMatchesByGroupId(matches), [matches])
+  const groupIds = useMemo(() => Array.from(groups.keys()).sort(), [groups])
+  const [activeGroup, setActiveGroup] = useState(groupIds[0])
+  const [activeRound, setActiveRound] = useState(() => currentRoundOf(groups.get(groupIds[0]) ?? []))
 
   if (groupIds.length === 0) {
     return <EmptyState icon={Network} title="No group matches yet" />
   }
 
+  function selectGroup(gid: string) {
+    setActiveGroup(gid)
+    setActiveRound(currentRoundOf(groups.get(gid) ?? []))
+  }
+
+  const groupMatches = groups.get(activeGroup) ?? groups.get(groupIds[0])!
+  const rounds = Array.from(new Set(groupMatches.map((m) => m.round_num))).sort((a, b) => a - b)
+  const roundMatches = groupMatches.filter((m) => m.round_num === activeRound).sort(compareByScheduledTime)
+
   return (
-    <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-      {groupIds.map((gid) => {
-        const groupMatches = groups.get(gid)!
-        const rounds = Array.from(new Set(groupMatches.map((m) => m.round_num))).sort((a, b) => a - b)
-        return (
-          <div key={gid} className="min-w-0 space-y-3">
-            <h3 className="font-display text-base font-medium text-navy-900">{gid.replace(/_/g, ' ')}</h3>
-            {rounds.map((round) => (
-              <div key={round}>
-                <p className="mb-2 text-xs font-bold uppercase tracking-wide text-navy-500">Round {round}</p>
-                <div className="space-y-2">
-                  {groupMatches
-                    .filter((m) => m.round_num === round)
-                    .sort(compareByScheduledTime)
-                    .map((m) => (
-                      <FixtureMatchRow
-                        key={m.id}
-                        match={m}
-                        playersById={playersById}
-                        courtName={m.court_id ? courtsById.get(m.court_id) : undefined}
-                      />
-                    ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        )
-      })}
-    </div>
+    <Tabs value={activeGroup} onValueChange={selectGroup}>
+      <TabsList>
+        {groupIds.map((gid) => (
+          <TabsTrigger key={gid} value={gid}>
+            {gid.replace(/_/g, ' ')}
+          </TabsTrigger>
+        ))}
+      </TabsList>
+
+      <TabsContent value={activeGroup} className="space-y-3.5">
+        <div className="flex flex-wrap gap-1.5">
+          {rounds.map((round) => (
+            <button
+              key={round}
+              type="button"
+              onClick={() => setActiveRound(round)}
+              className={cn(
+                'rounded-lg px-3 py-1.5 text-xs font-bold uppercase tracking-wide transition-colors',
+                round === activeRound ? 'bg-ember-500 text-navy-950' : 'bg-navy-100/70 text-navy-500 hover:text-navy-800'
+              )}
+            >
+              Round {round}
+            </button>
+          ))}
+        </div>
+        <div className="grid gap-2 sm:grid-cols-2">
+          {roundMatches.map((m) => (
+            <FixtureMatchRow
+              key={m.id}
+              match={m}
+              playersById={playersById}
+              courtName={m.court_id ? courtsById.get(m.court_id) : undefined}
+            />
+          ))}
+        </div>
+      </TabsContent>
+    </Tabs>
   )
 }

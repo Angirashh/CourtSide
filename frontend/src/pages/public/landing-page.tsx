@@ -9,6 +9,8 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { TournamentStatusBadge } from '@/components/ui/status-badge'
 import { VsBadge } from '@/components/ui/vs-badge'
 import { PublicTournamentCard } from '@/components/public/public-tournament-card'
+import { MedalPodium } from '@/components/public/medal-podium'
+// Hidden for now — didn't look good. import { MatchProgressBar } from '@/components/public/match-progress-bar'
 import { categoryMeta } from '@/lib/tournament-category'
 import { cn, formatPlainDate, formatTime, parsePlainDate, prettifyPlaceholderName } from '@/lib/utils'
 import type { PublicCourtQueue, PublicTournamentSummary } from '@/types/api'
@@ -195,6 +197,20 @@ function OnCourtCard({ tournament }: { tournament: PublicTournamentSummary }) {
           </Link>
         </div>
 
+        {/* Hidden for now — didn't look good.
+        <MatchProgressBar completed={tournament.matches_completed} total={tournament.matches_total} className="mt-4" />
+        */}
+
+        {tournament.champion_name && (
+          <MedalPodium
+            className="mt-4 border-t border-cream-200 pt-4"
+            eyebrow={tournament.status === 'COMPLETED' ? 'Tournament complete' : 'Final decided'}
+            champion={tournament.champion_name}
+            runnerUp={tournament.runner_up_name}
+            horizontal
+          />
+        )}
+
         {courtQueues.length > 0 && (
           <div className="mt-4 grid gap-2.5 border-t border-cream-200 pt-4 sm:grid-cols-2 xl:grid-cols-3">
             {courtQueues.map((q) => (
@@ -237,7 +253,8 @@ function CourtQueuePanel({ queue }: { queue: PublicCourtQueue }) {
         )}
       </div>
 
-      <p className="mt-2.5 text-sm font-semibold leading-snug text-navy-900">
+      <p className="mt-2.5 text-[10px] font-bold uppercase tracking-wide text-ember-600">{match.round_label}</p>
+      <p className="mt-0.5 text-sm font-semibold leading-snug text-navy-900">
         {sideName(match.player1_name, match.player1_is_placeholder)}
         <VsBadge />
         {sideName(match.player2_name, match.player2_is_placeholder)}

@@ -9,7 +9,7 @@ export const playersApi = {
       })
       .then((r) => r.data),
 
-  register: (tournamentId: string, payload: { name: string; seed?: number }) =>
+  register: (tournamentId: string, payload: { name: string; seed?: number; email?: string }) =>
     api.post<Player>(`/tournaments/${tournamentId}/players`, payload).then((r) => r.data),
 
   registerBatch: (tournamentId: string, players: { name: string }[]) =>

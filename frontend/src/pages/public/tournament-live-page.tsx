@@ -11,8 +11,10 @@ import { Badge } from '@/components/ui/badge'
 import { Countdown, COUNTDOWN_WINDOW_MS } from '@/components/ui/countdown'
 import { FixtureVisualizer } from '@/components/fixtures/fixture-visualizer'
 import { PublicStandingsTable } from '@/components/public/public-standings-table'
+import { MedalPodium } from '@/components/public/medal-podium'
+// Hidden for now — didn't look good. import { MatchProgressBar } from '@/components/public/match-progress-bar'
 import { VsBadge } from '@/components/ui/vs-badge'
-import { cn, formatLabel, formatPlainDate, formatTime, parsePlainDate, playerLabel } from '@/lib/utils'
+import { cn, finalPodium, formatLabel, formatPlainDate, formatTime, matchRoundLabel, parsePlainDate, playerLabel } from '@/lib/utils'
 import type { PublicTournamentDetail } from '@/types/api'
 
 export function TournamentLivePage() {
@@ -39,6 +41,9 @@ export function TournamentLivePage() {
   // (matches exist) — a DRAFT tournament has neither yet.
   const hasSchedule = tournament.matches.length > 0
   const notStarted = tournament.status === 'DRAFT' || tournament.status === 'SCHEDULING'
+  // The final can be decided before the organiser gets around to clicking "End tournament",
+  // so show the podium as soon as it's played rather than waiting on tournament.status.
+  const podium = finalPodium(tournament.matches)
 
   return (
     <div className="mx-auto max-w-[1400px] space-y-6">
@@ -83,41 +88,57 @@ export function TournamentLivePage() {
             {notStarted ? (
               <TournamentCountdownCard tournament={tournament} />
             ) : (
-              <div className="grid gap-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(300px,0.6fr)]">
-                <div>
-                  <SectionHeading title="Happening right now" />
-                  {upcomingMatches.length === 0 && recentMatches.length === 0 ? (
-                    <EmptyState icon={Trophy} title="No matches yet" description="Fixtures will appear here once the schedule is generated." />
-                  ) : (
-                    <div className="space-y-2.5">
-                      {[...upcomingMatches.slice(0, 3), ...recentMatches.slice(0, 2)].map((m) => (
-                        <Card key={m.id} className="flex flex-col gap-2 p-4 sm:flex-row sm:items-center sm:gap-3">
-                          <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 sm:contents">
-                            <div className="whitespace-nowrap text-xs font-semibold text-navy-500 sm:w-[76px] sm:shrink-0">
-                              {m.scheduled_start_time ? formatTime(m.scheduled_start_time) : '—'}
-                            </div>
-                            <CourtBadge name={m.court_id ? courtsById.get(m.court_id) : undefined} className="sm:order-3" />
-                            <MatchStatusBadge status={m.status} className="ml-auto sm:order-4 sm:ml-0" />
-                          </div>
-                          <div className="min-w-0 flex-1 text-sm leading-relaxed text-navy-800 sm:order-2">
-                            {playerLabel(m.player1_id, playersById)}
-                            <VsBadge />
-                            {playerLabel(m.player2_id, playersById)}
-                          </div>
-                        </Card>
-                      ))}
+              <>
+                {/* Hidden for now — didn't look good. <MatchProgressBar completed={recentMatches.length} total={tournament.matches.length} /> */}
+                {podium.first ? (
+                  <CompletedPodium
+                    tournament={tournament}
+                    playersById={playersById}
+                    podium={{ first: podium.first, second: podium.second }}
+                  />
+                ) : (
+                  <div className="grid gap-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(300px,0.6fr)]">
+                    <div>
+                      <SectionHeading title="Happening right now" />
+                      {upcomingMatches.length === 0 && recentMatches.length === 0 ? (
+                        <EmptyState icon={Trophy} title="No matches yet" description="Fixtures will appear here once the schedule is generated." />
+                      ) : (
+                        <div className="space-y-2.5">
+                          {[...upcomingMatches.slice(0, 3), ...recentMatches.slice(0, 2)].map((m) => (
+                            <Card key={m.id} className="flex flex-col gap-2 p-4 sm:flex-row sm:items-center sm:gap-3">
+                              <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 sm:contents">
+                                <div className="whitespace-nowrap text-xs font-semibold text-navy-500 sm:w-[76px] sm:shrink-0">
+                                  {m.scheduled_start_time ? formatTime(m.scheduled_start_time) : '—'}
+                                </div>
+                                <CourtBadge name={m.court_id ? courtsById.get(m.court_id) : undefined} className="sm:order-3" />
+                                <MatchStatusBadge status={m.status} className="ml-auto sm:order-4 sm:ml-0" />
+                              </div>
+                              <div className="min-w-0 flex-1 sm:order-2">
+                                <p className="text-[10px] font-bold uppercase tracking-wide text-ember-600">
+                                  {matchRoundLabel(m, tournament.matches)}
+                                </p>
+                                <div className="text-sm leading-relaxed text-navy-800">
+                                  {playerLabel(m.player1_id, playersById)}
+                                  <VsBadge />
+                                  {playerLabel(m.player2_id, playersById)}
+                                </div>
+                              </div>
+                            </Card>
+                          ))}
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-                <div>
-                  <SectionHeading title="Standings" />
-                  {groupEntries.length > 0 ? (
-                    <PublicStandingsTable title={groupEntries[0][0]} rows={groupEntries[0][1].slice(0, 5)} />
-                  ) : (
-                    <EmptyState icon={Trophy} title="No standings yet" description="Standings appear once matches are completed." />
-                  )}
-                </div>
-              </div>
+                    <div>
+                      <SectionHeading title="Standings" />
+                      {groupEntries.length > 0 ? (
+                        <PublicStandingsTable title={groupEntries[0][0]} rows={groupEntries[0][1].slice(0, 5)} />
+                      ) : (
+                        <EmptyState icon={Trophy} title="No standings yet" description="Standings appear once matches are completed." />
+                      )}
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </TabsContent>
 
@@ -170,6 +191,26 @@ function TournamentCountdownCard({ tournament }: { tournament: PublicTournamentD
           </p>
         )}
       </div>
+    </Card>
+  )
+}
+
+function CompletedPodium({
+  tournament,
+  playersById,
+  podium: { first, second },
+}: {
+  tournament: PublicTournamentDetail
+  playersById: Map<string, { name: string; is_placeholder?: boolean }>
+  podium: { first: string; second: string | null }
+}) {
+  return (
+    <Card className="relative overflow-hidden p-6 sm:p-8">
+      <MedalPodium
+        eyebrow={tournament.status === 'COMPLETED' ? 'Tournament complete' : 'Final decided'}
+        champion={playerLabel(first, playersById)}
+        runnerUp={second ? playerLabel(second, playersById) : null}
+      />
     </Card>
   )
 }

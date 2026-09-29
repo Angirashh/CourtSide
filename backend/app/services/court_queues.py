@@ -4,6 +4,7 @@ from typing import List
 
 from app.db import models
 from app.schemas.public import PublicCourtMatch, PublicCourtQueue
+from app.services.round_labels import build_round_label_fn
 
 
 def _natural_key(name: str):
@@ -17,6 +18,7 @@ def build_court_queues(tournament: models.Tournament) -> List[PublicCourtQueue]:
     scheduled one. Courts with nothing live or upcoming are left out entirely.
     """
     players_by_id = {p.id: p for p in tournament.players}
+    round_label = build_round_label_fn(tournament.matches)
 
     def side(player_id):
         player = players_by_id.get(player_id)
@@ -51,6 +53,7 @@ def build_court_queues(tournament: models.Tournament) -> List[PublicCourtQueue]:
                     id=m.id,
                     stage=m.stage.value,
                     round_num=m.round_num,
+                    round_label=round_label(m.stage, m.round_num, m.group_id),
                     status=m.status,
                     scheduled_start_time=m.scheduled_start_time,
                     player1_name=p1_name,

@@ -203,7 +203,8 @@ function OrganiserSignupForm({ onDone }: { onDone: () => void }) {
 const operatorLoginSchema = z.object({
   identifier: z.string().min(3, 'Enter your email or phone'),
   tournament_id: z.string().min(3, 'Ask your organiser for the Tournament ID'),
-  pin: z.string().min(4, 'Enter the invite code'),
+  // PIN field disabled while backend PIN verification is off (see routes_auth.operator_login).
+  // pin: z.string().min(4, 'Enter the invite code'),
 })
 
 function OperatorLoginForm() {
@@ -223,7 +224,8 @@ function OperatorLoginForm() {
   return (
     <form onSubmit={onSubmit} className="space-y-3.5">
       <p className="rounded-lg bg-navy-950/30 px-3 py-2.5 text-xs text-cream-200/70">
-        Your organiser invited you with a Tournament ID and a one-time PIN. Enter them below to start scoring matches.
+        Your organiser invited you to this tournament. Enter the email or phone you were invited with, plus the
+        Tournament ID, to start scoring matches.
       </p>
       <FormField label="Email or phone">
         <Input placeholder="you@example.com" {...register('identifier')} />
@@ -233,10 +235,12 @@ function OperatorLoginForm() {
         <Input placeholder="TOURN_xxxxxxxx" {...register('tournament_id')} />
         <FieldError>{errors.tournament_id?.message}</FieldError>
       </FormField>
+      {/* Invite PIN field disabled while backend PIN verification is off (see routes_auth.operator_login).
       <FormField label="Invite PIN">
         <Input type="password" placeholder="••••••" {...register('pin')} />
         <FieldError>{errors.pin?.message}</FieldError>
       </FormField>
+      */}
       <Button type="submit" className="w-full" size="lg" loading={login.isPending}>
         Log in to score matches
       </Button>

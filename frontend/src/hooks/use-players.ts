@@ -13,7 +13,7 @@ export function usePlayers(tournamentId: string | undefined, includePlaceholders
 export function useRegisterPlayer(tournamentId: string) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (payload: { name: string; seed?: number }) => playersApi.register(tournamentId, payload),
+    mutationFn: (payload: { name: string; seed?: number; email?: string }) => playersApi.register(tournamentId, payload),
     onSuccess: () => qc.invalidateQueries({ queryKey: tournamentKeys.detail(tournamentId) }),
   })
 }

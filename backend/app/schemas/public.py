@@ -16,6 +16,7 @@ class PublicLiveMatch(BaseModel):
     id: str
     stage: str
     round_num: int
+    round_label: str
     court_name: Optional[str] = None
     player1_name: str
     player2_name: str
@@ -25,6 +26,7 @@ class PublicCourtMatch(BaseModel):
     id: str
     stage: str
     round_num: int
+    round_label: str
     status: MatchStatus
     scheduled_start_time: Optional[datetime] = None
     player1_name: str
@@ -56,6 +58,11 @@ class PublicTournamentSummary(BaseModel):
     created_at: datetime
     live_matches: List[PublicLiveMatch] = []
     court_queues: List[PublicCourtQueue] = []
+    # Set only once the tournament is COMPLETED and its knockout final was actually played.
+    champion_name: Optional[str] = None
+    runner_up_name: Optional[str] = None
+    matches_completed: int = 0
+    matches_total: int = 0
 
     model_config = ConfigDict(from_attributes=True)
 

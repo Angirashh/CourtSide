@@ -9,7 +9,7 @@ S, LIVE, DONE = models.MatchStatus.SCHEDULED, models.MatchStatus.IN_PROGRESS, mo
 
 def match(mid, court, status, hour, p1="P1", p2="P2", **kw):
     return NS(
-        id=mid, stage=models.MatchStage.GROUP, round_num=1, court_id=court, status=status,
+        id=mid, stage=models.MatchStage.GROUP, round_num=1, group_id=None, court_id=court, status=status,
         scheduled_start_time=datetime(2026, 10, 10, hour), player1_id=p1, player2_id=p2,
         is_completed=status == DONE, is_bye=False, is_walkover=False, **kw,
     )

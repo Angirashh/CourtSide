@@ -409,7 +409,11 @@ def operator_login(payload: OperatorLogin, db: Session = Depends(get_db)):
         models.OperatorAssignment.tournament_id == payload.tournament_id,
         models.OperatorAssignment.is_revoked == False,
     ).first()
-    if not assignment or not verify_pin(payload.pin, assignment.pin_hash):
+    # PIN check disabled for now — email/phone + tournament ID is enough to log in while we're
+    # small. Re-enable this line once invite PINs are emailed directly to operators (see
+    # OperatorLogin.pin and generate_invite_code) instead of being relayed by the organiser.
+    # if not assignment or not verify_pin(payload.pin, assignment.pin_hash):
+    if not assignment:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials.")
 
     token = create_access_token({

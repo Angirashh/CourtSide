@@ -11,7 +11,9 @@ class PlayerBase(BaseModel):
 
 
 class PlayerCreate(PlayerBase):
-    pass
+    # Optional — when given, links this roster slot to the global athlete registry (matched or
+    # created by email), the same as a CSV roster upload does.
+    email: Optional[str] = Field(None, max_length=150, examples=["viktor@example.com"])
 
 
 class PlayerUpdate(BaseModel):

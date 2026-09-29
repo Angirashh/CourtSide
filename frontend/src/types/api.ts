@@ -124,6 +124,7 @@ export interface PublicLiveMatch {
   id: string
   stage: MatchStage
   round_num: number
+  round_label: string
   court_name: string | null
   player1_name: string
   player2_name: string
@@ -133,6 +134,7 @@ export interface PublicCourtMatch {
   id: string
   stage: MatchStage
   round_num: number
+  round_label: string
   status: MatchStatus
   scheduled_start_time: string | null
   player1_name: string
@@ -161,6 +163,10 @@ export interface PublicTournamentSummary {
   created_at: string
   live_matches: PublicLiveMatch[]
   court_queues: PublicCourtQueue[]
+  champion_name: string | null
+  runner_up_name: string | null
+  matches_completed: number
+  matches_total: number
 }
 
 export interface PublicTournamentDetail {

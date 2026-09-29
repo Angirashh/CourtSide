@@ -596,6 +596,18 @@ def end_tournament(
             detail="Only a live tournament can be ended."
         )
 
+    # Byes and walkovers are already marked is_completed at creation/resolution time, so this
+    # only blocks on matches — including the final — that genuinely haven't been played yet.
+    incomplete_match = db.query(models.Match).filter(
+        models.Match.tournament_id == tournament_id,
+        models.Match.is_completed == False,
+    ).first()
+    if incomplete_match:
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot end the tournament — some matches haven't been completed yet."
+        )
+
     tournament.status = models.TournamentStatus.COMPLETED
     db.commit()
     db.refresh(tournament)
@@ -618,8 +630,11 @@ def finalize_tournament_seeding(
         raise HTTPException(status_code=404, detail="Tournament not found")
     ensure_tournament_access(tournament, current_user, db)
 
-    if tournament.status != models.TournamentStatus.DRAFT:
-        raise HTTPException(status_code=400, detail="Cannot alter seeding after scheduling has started.")
+    # Allowed through SCHEDULING too — this only rewrites Player.seed, it doesn't touch matches,
+    # so it's safe to re-run after adding/withdrawing players, right before regenerating the
+    # schedule to pick up the new seed order.
+    if tournament.status not in (models.TournamentStatus.DRAFT, models.TournamentStatus.SCHEDULING):
+        raise HTTPException(status_code=400, detail="Cannot alter seeding after the tournament has started or finished.")
 
     # Fetch all real players (no placeholders, no withdrawals) with their athlete data attached
     players = db.query(models.Player).options(joinedload(models.Player.athlete)).filter(
