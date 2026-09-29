@@ -19,6 +19,8 @@ from app.services.fixture_engine.datatypes import (
     MatchStage as EngineMatchStage,
 )
 from app.services.court_queues import build_court_queues
+from app.services.podium import compute_podium
+from app.services.round_labels import build_round_label_fn
 from app.services.standings import StandingsEngine
 
 router = APIRouter(prefix="/public", tags=["Public Showcase"])
@@ -85,6 +87,7 @@ def _load_public_tournaments(db: Session) -> List[PublicTournamentSummary]:
 
         live_matches = []
         if t.status == models.TournamentStatus.IN_PROGRESS:
+            round_label = build_round_label_fn(t.matches)
             for m in t.matches:
                 if m.status != models.MatchStatus.IN_PROGRESS:
                     continue
@@ -93,11 +96,21 @@ def _load_public_tournaments(db: Session) -> List[PublicTournamentSummary]:
                         id=m.id,
                         stage=m.stage.value,
                         round_num=m.round_num,
+                        round_label=round_label(m.stage, m.round_num, m.group_id),
                         court_name=courts_by_id.get(m.court_id),
                         player1_name=players_by_id.get(m.player1_id, "TBD"),
                         player2_name=players_by_id.get(m.player2_id, "TBD"),
                     )
                 )
+
+        # Shown as soon as the knockout final is actually decided, even if the organiser
+        # hasn't clicked "End tournament" yet — compute_podium only returns names once
+        # that final match has a real winner, so this is safe to try unconditionally.
+        champion_name = runner_up_name = None
+        if t.status in (models.TournamentStatus.IN_PROGRESS, models.TournamentStatus.COMPLETED):
+            champion_id, runner_up_id = compute_podium(t.matches)
+            champion_name = players_by_id.get(champion_id) if champion_id else None
+            runner_up_name = players_by_id.get(runner_up_id) if runner_up_id else None
 
         result.append(
             PublicTournamentSummary(
@@ -113,6 +126,10 @@ def _load_public_tournaments(db: Session) -> List[PublicTournamentSummary]:
                 created_at=t.created_at,
                 live_matches=live_matches,
                 court_queues=build_court_queues(t) if t.status == models.TournamentStatus.IN_PROGRESS else [],
+                matches_completed=len([m for m in t.matches if m.is_completed]),
+                matches_total=len(t.matches),
+                champion_name=champion_name,
+                runner_up_name=runner_up_name,
             )
         )
     return result

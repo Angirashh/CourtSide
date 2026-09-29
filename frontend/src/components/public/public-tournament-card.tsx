@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { ArrowRight, CalendarDays, MapPin, Users } from 'lucide-react'
+import { ArrowRight, CalendarDays, MapPin, Medal, Users } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { TournamentStatusBadge } from '@/components/ui/status-badge'
 import { categoryMeta } from '@/lib/tournament-category'
@@ -41,6 +41,15 @@ export function PublicTournamentCard({ tournament, delayMs = 0 }: { tournament: 
             {tournament.tournament_date ? formatPlainDate(tournament.tournament_date) : 'Date TBD'}
           </div>
         </div>
+        {tournament.champion_name && (
+          <div className="mt-3.5 flex items-center gap-1.5 rounded-lg bg-amber-100/60 px-2.5 py-1.5 text-xs font-semibold text-navy-800">
+            <Medal className="size-3.5 shrink-0 text-amber-500" />
+            <span className="truncate">{tournament.champion_name}</span>
+            {tournament.runner_up_name && (
+              <span className="truncate font-normal text-navy-400">· 2nd {tournament.runner_up_name}</span>
+            )}
+          </div>
+        )}
         <div className="mt-4 flex items-center justify-between border-t border-cream-200 pt-3.5">
           <span className="flex items-center gap-1.5 font-mono text-[10px] text-navy-400">
             <Users className="size-3.5" /> {tournament.players_count} players

@@ -2,7 +2,7 @@ import csv
 import io
 import uuid
 from datetime import datetime
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from sqlalchemy.orm import Session
 
@@ -18,6 +18,19 @@ from app.schemas.player import (
 from app.services.match_progression import resolve_pending_walkovers
 
 router = APIRouter(prefix="/tournaments/{tournament_id}/players", tags=["Players"])
+
+
+def _find_or_create_athlete(db: Session, name: str, email: Optional[str]) -> Optional[models.Athlete]:
+    """Matches an existing global athlete by email, or creates one — same dedup the CSV roster
+    upload does. Returns None when no email is given (the player just isn't linked globally)."""
+    if not email:
+        return None
+    athlete = db.query(models.Athlete).filter(models.Athlete.email == email).first()
+    if not athlete:
+        athlete = models.Athlete(name=name, email=email)
+        db.add(athlete)
+        db.flush()
+    return athlete
 
 
 @router.post("", response_model=PlayerResponse, status_code=status.HTTP_201_CREATED)
@@ -41,9 +54,19 @@ def register_player(
             detail="Cannot add players once the tournament is in progress or completed."
         )
 
+    athlete = _find_or_create_athlete(db, payload.name, payload.email)
+    if athlete:
+        existing_entry = db.query(models.Player).filter(
+            models.Player.tournament_id == tournament_id,
+            models.Player.athlete_id == athlete.id
+        ).first()
+        if existing_entry:
+            raise HTTPException(status_code=400, detail="This player is already registered for this tournament.")
+
     player = models.Player(
         id=f"P_{uuid.uuid4().hex[:8]}",
         tournament_id=tournament_id,
+        athlete_id=athlete.id if athlete else None,
         name=payload.name,
         seed=payload.seed,
         is_placeholder=payload.is_placeholder
@@ -75,9 +98,11 @@ def register_players_batch(
 
     created_players = []
     for p_in in payload.players:
+        athlete = _find_or_create_athlete(db, p_in.name, p_in.email)
         player = models.Player(
             id=f"P_{uuid.uuid4().hex[:8]}",
             tournament_id=tournament_id,
+            athlete_id=athlete.id if athlete else None,
             name=p_in.name,
             seed=p_in.seed,
             is_placeholder=p_in.is_placeholder

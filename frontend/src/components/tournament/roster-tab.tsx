@@ -155,6 +155,10 @@ function PlayerRow({ player, tournamentId, canWithdraw }: { player: Player; tour
 
 const addPlayerSchema = z.object({
   name: z.string().min(1, 'Enter a name'),
+  email: z.preprocess(
+    (v) => (v === '' || v === null || v === undefined ? undefined : v),
+    z.string().email('Enter a valid email').optional()
+  ),
   seed: z.preprocess(
     (v) => (v === '' || v === null || v === undefined ? undefined : v),
     z.coerce.number().min(1, 'Seed must be at least 1').optional()
@@ -200,6 +204,11 @@ function AddPlayerDialog({ tournamentId }: { tournamentId: string }) {
             <Label>Name</Label>
             <Input placeholder="Player name" {...bind('name')} />
             <FieldError>{errors.name?.message}</FieldError>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Email (optional)</Label>
+            <Input type="email" placeholder="player@example.com" {...bind('email')} />
+            <FieldError>{errors.email?.message}</FieldError>
           </div>
           <div className="space-y-1.5">
             <Label>Seed (optional)</Label>

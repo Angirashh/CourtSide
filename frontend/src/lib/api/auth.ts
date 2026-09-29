@@ -14,7 +14,9 @@ export const authApi = {
 
   rejectOrganiser: (userId: string) => api.post(`/auth/organiser/${userId}/reject`).then((r) => r.data),
 
-  operatorLogin: (payload: { identifier: string; tournament_id: string; pin: string }) =>
+  // pin is optional while PIN verification is disabled on the backend (see routes_auth.operator_login) —
+  // kept in the type so the field can come back without touching this call site.
+  operatorLogin: (payload: { identifier: string; tournament_id: string; pin?: string }) =>
     api.post<TokenResponse>('/auth/operator/login', payload).then((r) => r.data),
 
   inviteOperator: (tournamentId: string, payload: { name: string; email?: string; phone?: string }) =>

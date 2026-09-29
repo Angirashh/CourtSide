@@ -1,4 +1,5 @@
-import { motion } from 'framer-motion'
+import { Fragment, useMemo, useRef, useState } from 'react'
+import { Carousel, type CarouselHandle } from '@/components/ui/carousel'
 import { cn, compareByScheduledTime } from '@/lib/utils'
 import { FixtureMatchRow } from './fixture-match-row'
 import type { Match, Player } from '@/types/api'
@@ -12,32 +13,42 @@ export function SwissLadder({
   playersById: Map<string, Player>
   courtsById: Map<string, string>
 }) {
-  const rounds = Array.from(new Set(matches.map((m) => m.round_num))).sort((a, b) => a - b)
+  const rounds = useMemo(() => Array.from(new Set(matches.map((m) => m.round_num))).sort((a, b) => a - b), [matches])
+  const roundComplete = useMemo(
+    () => rounds.map((round) => matches.filter((m) => m.round_num === round).every((m) => m.is_completed)),
+    [rounds, matches]
+  )
+
+  // Land on the first round that still has something left to play, so players don't have to
+  // swipe past every round they've already seen just to find where things stand right now.
+  const defaultIndex = useMemo(() => {
+    const idx = roundComplete.findIndex((complete) => !complete)
+    return idx === -1 ? Math.max(rounds.length - 1, 0) : idx
+  }, [roundComplete, rounds.length])
+
+  const [activeIndex, setActiveIndex] = useState(defaultIndex)
+  const carouselRef = useRef<CarouselHandle>(null)
 
   return (
-    <div className="relative space-y-6 pl-6">
-      <div className="absolute left-[9px] top-2 bottom-2 w-px bg-cream-300" aria-hidden />
-      {rounds.map((round, idx) => {
-        const roundMatches = matches.filter((m) => m.round_num === round).sort(compareByScheduledTime)
-        const complete = roundMatches.every((m) => m.is_completed)
-        return (
-          <motion.div
-            key={round}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: idx * 0.06 }}
-            className="relative"
-          >
-            <div
-              className={cn(
-                'absolute -left-6 top-0.5 flex size-[19px] items-center justify-center rounded-full border-2 text-[10px] font-bold',
-                complete ? 'border-ember-500 bg-ember-500 text-navy-950' : 'border-navy-300 bg-cream-50 text-navy-400'
-              )}
-            >
-              {round}
-            </div>
-            <p className="mb-2.5 text-xs font-bold uppercase tracking-wide text-navy-500">Round {round}</p>
-            <div className="grid gap-2 sm:grid-cols-2">
+    <div className="space-y-4">
+      <RoundStepper
+        rounds={rounds}
+        roundComplete={roundComplete}
+        activeIndex={activeIndex}
+        onSelect={(i) => carouselRef.current?.goTo(i)}
+      />
+      <Carousel
+        ref={carouselRef}
+        defaultIndex={defaultIndex}
+        slideClassName="basis-full"
+        hideDots
+        onActiveChange={setActiveIndex}
+        renderControls={(controls) => <div className="flex justify-end">{controls}</div>}
+      >
+        {rounds.map((round) => {
+          const roundMatches = matches.filter((m) => m.round_num === round).sort(compareByScheduledTime)
+          return (
+            <div key={round} className="grid gap-2 sm:grid-cols-2">
               {roundMatches.map((match) => (
                 <FixtureMatchRow
                   key={match.id}
@@ -47,9 +58,51 @@ export function SwissLadder({
                 />
               ))}
             </div>
-          </motion.div>
-        )
-      })}
+          )
+        })}
+      </Carousel>
+    </div>
+  )
+}
+
+// Round markers joined by a line, filled ember as each round finishes — a progress trail
+// through the rounds rather than the carousel's plain position dots.
+function RoundStepper({
+  rounds,
+  roundComplete,
+  activeIndex,
+  onSelect,
+}: {
+  rounds: number[]
+  roundComplete: boolean[]
+  activeIndex: number
+  onSelect: (index: number) => void
+}) {
+  return (
+    <div className="flex items-center py-1">
+      {rounds.map((round, i) => (
+        <Fragment key={round}>
+          <button
+            type="button"
+            onClick={() => onSelect(i)}
+            aria-label={`Go to round ${round}`}
+            aria-current={i === activeIndex}
+            className={cn(
+              'flex size-7 shrink-0 items-center justify-center rounded-full border-2 text-[11px] font-bold transition-colors',
+              i === activeIndex
+                ? 'border-navy-900 bg-navy-900 text-cream-50'
+                : roundComplete[i]
+                  ? 'border-ember-500 bg-ember-500 text-navy-950'
+                  : 'border-navy-300 bg-cream-50 text-navy-400'
+            )}
+          >
+            {round}
+          </button>
+          {i < rounds.length - 1 && (
+            <div className={cn('h-0.5 flex-1', roundComplete[i] ? 'bg-ember-500' : 'bg-navy-200')} />
+          )}
+        </Fragment>
+      ))}
     </div>
   )
 }
