@@ -4,6 +4,7 @@ import { CalendarClock, CheckCircle2, MapPin, Play, Radio, Swords, Timer, UserX 
 import { useAuthStore } from '@/stores/auth-store'
 import { useTournament } from '@/hooks/use-tournaments'
 import { useStartMatch } from '@/hooks/use-matches'
+import { useCourtChangeAlerts } from '@/hooks/use-court-change-alerts'
 import { FullPageSpinner } from '@/components/ui/spinner'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Card } from '@/components/ui/card'
@@ -26,6 +27,7 @@ export function OperatorMatchesPage() {
   const [pickedTab, setPickedTab] = useState<Tab | null>(null)
 
   const playersById = useMemo(() => new Map((tournament?.players ?? []).map((p) => [p.id, p])), [tournament])
+  useCourtChangeAlerts(tournament?.courts ?? [], tournament?.matches ?? [])
 
   if (isLoading) return <FullPageSpinner />
   if (!tournament) {

@@ -1,5 +1,6 @@
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
+import type { TournamentFormat } from '@/types/api'
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -42,6 +43,21 @@ export function formatPlainDate(isoDate: string | null | undefined): string {
   return date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
 }
 
+// The moment a tournament's countdown should run to: the organiser's actual kickoff
+// time once a schedule exists (the earliest scheduled match), falling back to just
+// the calendar date — matches aren't scheduled yet — for anything earlier than that.
+export function countdownTarget(tournamentDate: string | null, earliestMatchStartTime?: string | null): Date | null {
+  if (earliestMatchStartTime) return new Date(earliestMatchStartTime)
+  return tournamentDate ? parsePlainDate(tournamentDate) : null
+}
+
+export function formatPlainWeekday(isoDate: string | null | undefined): string {
+  if (!isoDate) return '—'
+  const date = parsePlainDate(isoDate)
+  if (!date) return '—'
+  return date.toLocaleDateString('en-IN', { weekday: 'long' })
+}
+
 export function formatDuration(minutes: number): string {
   const h = Math.floor(minutes / 60)
   const m = Math.round(minutes % 60)
@@ -64,8 +80,10 @@ export function isPlaceholderId(id: string | null | undefined): boolean {
   return !id || id.includes('TBD')
 }
 
-export function formatLabel(format: 'GROUP_KNOCKOUT' | 'SWISS_KNOCKOUT'): string {
-  return format === 'GROUP_KNOCKOUT' ? 'Group + Knockout' : 'Swiss + Knockout'
+export function formatLabel(format: TournamentFormat): string {
+  if (format === 'GROUP_KNOCKOUT') return 'Group + Knockout'
+  if (format === 'SWISS_KNOCKOUT') return 'Swiss + Knockout'
+  return 'Team Friendly'
 }
 
 /**
@@ -114,7 +132,7 @@ export function compareByScheduledTime<T extends { scheduled_start_time: string 
 }
 
 interface RoundLabelMatch {
-  stage: 'GROUP' | 'SWISS' | 'KNOCKOUT'
+  stage: 'GROUP' | 'SWISS' | 'KNOCKOUT' | 'CROSSOVER'
   round_num: number
   group_id?: string | null
 }
@@ -123,6 +141,7 @@ interface RoundLabelMatch {
 // Knockout rounds are named by position from the end of the bracket (not the raw round_num),
 // since the bracket size varies by tournament and round_num alone doesn't say how many rounds remain.
 export function matchRoundLabel(match: RoundLabelMatch, allMatches: RoundLabelMatch[]): string {
+  if (match.stage === 'CROSSOVER') return 'Friendly Match'
   if (match.stage === 'SWISS') return `Swiss Round ${match.round_num}`
   if (match.stage === 'GROUP') {
     const groupName = match.group_id ? match.group_id.replace(/_/g, ' ') : 'Group stage'
@@ -140,7 +159,7 @@ export function matchRoundLabel(match: RoundLabelMatch, allMatches: RoundLabelMa
 }
 
 interface PodiumMatch {
-  stage: 'GROUP' | 'SWISS' | 'KNOCKOUT'
+  stage: 'GROUP' | 'SWISS' | 'KNOCKOUT' | 'CROSSOVER'
   round_num: number
   is_completed: boolean
   is_bye: boolean

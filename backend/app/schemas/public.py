@@ -45,6 +45,17 @@ class PublicCourtQueue(BaseModel):
     more_upcoming: int = 0  # upcoming matches beyond the ones listed
 
 
+class TeamFriendlyResult(BaseModel):
+    """Set once every TEAM_FRIENDLY crossover match is decided. `winner` is None on a
+    genuine tie (same matches won AND same point difference) — mirrors the same
+    matches-won-then-point-difference tiebreak the live standings card uses."""
+    winner: Optional[str] = None  # "A" or "B", or None if tied
+    team_a_matches_won: int
+    team_b_matches_won: int
+    team_a_point_diff: int
+    team_b_point_diff: int
+
+
 class PublicTournamentSummary(BaseModel):
     id: str
     name: str
@@ -52,7 +63,12 @@ class PublicTournamentSummary(BaseModel):
     category: Optional[TournamentCategory] = None
     status: TournamentStatus
     venue: Optional[str] = None
+    venue_link: Optional[str] = None
     tournament_date: Optional[date] = None
+    # The organiser's actual kickoff time, once a schedule exists — the earliest
+    # scheduled match's start. None before a schedule is generated, in which case
+    # callers fall back to just the date.
+    earliest_match_start_time: Optional[datetime] = None
     players_count: int
     courts_count: int
     created_at: datetime
@@ -61,6 +77,7 @@ class PublicTournamentSummary(BaseModel):
     # Set only once the tournament is COMPLETED and its knockout final was actually played.
     champion_name: Optional[str] = None
     runner_up_name: Optional[str] = None
+    team_friendly_result: Optional[TeamFriendlyResult] = None
     matches_completed: int = 0
     matches_total: int = 0
 
@@ -74,6 +91,7 @@ class PublicTournamentDetail(BaseModel):
     category: Optional[TournamentCategory] = None
     status: TournamentStatus
     venue: Optional[str] = None
+    venue_link: Optional[str] = None
     tournament_date: Optional[date] = None
     courts: List[CourtResponse] = []
     players: List[PlayerResponse] = []

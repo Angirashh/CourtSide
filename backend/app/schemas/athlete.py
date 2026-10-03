@@ -2,6 +2,8 @@ from datetime import datetime
 from typing import Optional, List
 from pydantic import BaseModel, ConfigDict, Field, EmailStr
 
+from app.db.models import TournamentCategory
+
 
 class AthleteBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=100, examples=["Viktor Axelsen"])
@@ -52,6 +54,7 @@ class AthleteTournamentHistory(BaseModel):
     tournament_id: str
     tournament_name: str
     tournament_date: datetime
+    category: Optional[TournamentCategory] = None
     seed: Optional[int] = None
     final_placement: Optional[int] = None
     points_earned: float
@@ -59,6 +62,16 @@ class AthleteTournamentHistory(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class AthleteCategoryStats(BaseModel):
+    category: Optional[TournamentCategory] = None  # None = tournaments with no category set
+    tournaments_played: int
+    matches_played: int
+    matches_won: int
+    matches_lost: int
+    win_rate_percentage: float
+
+
 class AthleteDetailResponse(AthleteResponse):
     win_rate_percentage: float
     history: List[AthleteTournamentHistory] = []
+    stats_by_category: List[AthleteCategoryStats] = []

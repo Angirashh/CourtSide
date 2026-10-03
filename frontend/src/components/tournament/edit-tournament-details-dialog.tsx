@@ -12,16 +12,19 @@ import { extractErrorMessage } from '@/lib/api/client'
 
 const editSchema = z.object({
   venue: z.string().min(2, 'Enter a venue'),
+  venue_link: z.string().trim().url('Enter a valid URL (starting with https://)').optional().or(z.literal('')),
   tournament_date: z.string().min(1, 'Pick a date'),
 })
 
 export function EditTournamentDetailsDialog({
   tournamentId,
   venue,
+  venueLink,
   tournamentDate,
 }: {
   tournamentId: string
   venue: string | null
+  venueLink: string | null
   tournamentDate: string | null
 }) {
   const [open, setOpen] = useState(false)
@@ -34,7 +37,7 @@ export function EditTournamentDetailsDialog({
     formState: { errors },
   } = useForm<z.infer<typeof editSchema>>({
     resolver: zodResolver(editSchema),
-    values: { venue: venue ?? '', tournament_date: tournamentDate ?? '' },
+    values: { venue: venue ?? '', venue_link: venueLink ?? '', tournament_date: tournamentDate ?? '' },
   })
 
   const onSubmit = handleSubmit((values) => {
@@ -78,6 +81,11 @@ export function EditTournamentDetailsDialog({
             <Label>Venue</Label>
             <Input placeholder="Koramangala Indoor Stadium" {...register('venue')} />
             <FieldError>{errors.venue?.message}</FieldError>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Venue link (optional)</Label>
+            <Input placeholder="https://maps.google.com/?q=..." {...register('venue_link')} />
+            <FieldError>{errors.venue_link?.message}</FieldError>
           </div>
           <div className="space-y-1.5">
             <Label>Tournament date</Label>

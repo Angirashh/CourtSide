@@ -24,7 +24,7 @@ export default function App() {
             background: '#1b2a3d',
             color: '#f1ece2',
             border: '1px solid rgba(241,236,226,0.1)',
-            fontFamily: "'Plus Jakarta Sans', sans-serif",
+            fontFamily: "'Hanken Grotesk', sans-serif",
           },
         }}
       />

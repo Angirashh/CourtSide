@@ -1,10 +1,10 @@
 import uuid
-from typing import List, Optional
+from typing import Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 from sqlalchemy import or_
 
-from app.api.dependencies import get_db
+from app.api.dependencies import CurrentUser, get_db, require_player
 from app.db import models
 from app.schemas.athlete import (
     AthleteCreate,
@@ -13,6 +13,7 @@ from app.schemas.athlete import (
     AthleteLeaderboardEntry,
     AthleteDetailResponse,
     AthleteTournamentHistory,
+    AthleteCategoryStats,
 )
 
 router = APIRouter(prefix="/athletes", tags=["Athletes & Leaderboard"])
@@ -123,12 +124,46 @@ def create_athlete(payload: AthleteCreate, db: Session = Depends(get_db)):
 # =====================================================================
 # CAREER PROFILE & TOURNAMENT HISTORY
 # =====================================================================
-@router.get("/{athlete_id}", response_model=AthleteDetailResponse)
-def get_athlete_profile(athlete_id: str, db: Session = Depends(get_db)):
+def _compute_stats_by_category(athlete_id: str, db: Session) -> List[AthleteCategoryStats]:
     """
-    Returns detailed athlete career record, statistics,
-    and a chronological timeline of all tournaments played.
+    Breaks the athlete's career record down per tournament category, computed live from
+    already-finalized (COMPLETED) tournaments rather than a persisted counter — there's
+    only one career total stored on Athlete, so a category split is derived on read.
     """
+    rows = (
+        db.query(models.Player, models.Tournament)
+        .join(models.Tournament, models.Player.tournament_id == models.Tournament.id)
+        .filter(models.Player.athlete_id == athlete_id, models.Tournament.status == models.TournamentStatus.COMPLETED)
+        .all()
+    )
+
+    buckets: Dict[Optional[models.TournamentCategory], List[str]] = {}
+    for player, tourn in rows:
+        buckets.setdefault(tourn.category, []).append(player.id)
+
+    stats = []
+    for category, player_ids in buckets.items():
+        id_set = set(player_ids)
+        matches = db.query(models.Match).filter(
+            models.Match.is_completed == True,
+            or_(models.Match.player1_id.in_(player_ids), models.Match.player2_id.in_(player_ids)),
+        ).all()
+        matches_played = len(matches)
+        # Byes/walkovers are already resolved to a winner_id before a match is marked
+        # completed, so every completed match here has one — no separate loss tally needed.
+        matches_won = sum(1 for m in matches if m.winner_id in id_set)
+        stats.append(AthleteCategoryStats(
+            category=category,
+            tournaments_played=len(player_ids),
+            matches_played=matches_played,
+            matches_won=matches_won,
+            matches_lost=matches_played - matches_won,
+            win_rate_percentage=round((matches_won / matches_played) * 100.0, 1) if matches_played else 0.0,
+        ))
+    return stats
+
+
+def _build_athlete_detail(athlete_id: str, db: Session) -> AthleteDetailResponse:
     athlete = db.query(models.Athlete).filter(models.Athlete.id == athlete_id).first()
     if not athlete:
         raise HTTPException(status_code=404, detail="Athlete not found")
@@ -147,6 +182,7 @@ def get_athlete_profile(athlete_id: str, db: Session = Depends(get_db)):
             tournament_id=tourn.id,
             tournament_name=tourn.name,
             tournament_date=tourn.created_at,
+            category=tourn.category,
             seed=player.seed,
             final_placement=player.final_placement,
             points_earned=player.ranking_points_earned
@@ -173,9 +209,31 @@ def get_athlete_profile(athlete_id: str, db: Session = Depends(get_db)):
         matches_lost=athlete.matches_lost,
         win_rate_percentage=win_rate,
         history=history,
+        stats_by_category=_compute_stats_by_category(athlete_id, db),
         created_at=athlete.created_at,
         updated_at=athlete.updated_at
     )
+
+
+@router.get("/me", response_model=AthleteDetailResponse)
+def get_my_athlete_profile(
+    current_user: CurrentUser = Depends(require_player),
+    db: Session = Depends(get_db),
+):
+    """Returns the signed-in player's own career record and tournament history."""
+    user = db.query(models.User).filter(models.User.id == current_user.id).first()
+    if not user or not user.athlete_id:
+        raise HTTPException(status_code=404, detail="No athlete record linked to this account.")
+    return _build_athlete_detail(user.athlete_id, db)
+
+
+@router.get("/{athlete_id}", response_model=AthleteDetailResponse)
+def get_athlete_profile(athlete_id: str, db: Session = Depends(get_db)):
+    """
+    Returns detailed athlete career record, statistics,
+    and a chronological timeline of all tournaments played.
+    """
+    return _build_athlete_detail(athlete_id, db)
 
 
 @router.patch("/{athlete_id}", response_model=AthleteResponse)

@@ -23,9 +23,27 @@ from app.services.fixture_engine.datatypes import (
     MatchStage as EngineMatchStage,
 )
 from app.services.fixture_engine.fixture_engine import FixtureEngine
+from app.services.fixture_engine.generators.team_friendly import TeamFriendlyGenerator, InfeasibleQuotaError
+from app.services.match_progression import finalize_athlete_career_stats
 from app.services.scheduling_engine.cp_sat_solver import CourtScheduler
 
 router = APIRouter(prefix="/tournaments", tags=["Tournaments"])
+
+# Real courts are booked in fixed slots, not at an arbitrary minute — every generated match
+# start, and every court booking window, is aligned to this grid (see CourtScheduler).
+TIME_GRID_MINUTES = 30
+
+
+def _round_datetime_up_to_grid(dt: datetime, grid_minutes: int = TIME_GRID_MINUTES) -> datetime:
+    dt = dt.replace(second=0, microsecond=0)
+    remainder = dt.minute % grid_minutes
+    return dt if remainder == 0 else dt + timedelta(minutes=grid_minutes - remainder)
+
+
+def _round_datetime_down_to_grid(dt: datetime, grid_minutes: int = TIME_GRID_MINUTES) -> datetime:
+    dt = dt.replace(second=0, microsecond=0)
+    remainder = dt.minute % grid_minutes
+    return dt if remainder == 0 else dt - timedelta(minutes=remainder)
 
 
 def _derive_schedule_summary(matches: List[models.Match], courts: List[models.Court]) -> Optional[dict]:
@@ -47,7 +65,6 @@ def _derive_schedule_summary(matches: List[models.Match], courts: List[models.Co
         by_court.setdefault(m.court_id, []).append(m)
 
     avg_court_rate = sum(c.hourly_rate for c in courts) / len(courts)
-    court_name_map = {c.id: c.name for c in courts}
 
     court_bookings = {}
     overall_start = None
@@ -55,14 +72,21 @@ def _derive_schedule_summary(matches: List[models.Match], courts: List[models.Co
     total_billable_hours = 0.0
 
     for court_id, court_matches in by_court.items():
-        booked_from = min(m.scheduled_start_time for m in court_matches)
-        booked_until = max(m.scheduled_end_time for m in court_matches)
+        # Matches pack back-to-back at whatever cadence the format needs, so the first start
+        # and last end rarely land on a clean slot boundary — round the booking window OUT
+        # (never in) to the slots an organiser would actually reserve.
+        first_match_start = min(m.scheduled_start_time for m in court_matches)
+        last_match_end = max(m.scheduled_end_time for m in court_matches)
+        booked_from = _round_datetime_down_to_grid(first_match_start)
+        booked_until = _round_datetime_up_to_grid(last_match_end)
         duration_minutes = int((booked_until - booked_from).total_seconds() / 60)
-        billed_hours = math.ceil(duration_minutes / 30) * 0.5
+        billed_hours = duration_minutes / 60.0
         court_cost = billed_hours * avg_court_rate
         total_billable_hours += billed_hours
 
-        court_bookings[court_name_map.get(court_id, court_id)] = {
+        # Keyed by court ID, not name — a court can be renamed at any time, and this key must
+        # keep resolving on the frontend regardless (see CourtBookingsSection / ScheduleSummaryTab).
+        court_bookings[court_id] = {
             "booked_from": booked_from.isoformat(),
             "booked_until": booked_until.isoformat(),
             "duration_minutes": duration_minutes,
@@ -70,8 +94,8 @@ def _derive_schedule_summary(matches: List[models.Match], courts: List[models.Co
             "court_cost": court_cost,
         }
 
-        overall_start = booked_from if overall_start is None else min(overall_start, booked_from)
-        overall_end = booked_until if overall_end is None else max(overall_end, booked_until)
+        overall_start = first_match_start if overall_start is None else min(overall_start, first_match_start)
+        overall_end = last_match_end if overall_end is None else max(overall_end, last_match_end)
 
     makespan_minutes = int((overall_end - overall_start).total_seconds() / 60)
     total_estimated_cost = total_billable_hours * avg_court_rate
@@ -110,6 +134,7 @@ def create_tournament(
         shuttle_cost=payload.shuttle_cost,
         shuttle_matches_per_unit=payload.shuttle_matches_per_unit,
         venue=payload.venue,
+        venue_link=payload.venue_link,
         tournament_date=payload.tournament_date,
         status=models.TournamentStatus.DRAFT,
         organiser_id=current_user.id,
@@ -162,7 +187,12 @@ def get_tournament(
 
     # Tournaments scheduled before cost tracking was added have no stored schedule_summary.
     # Derive one from the persisted match times so the cost/savings figures still show up.
-    if tournament.schedule_summary is None:
+    # Also self-heals a summary stored before court_bookings was keyed by court ID (it used to
+    # be keyed by name, which went stale the moment a court was renamed).
+    stored_bookings = (tournament.schedule_summary or {}).get("court_bookings") or {}
+    court_ids = {c.id for c in tournament.courts}
+    is_stale = stored_bookings and not (set(stored_bookings) & court_ids)
+    if tournament.schedule_summary is None or is_stale:
         derived = _derive_schedule_summary(tournament.matches, tournament.courts)
         if derived:
             tournament.schedule_summary = derived
@@ -189,6 +219,9 @@ def update_tournament_details(
 
     if payload.venue is not None:
         tournament.venue = payload.venue
+    if payload.venue_link is not None:
+        # An empty string clears a previously-set link rather than being stored as-is.
+        tournament.venue_link = payload.venue_link or None
     if payload.tournament_date is not None:
         tournament.tournament_date = payload.tournament_date
 
@@ -301,6 +334,63 @@ def _build_swiss_template_matches(
     return template_matches
 
 
+def _build_team_friendly_template_matches(
+    real_db_players: List[models.Player],
+    matches_per_player: Optional[int],
+) -> List[EngineMatch]:
+    """
+    Validates the roster is ready for the TEAM_FRIENDLY format and generates the cross-team
+    singles schedule. Every player plays the SAME number of matches (one tournament-wide number,
+    not set per player) — since each match contributes one opponent to a player on each side, a
+    uniform count is only realizable when both teams are the same size, so that's enforced here
+    too rather than left for the solver to reject opaquely.
+    Raises HTTPException(400) with a message naming the problem, so the organiser gets a clear
+    fix-it instruction rather than a solver error.
+    """
+    if not matches_per_player or matches_per_player < 1:
+        raise HTTPException(status_code=400, detail="Set how many matches each player should play.")
+
+    missing_team = [p.name for p in real_db_players if p.team not in ("A", "B")]
+    if missing_team:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Assign a team (A or B) to every player first. Missing: {', '.join(missing_team)}"
+        )
+
+    team_a_db = [p for p in real_db_players if p.team == "A"]
+    team_b_db = [p for p in real_db_players if p.team == "B"]
+    if len(team_a_db) < 2 or len(team_b_db) < 2:
+        raise HTTPException(
+            status_code=400,
+            detail="Each team needs at least 2 players for a cross-team friendly schedule."
+        )
+    if len(team_a_db) != len(team_b_db):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Teams must be the same size for everyone to play an equal number of matches — "
+                f"Team A has {len(team_a_db)} players, Team B has {len(team_b_db)}."
+            )
+        )
+    if matches_per_player > len(team_b_db):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"{matches_per_player} matches per player isn't possible with {len(team_b_db)} "
+                "players on the other team — opponents can't repeat."
+            )
+        )
+
+    team_a = [EnginePlayer(id=p.id, name=p.name, seed=p.seed or 1) for p in team_a_db]
+    team_b = [EnginePlayer(id=p.id, name=p.name, seed=p.seed or 1) for p in team_b_db]
+    quotas = {p.id: matches_per_player for p in real_db_players}
+
+    try:
+        return TeamFriendlyGenerator.generate_crossover_matches(team_a, team_b, quotas)
+    except InfeasibleQuotaError as e:
+        raise HTTPException(status_code=400, detail=e.detail)
+
+
 @router.post("/{tournament_id}/generate-schedule", response_model=ScheduleGenerationResponse)
 def generate_tournament_schedule(
     tournament_id: str,
@@ -385,17 +475,31 @@ def generate_tournament_schedule(
             engine=engine,
             num_swiss_rounds=payload.num_swiss_rounds
         )
+    elif tournament.format == models.TournamentFormat.TEAM_FRIENDLY:
+        # No seed is threaded through from the payload — leaving it unset lets the generator's
+        # RNG draw fresh randomness each call, so "Regenerate schedule" naturally produces a
+        # different valid draw every time without needing a new request field for this format.
+        template_matches = _build_team_friendly_template_matches(
+            real_db_players=real_players,
+            matches_per_player=payload.matches_per_player,
+        )
     else:
         raise HTTPException(status_code=400, detail="Unsupported tournament format")
 
     # 2. Run CP-SAT Court Optimization
+    # Anchor to a grid boundary: each court's booking window is floored/ceiled to the grid
+    # relative to this start time, so if the start time itself is off-grid (e.g. an organiser
+    # picks 9:07), the very first court window would too. Rounding down never costs real time,
+    # since nothing was scheduled before the first match anyway.
+    start_time = _round_datetime_down_to_grid(payload.start_time)
     avg_court_rate = sum(c.hourly_rate for c in courts) / len(courts) if courts else 40.0
     solver_result = CourtScheduler.schedule_matches(
         matches=template_matches,
         num_courts=len(courts),
         match_duration=tournament.match_duration_minutes,
         rest_time=tournament.rest_time_minutes,
-        court_hourly_cost=avg_court_rate
+        court_hourly_cost=avg_court_rate,
+        time_grid_minutes=TIME_GRID_MINUTES
     )
 
     if solver_result["status"] not in ("OPTIMAL", "FEASIBLE"):
@@ -414,7 +518,6 @@ def generate_tournament_schedule(
 
     # 4. Map Court 1..N index to Court database UUIDs
     court_index_map = {f"Court_{idx+1}": court.id for idx, court in enumerate(courts)}
-    court_name_map = {court.id: court.name for court in courts}
 
     # Helper to namespace placeholder IDs to this tournament
     def scope_id(pid: Optional[str]) -> Optional[str]:
@@ -470,21 +573,22 @@ def generate_tournament_schedule(
         if sched_item:
             court_idx_str = sched_item["court_id"]
             db_match.court_id = court_index_map.get(court_idx_str)
-            db_match.scheduled_start_time = payload.start_time + timedelta(minutes=sched_item["start_minute"])
-            db_match.scheduled_end_time = payload.start_time + timedelta(minutes=sched_item["end_minute"])
+            db_match.scheduled_start_time = start_time + timedelta(minutes=sched_item["start_minute"])
+            db_match.scheduled_end_time = start_time + timedelta(minutes=sched_item["end_minute"])
             persisted_matches_count += 1
 
         db.add(db_match)
 
-    # 7. Structure court booking windows for the API response
+    # 7. Structure court booking windows for the API response. Keyed by court ID, not name —
+    # a court can be renamed at any time after this, and that key must keep resolving on the
+    # frontend regardless (see CourtBookingsSection / ScheduleSummaryTab).
     response_bookings = {}
     for court_key, b_info in solver_result["court_bookings"].items():
-        db_court_id = court_index_map.get(court_key)
-        display_name = court_name_map.get(db_court_id, court_key)
+        db_court_id = court_index_map.get(court_key, court_key)
 
-        response_bookings[display_name] = CourtBookingWindow(
-            booked_from=payload.start_time + timedelta(minutes=b_info["booked_from_minute"]),
-            booked_until=payload.start_time + timedelta(minutes=b_info["booked_until_minute"]),
+        response_bookings[db_court_id] = CourtBookingWindow(
+            booked_from=start_time + timedelta(minutes=b_info["booked_from_minute"]),
+            booked_until=start_time + timedelta(minutes=b_info["booked_until_minute"]),
             duration_minutes=b_info["duration_minutes"],
             billed_hours=b_info["billed_hours"],
             court_cost=b_info["court_cost"]
@@ -609,6 +713,7 @@ def end_tournament(
         )
 
     tournament.status = models.TournamentStatus.COMPLETED
+    finalize_athlete_career_stats(tournament_id, db)
     db.commit()
     db.refresh(tournament)
     return tournament

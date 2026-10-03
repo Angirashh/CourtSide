@@ -36,4 +36,10 @@ export const playersApi = {
     api
       .post<WithdrawResponse>(`/tournaments/${tournamentId}/players/${playerId}/withdraw`, { reason })
       .then((r) => r.data),
+
+  update: (tournamentId: string, playerId: string, payload: { team?: 'A' | 'B' }) =>
+    api.patch<Player>(`/tournaments/${tournamentId}/players/${playerId}`, payload).then((r) => r.data),
+
+  selfRegister: (tournamentId: string) =>
+    api.post<Player>(`/tournaments/${tournamentId}/players/self-register`).then((r) => r.data),
 }

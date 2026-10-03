@@ -18,6 +18,11 @@ class CourtCreate(CourtBase):
     pass
 
 
+class CourtUpdate(BaseModel):
+    name: Optional[str] = Field(None, min_length=1, max_length=100, examples=["Court 1"])
+    hourly_rate: Optional[float] = Field(None, ge=0.0, examples=[300.0])
+
+
 class CourtResponse(CourtBase):
     id: str
     tournament_id: str
@@ -37,6 +42,7 @@ class TournamentBase(BaseModel):
     shuttle_cost: float = Field(default=220.0, ge=0, examples=[220.0])
     shuttle_matches_per_unit: int = Field(default=3, ge=1, examples=[3])
     venue: Optional[str] = Field(default=None, max_length=200, examples=["Koramangala Indoor Stadium"])
+    venue_link: Optional[str] = Field(default=None, max_length=500, examples=["https://maps.google.com/?q=..."])
     tournament_date: Optional[date] = Field(default=None, examples=["2026-10-12"])
 
 
@@ -54,6 +60,7 @@ class TournamentDetailsUpdate(BaseModel):
     the dedicated lifecycle/schedule-generation routes. Safe to call at any tournament status.
     """
     venue: Optional[str] = Field(None, min_length=2, max_length=200, examples=["Koramangala Indoor Stadium"])
+    venue_link: Optional[str] = Field(None, max_length=500, examples=["https://maps.google.com/?q=..."])
     tournament_date: Optional[date] = Field(None, examples=["2026-10-12"])
 
 
@@ -66,6 +73,7 @@ class TournamentUpdate(BaseModel):
     shuttle_cost: Optional[float] = Field(None, ge=0)
     shuttle_matches_per_unit: Optional[int] = Field(None, ge=1)
     venue: Optional[str] = Field(None, min_length=2, max_length=200)
+    venue_link: Optional[str] = Field(None, max_length=500)
     tournament_date: Optional[date] = None
 
 
@@ -96,6 +104,12 @@ class ScheduleGenerationRequest(BaseModel):
         default=None,
         ge=1,
         description="SWISS_KNOCKOUT only. Defaults to ceil(log2(players)); at most players - 1."
+    )
+    matches_per_player: Optional[int] = Field(
+        default=None,
+        ge=1,
+        description="Required if format is TEAM_FRIENDLY. Every player plays exactly this many "
+                     "distinct cross-team opponents, so both teams must be the same size."
     )
 
 

@@ -25,7 +25,9 @@ const TournamentsBrowsePage = lazy(() =>
 const TournamentLivePage = lazy(() =>
   import('@/pages/public/tournament-live-page').then((m) => ({ default: m.TournamentLivePage }))
 )
-const ComingSoonPage = lazy(() => import('@/pages/public/coming-soon-page').then((m) => ({ default: m.ComingSoonPage })))
+const PlayerProfilePage = lazy(() =>
+  import('@/pages/player/player-profile-page').then((m) => ({ default: m.PlayerProfilePage }))
+)
 
 function suspended(element: React.ReactNode) {
   return <Suspense fallback={<FullPageSpinner />}>{element}</Suspense>
@@ -40,15 +42,7 @@ export const router = createBrowserRouter([
       { path: '/about', element: suspended(<AboutPage />) },
       { path: '/tournaments', element: suspended(<TournamentsBrowsePage />) },
       { path: '/tournaments/:id', element: suspended(<TournamentLivePage />) },
-      {
-        path: '/players',
-        element: suspended(
-          <ComingSoonPage
-            title="Player accounts are on the way"
-            description="Sign in to follow your fixtures and see your career stats across every tournament. For now, browse live tournaments below."
-          />
-        ),
-      },
+      { path: '/players', element: suspended(<PlayerProfilePage />) },
     ],
   },
   {

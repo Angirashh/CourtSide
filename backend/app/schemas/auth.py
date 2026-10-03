@@ -118,6 +118,19 @@ class CoOrganiserResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+# =====================================================================
+# PLAYER SIGN-IN (GOOGLE) — CLAIM-OR-CREATE
+# =====================================================================
+class PlayerGoogleLogin(BaseModel):
+    id_token: str = Field(..., description="The Google ID token (JWT credential) from Google Identity Services.")
+
+
+class PlayerGoogleLoginResponse(TokenResponse):
+    claimed_existing_record: bool = Field(
+        ..., description="True if this login just linked an organiser-added roster entry to a new account."
+    )
+
+
 class OperatorStatusResponse(BaseModel):
     """One invited operator's standing access plus their live on-court status."""
     operator_id: str

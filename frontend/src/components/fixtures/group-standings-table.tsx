@@ -8,9 +8,11 @@ export function GroupStandingsTable({ title, rows, qualifySlots = 2 }: { title: 
     <div className="overflow-hidden rounded-xl border border-cream-200 bg-cream-25">
       <div className="flex items-center justify-between border-b border-cream-200 bg-navy-900 px-4 py-2.5">
         <h4 className="font-display text-sm font-medium text-cream-50">{title}</h4>
-        <span className="text-[10px] font-semibold uppercase tracking-wide text-cream-200/50">
-          Top {qualifySlots} advance
-        </span>
+        {qualifySlots > 0 && (
+          <span className="text-[10px] font-semibold uppercase tracking-wide text-cream-200/50">
+            Top {qualifySlots} advance
+          </span>
+        )}
       </div>
       <table className="w-full text-sm">
         <thead>
@@ -32,7 +34,7 @@ export function GroupStandingsTable({ title, rows, qualifySlots = 2 }: { title: 
               transition={{ delay: idx * 0.03 }}
               className={cn(
                 'border-t border-cream-200 transition-colors',
-                idx < qualifySlots && !row.isWithdrawn && 'bg-ember-100/40',
+                qualifySlots > 0 && idx < qualifySlots && !row.isWithdrawn && 'bg-ember-100/40',
                 row.isWithdrawn && 'opacity-50'
               )}
             >
@@ -40,6 +42,11 @@ export function GroupStandingsTable({ title, rows, qualifySlots = 2 }: { title: 
               <td className="w-full max-w-0 px-2 py-2.5 font-semibold text-navy-900">
                 <span className="flex items-center gap-1.5">
                   <span className="truncate">{row.name}</span>
+                  {row.team && (
+                    <span className="shrink-0 rounded-full bg-navy-100 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-navy-400">
+                      Team {row.team}
+                    </span>
+                  )}
                   {row.isWithdrawn && <UserX className="size-3.5 text-danger" />}
                 </span>
               </td>
@@ -59,7 +66,7 @@ export function GroupStandingsTable({ title, rows, qualifySlots = 2 }: { title: 
   )
 }
 
-function DiffIndicator({ value }: { value: number }) {
+export function DiffIndicator({ value }: { value: number }) {
   if (value > 0)
     return (
       <span className="inline-flex items-center gap-0.5 text-success">
