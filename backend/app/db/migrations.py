@@ -65,6 +65,27 @@ def ensure_team_friendly_columns(engine: Engine) -> None:
             conn.execute(text("ALTER TABLE players ADD COLUMN team VARCHAR"))
 
 
+def ensure_team_friendly_enum_values(engine: Engine) -> None:
+    """
+    Postgres enum columns compile to a native, rigid ENUM TYPE — `Base.metadata.create_all()`
+    only creates tables that don't exist yet, it never alters an existing type's allowed values.
+    TEAM_FRIENDLY (on TournamentFormat) and CROSSOVER (on MatchStage) were both added to the
+    Python enums after production's `tournamentformat`/`matchstage` types already existed, so
+    without this, inserting either value fails at the database level with "invalid input value
+    for enum ..." — a 500 on tournament creation (format) or schedule generation (stage) for this
+    format specifically, while every other format keeps working fine. SQLite (local dev/tests)
+    has no native enum type — these are just strings there — so this is a no-op off Postgres.
+    """
+    if engine.dialect.name != "postgresql":
+        return
+    # Run outside any transaction block: ADD VALUE's historical restriction is on using the new
+    # value within the same transaction it was added in, and autocommit sidesteps any ambiguity
+    # about that across Postgres versions/drivers rather than relying on engine.begin().
+    with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
+        conn.execute(text("ALTER TYPE tournamentformat ADD VALUE IF NOT EXISTS 'TEAM_FRIENDLY'"))
+        conn.execute(text("ALTER TYPE matchstage ADD VALUE IF NOT EXISTS 'CROSSOVER'"))
+
+
 def ensure_court_available_from_column(engine: Engine) -> None:
     """Same create_all limitation as above, for `available_from_minutes` on a `courts` table
     that predates per-court staggered availability."""
