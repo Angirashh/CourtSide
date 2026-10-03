@@ -41,6 +41,11 @@ def player_google_login(payload: PlayerGoogleLogin, db: Session = Depends(get_db
     separate OTP/verification step — a valid, email-verified Google credential is enough to
     log in immediately, claiming a pre-existing organiser-added roster entry if one matches.
     """
+    if not settings.GOOGLE_CLIENT_ID:
+        # Mirrors the frontend's own check (LoggedOutView in player-profile-page.tsx) — a
+        # deployment that hasn't set this yet shouldn't verify tokens against an empty
+        # audience and get back a misleading "Invalid Google credential."
+        raise HTTPException(status_code=503, detail="Player sign-in isn't configured yet.")
     try:
         claims = google_id_token.verify_oauth2_token(
             payload.id_token, google_requests.Request(), settings.GOOGLE_CLIENT_ID
