@@ -246,7 +246,13 @@ class CourtScheduler:
         #             window rather than sitting empty before its first match — a
         #             court idle before the tournament's own advertised start time
         #             reads as broken, one that frees up early after its last match
-        #             does not
+        #             does not. Weighted at 10 (not 1) because empirically, with a
+        #             weak weight CP-SAT would settle for small, unforced gaps (e.g.
+        #             a court starting 2-10 minutes late with no scheduling reason)
+        #             rather than reliably finding the equally-good aligned solution;
+        #             verified against a real multi-court/12-player tournament across
+        #             10 random seeds, weight 10 closed every gap to zero without ever
+        #             increasing makespan or total court minutes.
         # Quinary: Pack lower court index numbers first
         makespan = model.NewIntVar(0, horizon, "makespan")
         model.AddMaxEquality(makespan, [match_ends[m.id] for m in active_matches])
@@ -258,7 +264,7 @@ class CourtScheduler:
             (makespan * 100) +
             (total_court_minutes * 10) +
             (sum(consecutive_play_penalties) * 1) +
-            (sum(court_start_vars[c] for c in range(1, num_courts + 1)) * 1) +
+            (sum(court_start_vars[c] for c in range(1, num_courts + 1)) * 10) +
             sum(court_packing_penalties)
         )
 
