@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   tournamentsApi,
   type CourtPayload,
+  type CourtReschedulePayload,
   type CourtUpdatePayload,
   type CreateTournamentPayload,
   type GenerateSchedulePayload,
@@ -112,6 +113,15 @@ export function useRemoveCourt(tournamentId: string) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (courtId: string) => tournamentsApi.removeCourt(tournamentId, courtId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: tournamentKeys.detail(tournamentId) }),
+  })
+}
+
+export function useRescheduleCourt(tournamentId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ courtId, payload }: { courtId: string; payload: CourtReschedulePayload }) =>
+      tournamentsApi.rescheduleCourt(tournamentId, courtId, payload),
     onSuccess: () => qc.invalidateQueries({ queryKey: tournamentKeys.detail(tournamentId) }),
   })
 }

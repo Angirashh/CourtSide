@@ -42,6 +42,7 @@ export interface Court {
   tournament_id: string
   name: string
   hourly_rate: number
+  available_from_minutes: number
 }
 
 export interface Player {
@@ -110,6 +111,13 @@ export interface ScheduleSummary {
   flat_booking_cost: number
   savings: number
   court_bookings: Record<string, CourtBookingWindow>
+}
+
+export interface CourtRescheduleResponse {
+  court_id: string
+  delta_minutes: number
+  shifted_matches_count: number
+  booking: CourtBookingWindow | null
 }
 
 export interface TournamentDetail extends Tournament {

@@ -12,6 +12,16 @@ from app.schemas.match import MatchResponse
 class CourtBase(BaseModel):
     name: str = Field(..., examples=["Court 1"])
     hourly_rate: float = Field(default=0.0, ge=0.0, examples=[40.0])
+    available_from_minutes: int = Field(
+        default=0,
+        ge=0,
+        le=1440,
+        examples=[30],
+        description="Minutes after the tournament's chosen kickoff time before this court is "
+                    "actually free to use — e.g. 30 if this court isn't booked until half an "
+                    "hour after the others. 0 means available from the very start, like every "
+                    "court by default."
+    )
 
 
 class CourtCreate(CourtBase):
@@ -21,6 +31,7 @@ class CourtCreate(CourtBase):
 class CourtUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=1, max_length=100, examples=["Court 1"])
     hourly_rate: Optional[float] = Field(None, ge=0.0, examples=[300.0])
+    available_from_minutes: Optional[int] = Field(None, ge=0, le=1440, examples=[30])
 
 
 class CourtResponse(CourtBase):
@@ -28,6 +39,16 @@ class CourtResponse(CourtBase):
     tournament_id: str
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class CourtRescheduleRequest(BaseModel):
+    new_start_time: datetime = Field(
+        ...,
+        examples=["2026-10-12T13:30:00"],
+        description="When this court's next upcoming match should now start. Every not-yet-started "
+                    "match already scheduled on the court shifts by the same amount, preserving the "
+                    "gaps between them; the court's booking window and cost are recomputed to match."
+    )
 
 
 # =====================================================================
@@ -119,6 +140,13 @@ class CourtBookingWindow(BaseModel):
     duration_minutes: int
     billed_hours: float
     court_cost: float
+
+
+class CourtRescheduleResponse(BaseModel):
+    court_id: str
+    delta_minutes: int
+    shifted_matches_count: int
+    booking: Optional[CourtBookingWindow] = None
 
 
 class ScheduleSummary(BaseModel):

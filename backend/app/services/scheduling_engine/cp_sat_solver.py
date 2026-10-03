@@ -1,6 +1,6 @@
 import collections
 import math
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from ortools.sat.python import cp_model
 from app.services.fixture_engine.datatypes import Match, MatchStage
 
@@ -13,7 +13,8 @@ class CourtScheduler:
         match_duration: int = 35,
         rest_time: int = 25,
         court_hourly_cost: float = 40.0,
-        time_grid_minutes: int = 30
+        time_grid_minutes: int = 30,
+        court_available_from: Optional[Dict[int, int]] = None,
     ) -> Dict[str, Any]:
         """
         Assigns matches to courts and time slots.
@@ -27,6 +28,11 @@ class CourtScheduler:
         Snapping every match's start to that same grid would insert idle time between every
         single match whenever the real match+rest cycle is shorter than the grid (e.g. a
         12-minute match on a 30-minute grid), which defeats minimizing idle time.
+
+        `court_available_from` (1-indexed by court number, matching the `Court_{n}` IDs this
+        returns) lets individual courts open later than the others — e.g. 3 courts free from the
+        tournament's start but a 4th not booked for another 30 minutes. A court with no entry (or
+        this left as None entirely) is available from minute 0, same as before this existed.
         """
         active_matches = [m for m in matches if not m.is_bye and not m.is_completed]
         if not active_matches:
@@ -38,7 +44,9 @@ class CourtScheduler:
                 "schedule": []
             }
 
-        horizon = len(active_matches) * (match_duration + rest_time)
+        court_available_from = court_available_from or {}
+        max_available_from = max(court_available_from.values(), default=0)
+        horizon = len(active_matches) * (match_duration + rest_time) + max_available_from
         model = cp_model.CpModel()
 
         match_starts = {}
@@ -213,7 +221,8 @@ class CourtScheduler:
             court_used = model.NewBoolVar(f"court_used_{c}")
             court_used_vars[c] = court_used
 
-            c_start = model.NewIntVar(0, horizon, f"c_start_{c}")
+            available_from = court_available_from.get(c, 0)
+            c_start = model.NewIntVar(available_from, horizon, f"c_start_{c}")
             c_end = model.NewIntVar(0, horizon, f"c_end_{c}")
             court_start_vars[c] = c_start
             court_end_vars[c] = c_end
@@ -226,6 +235,12 @@ class CourtScheduler:
                 # Link window boundaries conditionally
                 model.Add(c_start <= match_starts[m.id]).OnlyEnforceIf(p)
                 model.Add(c_end >= match_ends[m.id]).OnlyEnforceIf(p)
+                # A court that isn't free yet can't host a match before it opens — this is the
+                # only change needed to support staggered court availability: the existing
+                # "start every used court as early as possible" objective term already pulls
+                # each court toward its own floor instead of absolute zero once this exists.
+                if available_from:
+                    model.Add(match_starts[m.id] >= available_from).OnlyEnforceIf(p)
 
                 # Penalty: higher court index costs slightly more to force matches onto Court 1/2 first
                 court_packing_penalties.append(p * (c * 5))
@@ -241,18 +256,17 @@ class CourtScheduler:
         # Secondary: Minimize total court minutes booked across all courts
         # Tertiary: Avoid back-to-back matches for the same player where a free
         #           (cost-neutral) alternative exists
-        # Quaternary: Start every used court as close to time zero as possible, so any
-        #             slack a court can't avoid collects at the END of its booking
-        #             window rather than sitting empty before its first match — a
-        #             court idle before the tournament's own advertised start time
-        #             reads as broken, one that frees up early after its last match
-        #             does not. Weighted at 10 (not 1) because empirically, with a
-        #             weak weight CP-SAT would settle for small, unforced gaps (e.g.
-        #             a court starting 2-10 minutes late with no scheduling reason)
-        #             rather than reliably finding the equally-good aligned solution;
-        #             verified against a real multi-court/12-player tournament across
-        #             10 random seeds, weight 10 closed every gap to zero without ever
-        #             increasing makespan or total court minutes.
+        # Quaternary: Start every used court as close to time zero as possible — or to its own
+        #             `court_available_from` floor, for a court that isn't free until later —
+        #             so any slack a court can't avoid collects at the END of its booking window
+        #             rather than sitting empty right after it opens. A court idle right when it
+        #             became available reads as broken, one that frees up early after its last
+        #             match does not. Weighted at 10 (not 1) because empirically, with a weak
+        #             weight CP-SAT would settle for small, unforced gaps (e.g. a court starting
+        #             2-10 minutes late with no scheduling reason) rather than reliably finding
+        #             the equally-good aligned solution; verified against a real multi-court/
+        #             12-player tournament across 10 random seeds, weight 10 closed every gap to
+        #             zero without ever increasing makespan or total court minutes.
         # Quinary: Pack lower court index numbers first
         makespan = model.NewIntVar(0, horizon, "makespan")
         model.AddMaxEquality(makespan, [match_ends[m.id] for m in active_matches])

@@ -235,6 +235,13 @@ class Court(Base):
     name = Column(String, nullable=False)
     hourly_rate = Column(Float, default=0.0)
 
+    # Minutes after the tournament's chosen kickoff time that this specific court actually opens
+    # up — e.g. 3 courts are free from 1:00pm but a 4th isn't booked until 1:30pm, so that one
+    # gets 30. Fed into the CP-SAT solver at schedule-generation time as a hard floor on when a
+    # match may start on this court; 0 (the default) means "available from the tournament start,
+    # same as every other court," which is every court's behavior before this field existed.
+    available_from_minutes = Column(Integer, default=0, nullable=False)
+
     # Relationships
     tournament = relationship("Tournament", back_populates="courts")
     matches = relationship("Match", back_populates="court")

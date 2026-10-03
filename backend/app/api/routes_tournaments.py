@@ -493,13 +493,20 @@ def generate_tournament_schedule(
     # since nothing was scheduled before the first match anyway.
     start_time = _round_datetime_down_to_grid(payload.start_time)
     avg_court_rate = sum(c.hourly_rate for c in courts) / len(courts) if courts else 40.0
+    # Index 1..N in the same order courts are enumerated everywhere else in this function (see
+    # court_index_map below) — a court with no delay configured is omitted and defaults to 0
+    # inside the solver, same as before staggered availability existed.
+    court_available_from = {
+        idx + 1: c.available_from_minutes for idx, c in enumerate(courts) if c.available_from_minutes
+    }
     solver_result = CourtScheduler.schedule_matches(
         matches=template_matches,
         num_courts=len(courts),
         match_duration=tournament.match_duration_minutes,
         rest_time=tournament.rest_time_minutes,
         court_hourly_cost=avg_court_rate,
-        time_grid_minutes=TIME_GRID_MINUTES
+        time_grid_minutes=TIME_GRID_MINUTES,
+        court_available_from=court_available_from,
     )
 
     if solver_result["status"] not in ("OPTIMAL", "FEASIBLE"):

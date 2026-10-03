@@ -10,6 +10,7 @@ from app.db.migrations import (
     ensure_tournament_venue_link_column,
     ensure_player_auth_columns,
     ensure_team_friendly_columns,
+    ensure_court_available_from_column,
 )
 from app.db.session import engine
 from app.api import routes_auth, routes_player_auth, routes_tournaments, routes_players, routes_matches, routes_athletes, routes_public, routes_courts
@@ -24,6 +25,7 @@ async def lifespan(app: FastAPI):
     ensure_tournament_venue_link_column(engine)
     ensure_player_auth_columns(engine)
     ensure_team_friendly_columns(engine)
+    ensure_court_available_from_column(engine)
     yield
     # Shutdown: Clean up resources if needed
 
