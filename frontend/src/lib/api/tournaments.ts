@@ -1,5 +1,13 @@
 import { api } from './client'
-import type { Court, ScheduleGenerationResponse, Tournament, TournamentCategory, TournamentDetail, TournamentFormat } from '@/types/api'
+import type {
+  Court,
+  CourtRescheduleResponse,
+  ScheduleGenerationResponse,
+  Tournament,
+  TournamentCategory,
+  TournamentDetail,
+  TournamentFormat,
+} from '@/types/api'
 
 export interface CreateTournamentPayload {
   name: string
@@ -12,7 +20,7 @@ export interface CreateTournamentPayload {
   venue: string
   venue_link?: string
   tournament_date: string
-  courts: { name: string; hourly_rate: number }[]
+  courts: { name: string; hourly_rate: number; available_from_minutes?: number }[]
 }
 
 export interface GenerateSchedulePayload {
@@ -31,11 +39,17 @@ export interface UpdateTournamentDetailsPayload {
 export interface CourtPayload {
   name: string
   hourly_rate: number
+  available_from_minutes?: number
 }
 
 export interface CourtUpdatePayload {
   name?: string
   hourly_rate?: number
+  available_from_minutes?: number
+}
+
+export interface CourtReschedulePayload {
+  new_start_time: string
 }
 
 export const tournamentsApi = {
@@ -71,4 +85,9 @@ export const tournamentsApi = {
 
   removeCourt: (id: string, courtId: string) =>
     api.delete(`/tournaments/${id}/courts/${courtId}`).then((r) => r.data),
+
+  rescheduleCourt: (id: string, courtId: string, payload: CourtReschedulePayload) =>
+    api
+      .patch<CourtRescheduleResponse>(`/tournaments/${id}/courts/${courtId}/reschedule`, payload)
+      .then((r) => r.data),
 }

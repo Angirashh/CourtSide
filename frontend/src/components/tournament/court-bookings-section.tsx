@@ -1,15 +1,32 @@
 import { CalendarClock } from 'lucide-react'
 import { Card } from '@/components/ui/card'
+import { RescheduleCourtDialog } from '@/components/tournament/reschedule-court-dialog'
 import { formatCurrency, formatDuration, formatTime } from '@/lib/utils'
-import type { Court, CourtBookingWindow } from '@/types/api'
+import type { Court, CourtBookingWindow, Match, TournamentStatus } from '@/types/api'
 
 export function CourtBookingsSection({
+  tournamentId,
+  tournamentStatus,
   courts,
+  matches,
   bookings,
 }: {
+  tournamentId: string
+  tournamentStatus: TournamentStatus
   courts: Court[]
+  matches: Match[]
   bookings: Record<string, CourtBookingWindow>
 }) {
+  const canEditTiming = tournamentStatus === 'SCHEDULING' || tournamentStatus === 'IN_PROGRESS'
+  const firstUpcomingStartByCourt = new Map<string, string>()
+  for (const m of matches) {
+    if (m.status !== 'SCHEDULED' || !m.court_id || !m.scheduled_start_time) continue
+    const existing = firstUpcomingStartByCourt.get(m.court_id)
+    if (!existing || m.scheduled_start_time < existing) {
+      firstUpcomingStartByCourt.set(m.court_id, m.scheduled_start_time)
+    }
+  }
+
   const rows = courts.filter((c) => bookings[c.id]).map((c) => ({ court: c, booking: bookings[c.id] }))
   if (rows.length === 0) return null
 
@@ -36,7 +53,17 @@ export function CourtBookingsSection({
           const width = Math.max(((ends[i] - starts[i]) / windowSpan) * 100, 2)
           return (
             <li key={court.id} className="grid items-center gap-x-5 gap-y-1.5 sm:grid-cols-[6rem_minmax(0,1fr)_13.5rem]">
-              <p className="truncate text-sm font-semibold text-navy-900">{court.name}</p>
+              <p className="flex items-center gap-1 truncate text-sm font-semibold text-navy-900">
+                {court.name}
+                {canEditTiming && firstUpcomingStartByCourt.has(court.id) && (
+                  <RescheduleCourtDialog
+                    tournamentId={tournamentId}
+                    courtId={court.id}
+                    courtName={court.name}
+                    currentFirstStart={firstUpcomingStartByCourt.get(court.id)!}
+                  />
+                )}
+              </p>
               <div className="relative h-2.5 rounded-full bg-cream-200" aria-hidden>
                 <div className="absolute inset-y-0 rounded-full bg-ember-500" style={{ left: `${left}%`, width: `${width}%` }} />
               </div>

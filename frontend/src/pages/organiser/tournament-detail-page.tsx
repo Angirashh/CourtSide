@@ -78,7 +78,15 @@ export function TournamentDetailPage() {
         </div>
       </div>
 
-      {tournament.schedule_summary && <CourtBookingsSection courts={tournament.courts} bookings={tournament.schedule_summary.court_bookings} />}
+      {tournament.schedule_summary && (
+        <CourtBookingsSection
+          tournamentId={tournament.id}
+          tournamentStatus={tournament.status}
+          courts={tournament.courts}
+          matches={tournament.matches}
+          bookings={tournament.schedule_summary.court_bookings}
+        />
+      )}
 
       <Tabs defaultValue="fixtures">
         <TabsList>

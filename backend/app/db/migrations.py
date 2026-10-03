@@ -63,3 +63,16 @@ def ensure_team_friendly_columns(engine: Engine) -> None:
     with engine.begin() as conn:
         if "team" not in existing:
             conn.execute(text("ALTER TABLE players ADD COLUMN team VARCHAR"))
+
+
+def ensure_court_available_from_column(engine: Engine) -> None:
+    """Same create_all limitation as above, for `available_from_minutes` on a `courts` table
+    that predates per-court staggered availability."""
+    inspector = inspect(engine)
+    if "courts" not in inspector.get_table_names():
+        return
+
+    existing = {col["name"] for col in inspector.get_columns("courts")}
+    if "available_from_minutes" not in existing:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE courts ADD COLUMN available_from_minutes INTEGER NOT NULL DEFAULT 0"))
