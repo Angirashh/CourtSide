@@ -2,6 +2,7 @@ from collections import defaultdict
 
 import pytest
 
+from app.core.config import settings
 from app.core.security import create_access_token
 from app.db import models
 
@@ -14,6 +15,9 @@ def _google_claims(email="player@example.com", sub="google-sub-1", name="Test Pl
 
 @pytest.fixture
 def mock_google(monkeypatch):
+    # Must not depend on a real backend/.env (absent in CI/a fresh checkout) — the endpoint
+    # refuses to even try verification when GOOGLE_CLIENT_ID is unset.
+    monkeypatch.setattr(settings, "GOOGLE_CLIENT_ID", "test-client-id")
     state = {"claims": _google_claims()}
 
     def _verify(id_token, request, audience):

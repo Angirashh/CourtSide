@@ -1,5 +1,6 @@
 import pytest
 
+from app.core.config import settings
 from app.core.security import create_access_token
 from app.db import models
 
@@ -13,7 +14,11 @@ def _google_claims(email="player@example.com", sub="google-sub-1", name="Test Pl
 @pytest.fixture
 def mock_google(monkeypatch):
     """Returns a setter that makes the next verify_oauth2_token call return the given claims
-    (or raise ValueError when claims is None) — avoids needing a real Google-signed JWT."""
+    (or raise ValueError when claims is None) — avoids needing a real Google-signed JWT.
+    Also stubs in a non-empty GOOGLE_CLIENT_ID: these tests must not depend on a real
+    backend/.env being present (it isn't, in CI or a fresh checkout), since the endpoint
+    itself refuses to even try verification when that setting is unset."""
+    monkeypatch.setattr(settings, "GOOGLE_CLIENT_ID", "test-client-id")
     state = {"claims": _google_claims()}
 
     def _verify(id_token, request, audience):
