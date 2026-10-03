@@ -379,3 +379,48 @@ def _check_and_transition_swiss(tournament_id: str, current_round: int, db: Sess
                     km.player2_id = standing.player_id
 
         db.flush()
+
+
+def finalize_athlete_career_stats(tournament_id: str, db: Session) -> None:
+    """
+    Rolls this tournament's final results into each participant's career Athlete totals.
+    Called once from end_tournament — safe to call only once since that route's own
+    IN_PROGRESS guard prevents a tournament from being ended twice.
+    """
+    players = db.query(models.Player).filter(
+        models.Player.tournament_id == tournament_id,
+        models.Player.is_placeholder == False,
+    ).all()
+    matches = db.query(models.Match).filter(
+        models.Match.tournament_id == tournament_id,
+        models.Match.is_completed == True,
+    ).all()
+
+    engine_players = [EnginePlayer(id=p.id, name=p.name, seed=p.seed or 99) for p in players]
+    engine_matches = [
+        EngineMatch(
+            id=m.id, round_num=m.round_num, stage=EngineMatchStage(m.stage.value),
+            group_id=m.group_id, player1_id=m.player1_id, player2_id=m.player2_id,
+            winner_id=m.winner_id, is_completed=m.is_completed,
+        )
+        for m in matches
+    ]
+
+    # group_id=None + no stage filter in calculate_group_standings means this tallies
+    # every completed match regardless of stage (group/Swiss/knockout) in one pass —
+    # exactly the full-tournament per-player win/loss record we want.
+    standings = StandingsEngine.calculate_group_standings(engine_players, engine_matches, group_id=None)
+    standing_by_player_id = {s.player_id: s for s in standings}
+
+    for player in players:
+        if not player.athlete_id:
+            continue
+        athlete = db.query(models.Athlete).filter(models.Athlete.id == player.athlete_id).first()
+        if not athlete:
+            continue
+        standing = standing_by_player_id.get(player.id)
+        if standing:
+            athlete.matches_played += standing.matches_played
+            athlete.matches_won += standing.matches_won
+            athlete.matches_lost += standing.matches_lost
+        athlete.tournaments_played += 1

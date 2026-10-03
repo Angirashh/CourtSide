@@ -2,11 +2,33 @@ import { useMemo } from 'react'
 import { Trophy } from 'lucide-react'
 import { EmptyState } from '@/components/ui/empty-state'
 import { GroupStandingsTable } from './group-standings-table'
-import { computeStandings, groupMatchesByGroupId, playersInMatches } from '@/lib/standings'
+import { TeamStandingsCard } from './team-standings-card'
+import { computeStandings, computeTeamStandings, groupMatchesByGroupId, playersInMatches } from '@/lib/standings'
 import type { Match, Player, TournamentFormat } from '@/types/api'
 
 export function StandingsView({ format, matches, players }: { format: TournamentFormat; matches: Match[]; players: Player[] }) {
   const feederMatches = useMemo(() => matches.filter((m) => m.stage !== 'KNOCKOUT'), [matches])
+
+  if (format === 'TEAM_FRIENDLY') {
+    const realPlayers = players.filter((p) => !p.is_placeholder)
+    if (feederMatches.length === 0) {
+      return (
+        <EmptyState
+          icon={Trophy}
+          title="No standings yet"
+          description="Generate a schedule and standings will track here as results come in."
+        />
+      )
+    }
+    const individualRows = computeStandings(realPlayers, feederMatches)
+    const teamRows = computeTeamStandings(realPlayers, feederMatches)
+    return (
+      <div className="space-y-5">
+        <TeamStandingsCard rows={teamRows} />
+        <GroupStandingsTable title="Individual standings" rows={individualRows} qualifySlots={0} />
+      </div>
+    )
+  }
 
   if (feederMatches.length === 0) {
     return (

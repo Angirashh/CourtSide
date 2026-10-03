@@ -14,6 +14,7 @@ const stageLabel: Record<Match['stage'], string> = {
   GROUP: 'Group',
   SWISS: 'Swiss',
   KNOCKOUT: 'Knockout',
+  CROSSOVER: 'Crossover',
 }
 
 export function ScheduleSummaryTab({ tournament }: { tournament: TournamentDetail }) {
@@ -76,7 +77,7 @@ export function ScheduleSummaryTab({ tournament }: { tournament: TournamentDetai
             <CourtScheduleCard
               court={court}
               matches={matchesByCourt.get(court.id) ?? []}
-              booking={summary?.court_bookings[court.name]}
+              booking={summary?.court_bookings[court.id]}
               playersById={playersById}
             />
           </TabsContent>

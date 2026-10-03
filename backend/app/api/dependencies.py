@@ -71,6 +71,12 @@ def require_operator_or_organiser(current_user: CurrentUser = Depends(get_curren
     return current_user
 
 
+def require_player(current_user: CurrentUser = Depends(get_current_user)) -> CurrentUser:
+    if current_user.role != models.UserRole.PLAYER:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Player access required.")
+    return current_user
+
+
 def ensure_tournament_access(tournament: models.Tournament, current_user: CurrentUser, db: Session) -> None:
     """
     Authorization gate for a specific tournament's resources.

@@ -10,6 +10,7 @@ import { RosterTab } from '@/components/tournament/roster-tab'
 import { OperatorsTab } from '@/components/tournament/operators-tab'
 import { CoOrganisersTab } from '@/components/tournament/co-organisers-tab'
 import { EditTournamentDetailsDialog } from '@/components/tournament/edit-tournament-details-dialog'
+import { EditCourtsDialog } from '@/components/tournament/edit-courts-dialog'
 import { ScheduleDialog } from '@/components/tournament/schedule-dialog'
 import { TournamentLifecycleActions } from '@/components/tournament/tournament-lifecycle-actions'
 import { ScheduleSummaryTab } from '@/components/tournament/schedule-summary-tab'
@@ -50,7 +51,13 @@ export function TournamentDetailPage() {
               {tournament.venue && <> · {tournament.venue}</>}
               {tournament.tournament_date && <> · {formatPlainDate(tournament.tournament_date)}</>}
             </span>
-            <EditTournamentDetailsDialog tournamentId={tournament.id} venue={tournament.venue} tournamentDate={tournament.tournament_date} />
+            <EditTournamentDetailsDialog
+              tournamentId={tournament.id}
+              venue={tournament.venue}
+              venueLink={tournament.venue_link}
+              tournamentDate={tournament.tournament_date}
+            />
+            <EditCourtsDialog tournamentId={tournament.id} courts={tournament.courts} matches={tournament.matches} />
             <span>
               · ID <CopyTournamentId id={tournament.id} />
             </span>
@@ -101,7 +108,7 @@ export function TournamentDetailPage() {
         </TabsContent>
 
         <TabsContent value="roster">
-          <RosterTab tournamentId={tournament.id} status={tournament.status} players={tournament.players} />
+          <RosterTab tournamentId={tournament.id} status={tournament.status} format={tournament.format} players={tournament.players} />
         </TabsContent>
 
         <TabsContent value="operators">

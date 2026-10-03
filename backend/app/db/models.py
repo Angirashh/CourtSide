@@ -25,6 +25,7 @@ Base = declarative_base()
 class TournamentFormat(enum.Enum):
     GROUP_KNOCKOUT = "GROUP_KNOCKOUT"
     SWISS_KNOCKOUT = "SWISS_KNOCKOUT"
+    TEAM_FRIENDLY = "TEAM_FRIENDLY"
 
 
 class TournamentCategory(enum.Enum):
@@ -45,6 +46,7 @@ class MatchStage(enum.Enum):
     GROUP = "GROUP"
     SWISS = "SWISS"
     KNOCKOUT = "KNOCKOUT"
+    CROSSOVER = "CROSSOVER"
 
 
 class MatchStatus(enum.Enum):
@@ -56,6 +58,7 @@ class MatchStatus(enum.Enum):
 class UserRole(enum.Enum):
     ORGANISER = "ORGANISER"
     OPERATOR = "OPERATOR"
+    PLAYER = "PLAYER"
 
 
 # =====================================================================
@@ -77,16 +80,26 @@ class User(Base):
     role = Column(Enum(UserRole), nullable=False)
 
     # Only set for ORGANISER accounts; operators log in via OperatorAssignment.pin_hash instead.
+    # PLAYER accounts authenticate via Google (see google_sub) and never set this.
     pin_hash = Column(String, nullable=True)
 
     # Gate on self-service ORGANISER signup: new signups default to False and can't log in
     # until a superadmin approves them. Defaults True at the column level so it never locks
     # out operators (invited directly, never self-signed-up) or organiser rows that existed
-    # before this flag was introduced.
+    # before this flag was introduced. PLAYER accounts are always auto-approved.
     is_approved = Column(Boolean, default=True, nullable=False)
     # Grants access to the pending-organiser approval queue. Not exposed via any signup path —
     # only ever set directly in the database.
     is_superadmin = Column(Boolean, default=False, nullable=False)
+
+    # PLAYER accounts only. Links to the global athlete registry — set at login, either by
+    # claiming a pre-existing Athlete (an organiser already added them via manual add/CSV
+    # before they ever signed in) or by creating a fresh one. NULL for ORGANISER/OPERATOR rows.
+    athlete_id = Column(String, ForeignKey("athletes.id", ondelete="SET NULL"), nullable=True, index=True)
+
+    # PLAYER accounts only. Google's stable per-account identifier (the JWT `sub` claim) — the
+    # lookup key for returning players, since email isn't guaranteed permanent the way sub is.
+    google_sub = Column(String, unique=True, index=True, nullable=True)
 
     created_at = Column(DateTime, default=datetime.utcnow)
 
@@ -179,6 +192,7 @@ class Tournament(Base):
     category = Column(Enum(TournamentCategory), nullable=True)
 
     venue = Column(String, nullable=True)
+    venue_link = Column(String, nullable=True)
     tournament_date = Column(Date, nullable=True)
 
     match_duration_minutes = Column(Integer, default=15)
@@ -244,6 +258,11 @@ class Player(Base):
     name = Column(String, nullable=False)  # Display name or "TBD_Seed_1"
     seed = Column(Integer, nullable=True)
     is_placeholder = Column(Boolean, default=False)
+
+    # TEAM_FRIENDLY format only: which side of the 2-team split this player is on ("A"/"B").
+    # How many matches each player plays is a single tournament-wide number set at schedule
+    # generation time (ScheduleGenerationRequest.matches_per_player), not stored per player.
+    team = Column(String, nullable=True)
 
     # Tournament-specific awards
     ranking_points_earned = Column(Float, default=0.0)

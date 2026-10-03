@@ -6,12 +6,13 @@ from typing import List, Dict, Any, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from sqlalchemy.orm import Session
 
-from app.api.dependencies import CurrentUser, ensure_tournament_access, get_db, require_operator_or_organiser, require_organiser
+from app.api.dependencies import CurrentUser, ensure_tournament_access, get_db, require_operator_or_organiser, require_organiser, require_player
 from app.db import models
 from app.schemas.player import (
     PlayerCreate,
     PlayerBatchCreate,
     PlayerResponse,
+    PlayerUpdate,
     PlayerWithdrawRequest,
     PlayerWithdrawResponse,
 )
@@ -77,6 +78,51 @@ def register_player(
     return player
 
 
+@router.post("/self-register", response_model=PlayerResponse, status_code=status.HTTP_201_CREATED)
+def self_register_player(
+    tournament_id: str,
+    current_user: CurrentUser = Depends(require_player),
+    db: Session = Depends(get_db),
+):
+    """
+    A logged-in, email-verified player joins a tournament's roster directly, using their own
+    verified name/athlete link — never client-supplied values, so nobody can register under an
+    identity that isn't theirs. Deliberately skips ensure_tournament_access: that gate encodes
+    organiser/operator *ownership* of a tournament, which has no analogue here — any verified
+    player may register for any tournament that's still open, the same visibility the public
+    showcase (routes_public.py) already grants anonymously.
+    """
+    tournament = db.query(models.Tournament).filter(models.Tournament.id == tournament_id).first()
+    if not tournament:
+        raise HTTPException(status_code=404, detail="Tournament not found")
+
+    if tournament.status not in (models.TournamentStatus.DRAFT, models.TournamentStatus.SCHEDULING):
+        raise HTTPException(status_code=400, detail="Registration is closed for this tournament.")
+
+    user = db.query(models.User).filter(models.User.id == current_user.id).first()
+    if not user.athlete_id:
+        raise HTTPException(status_code=400, detail="Your account isn't linked to an athlete profile yet.")
+
+    existing_entry = db.query(models.Player).filter(
+        models.Player.tournament_id == tournament_id,
+        models.Player.athlete_id == user.athlete_id,
+    ).first()
+    if existing_entry:
+        raise HTTPException(status_code=400, detail="You're already registered for this tournament.")
+
+    athlete = db.query(models.Athlete).filter(models.Athlete.id == user.athlete_id).first()
+    player = models.Player(
+        id=f"P_{uuid.uuid4().hex[:8]}",
+        tournament_id=tournament_id,
+        athlete_id=athlete.id,
+        name=athlete.name,
+    )
+    db.add(player)
+    db.commit()
+    db.refresh(player)
+    return player
+
+
 @router.post("/batch", response_model=List[PlayerResponse], status_code=status.HTTP_201_CREATED)
 def register_players_batch(
     tournament_id: str,
@@ -134,6 +180,46 @@ def list_tournament_players(
         query = query.filter(models.Player.is_placeholder == False)
 
     return query.order_by(models.Player.seed.asc().nullslast()).all()
+
+
+@router.patch("/{player_id}", response_model=PlayerResponse)
+def update_player(
+    tournament_id: str,
+    player_id: str,
+    payload: PlayerUpdate,
+    current_user: CurrentUser = Depends(require_organiser),
+    db: Session = Depends(get_db),
+):
+    """Edits a roster slot's own fields — seed, team (TEAM_FRIENDLY), or requested match count.
+    Does not touch identity (name/athlete link) resolution beyond the plain name field."""
+    tournament = db.query(models.Tournament).filter(models.Tournament.id == tournament_id).first()
+    if not tournament:
+        raise HTTPException(status_code=404, detail="Tournament not found")
+    ensure_tournament_access(tournament, current_user, db)
+
+    if tournament.status not in (models.TournamentStatus.DRAFT, models.TournamentStatus.SCHEDULING):
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot edit players once the tournament is in progress or completed."
+        )
+
+    player = db.query(models.Player).filter(
+        models.Player.id == player_id,
+        models.Player.tournament_id == tournament_id,
+    ).first()
+    if not player:
+        raise HTTPException(status_code=404, detail="Player not found in this tournament.")
+
+    updates = payload.model_dump(exclude_unset=True)
+    if "team" in updates and updates["team"] is not None and updates["team"] not in ("A", "B"):
+        raise HTTPException(status_code=400, detail="Team must be 'A' or 'B'.")
+
+    for field, value in updates.items():
+        setattr(player, field, value)
+
+    db.commit()
+    db.refresh(player)
+    return player
 
 
 @router.delete("")

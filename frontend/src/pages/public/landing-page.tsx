@@ -12,7 +12,7 @@ import { PublicTournamentCard } from '@/components/public/public-tournament-card
 import { MedalPodium } from '@/components/public/medal-podium'
 // Hidden for now — didn't look good. import { MatchProgressBar } from '@/components/public/match-progress-bar'
 import { categoryMeta } from '@/lib/tournament-category'
-import { cn, formatPlainDate, formatTime, parsePlainDate, prettifyPlaceholderName } from '@/lib/utils'
+import { cn, countdownTarget, formatPlainDate, formatPlainWeekday, formatTime, prettifyPlaceholderName } from '@/lib/utils'
 import type { PublicCourtQueue, PublicTournamentSummary } from '@/types/api'
 
 export function LandingPage() {
@@ -117,7 +117,7 @@ function UpcomingTile({ tournament, isNearest }: { tournament: PublicTournamentS
   // Lazy initializer runs once on mount rather than on every render — good enough for a
   // "is this within a month" gate that only needs to settle once per page load.
   const [renderedAt] = useState(() => Date.now())
-  const target = tournament.tournament_date ? parsePlainDate(tournament.tournament_date) : null
+  const target = countdownTarget(tournament.tournament_date, tournament.earliest_match_start_time)
   const msUntil = target ? target.getTime() - renderedAt : null
   const showCountdown = isNearest && target !== null && msUntil !== null && msUntil < COUNTDOWN_WINDOW_MS
 
@@ -137,13 +137,40 @@ function UpcomingTile({ tournament, isNearest }: { tournament: PublicTournamentS
               )}
             </div>
             <h3 className="mt-1.5 font-display text-xl font-medium leading-snug text-navy-900 sm:text-2xl">{tournament.name}</h3>
-            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-navy-500">
-              <span className="flex items-center gap-1.5">
-                <MapPin className="size-3.5" /> {tournament.venue ?? 'Venue TBD'}
-              </span>
-              <span className="flex items-center gap-1.5">
-                <CalendarDays className="size-3.5" /> {tournament.tournament_date ? formatPlainDate(tournament.tournament_date) : 'Date TBD'}
-              </span>
+          </div>
+
+          <div className="grid grid-cols-2 divide-x divide-cream-200 overflow-hidden rounded-xl border border-cream-200 bg-cream-100/70">
+            <div className="min-w-0 p-3">
+              <p className="flex items-center gap-1.5 font-mono text-[10px] font-bold uppercase tracking-[.14em] text-ember-600">
+                <CalendarDays className="size-3.5" /> Date
+              </p>
+              <p className="mt-1.5 truncate font-display text-base font-semibold text-navy-900">
+                {tournament.tournament_date ? formatPlainDate(tournament.tournament_date) : 'TBD'}
+              </p>
+              <p className="mt-0.5 text-xs text-navy-400">
+                {tournament.tournament_date ? formatPlainWeekday(tournament.tournament_date) : 'Date not set'}
+              </p>
+            </div>
+            <div className="min-w-0 p-3">
+              <p className="flex items-center gap-1.5 font-mono text-[10px] font-bold uppercase tracking-[.14em] text-ember-600">
+                <MapPin className="size-3.5" /> Venue
+              </p>
+              <p className="mt-1.5 truncate font-display text-base font-semibold text-navy-900">{tournament.venue ?? 'TBD'}</p>
+              {tournament.venue_link ? (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    window.open(tournament.venue_link!, '_blank', 'noopener,noreferrer')
+                  }}
+                  className="mt-0.5 inline-flex items-center gap-1 text-xs font-semibold text-navy-500 transition-colors hover:text-ember-600"
+                >
+                  View location <ArrowRight className="size-3" />
+                </button>
+              ) : (
+                <p className="mt-0.5 text-xs text-navy-400">Tentative Venue</p>
+              )}
             </div>
           </div>
 
@@ -171,16 +198,25 @@ function UpcomingTile({ tournament, isNearest }: { tournament: PublicTournamentS
 
 function OnCourtCard({ tournament }: { tournament: PublicTournamentSummary }) {
   const courtQueues = tournament.court_queues ?? []
+  const category = tournament.category ? categoryMeta[tournament.category] : null
   return (
     <div className="live-border">
-      <Card className="bg-cream-25 p-5 shadow-none">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+      <Card className="relative overflow-hidden bg-cream-25 p-5 shadow-none">
+        <div className="pointer-events-none absolute -right-10 -top-16 size-56 rounded-full border border-ember-200" />
+        <div className="pointer-events-none absolute bottom-[-70px] right-[18%] size-44 rounded-full border-[22px] border-ember-100" />
+        <div className="relative flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <div className="flex items-center gap-2.5">
+            <div className="flex flex-wrap items-center gap-2.5">
               <p className="font-display text-lg font-medium text-navy-900">{tournament.name}</p>
               <TournamentStatusBadge status={tournament.status} />
             </div>
             <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-navy-500">
+              {category && (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-ember-100 px-2.5 py-1 text-[11px] font-bold leading-none text-ember-600">
+                  <category.icon className="size-3" />
+                  {category.label}
+                </span>
+              )}
               <span className="flex items-center gap-1.5">
                 <MapPin className="size-3.5" /> {tournament.venue ?? 'Venue TBD'}
               </span>
@@ -203,7 +239,7 @@ function OnCourtCard({ tournament }: { tournament: PublicTournamentSummary }) {
 
         {tournament.champion_name && (
           <MedalPodium
-            className="mt-4 border-t border-cream-200 pt-4"
+            className="relative mt-4 border-t border-cream-200 pt-4"
             eyebrow={tournament.status === 'COMPLETED' ? 'Tournament complete' : 'Final decided'}
             champion={tournament.champion_name}
             runnerUp={tournament.runner_up_name}
@@ -211,8 +247,25 @@ function OnCourtCard({ tournament }: { tournament: PublicTournamentSummary }) {
           />
         )}
 
+        {tournament.team_friendly_result && (
+          <div className="relative mt-4 border-t border-cream-200 pt-4">
+            {tournament.team_friendly_result.winner ? (
+              <MedalPodium
+                eyebrow={tournament.status === 'COMPLETED' ? 'Tournament complete' : 'Final decided'}
+                champion={`Team ${tournament.team_friendly_result.winner}`}
+                runnerUp={`Team ${tournament.team_friendly_result.winner === 'A' ? 'B' : 'A'}`}
+                horizontal
+              />
+            ) : (
+              <p className="text-center text-sm font-semibold text-navy-700">
+                It's a tie — Team A and Team B finished level.
+              </p>
+            )}
+          </div>
+        )}
+
         {courtQueues.length > 0 && (
-          <div className="mt-4 grid gap-2.5 border-t border-cream-200 pt-4 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="relative mt-4 grid gap-2.5 border-t border-cream-200 pt-4 sm:grid-cols-2 xl:grid-cols-3">
             {courtQueues.map((q) => (
               <CourtQueuePanel key={q.court_id} queue={q} />
             ))}

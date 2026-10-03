@@ -30,6 +30,7 @@ export function FixtureMatchRow({
           isWinner={hasWinner && match.winner_id === match.player1_id}
           isWithdrawn={!!p1?.is_withdrawn}
           isPlaceholder={!!p1?.is_placeholder}
+          team={p1?.team}
         />
         <VsBadge className="mx-0" />
         <Name
@@ -37,6 +38,7 @@ export function FixtureMatchRow({
           isWinner={hasWinner && !!match.player2_id && match.winner_id === match.player2_id}
           isWithdrawn={!!p2?.is_withdrawn}
           isPlaceholder={!!p2?.is_placeholder || match.is_bye}
+          team={match.is_bye ? undefined : p2?.team}
           align="right"
         />
       </div>
@@ -77,16 +79,18 @@ function Name({
   isWinner,
   isWithdrawn,
   isPlaceholder,
+  team,
   align = 'left',
 }: {
   label: string
   isWinner: boolean
   isWithdrawn: boolean
   isPlaceholder: boolean
+  team?: 'A' | 'B' | null
   align?: 'left' | 'right'
 }) {
   return (
-    <span className={cn('flex min-w-0 flex-1', align === 'right' && 'justify-end')}>
+    <span className={cn('flex min-w-0 flex-1 flex-col', align === 'right' ? 'items-end' : 'items-start')}>
       <span
         className={cn(
           'inline-flex min-w-0 items-center gap-1 rounded-md px-1.5 py-0.5',
@@ -98,6 +102,9 @@ function Name({
         {isWithdrawn && <UserX className="size-3 shrink-0 text-danger" />}
         {isWinner && align === 'right' && <Check className="size-3 shrink-0 text-ember-600" strokeWidth={3} />}
       </span>
+      {team && (
+        <span className="px-1.5 text-[10px] font-semibold uppercase tracking-wide text-navy-400">Team {team}</span>
+      )}
     </span>
   )
 }

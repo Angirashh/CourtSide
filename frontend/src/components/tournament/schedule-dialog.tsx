@@ -32,6 +32,8 @@ export function ScheduleDialog({
   const [swissRounds, setSwissRounds] = useState<number | ''>('')
   const roundsValue = swissRounds === '' ? recommendedRounds : swissRounds
   const roundsInvalid = format === 'SWISS_KNOCKOUT' && (roundsValue < 1 || roundsValue > maxRounds)
+  const [matchesPerPlayer, setMatchesPerPlayer] = useState<number | ''>(3)
+  const matchesPerPlayerInvalid = format === 'TEAM_FRIENDLY' && (matchesPerPlayer === '' || matchesPerPlayer < 1)
   const generate = useGenerateSchedule(tournamentId)
 
   function handleSubmit() {
@@ -43,6 +45,7 @@ export function ScheduleDialog({
         start_time: `${date}T${startTime}:00`,
         num_groups: format === 'GROUP_KNOCKOUT' ? numGroups : undefined,
         num_swiss_rounds: format === 'SWISS_KNOCKOUT' ? roundsValue : undefined,
+        matches_per_player: format === 'TEAM_FRIENDLY' && matchesPerPlayer !== '' ? matchesPerPlayer : undefined,
       },
       {
         onSuccess: (res) => {
@@ -118,12 +121,30 @@ export function ScheduleDialog({
               <Input type="number" min={1} value={numGroups} onChange={(e) => setNumGroups(Number(e.target.value))} />
             </div>
           )}
+          {format === 'TEAM_FRIENDLY' && (
+            <div className="space-y-1.5">
+              <Label>Matches per player</Label>
+              <Input
+                type="number"
+                min={1}
+                value={matchesPerPlayer}
+                onChange={(e) => setMatchesPerPlayer(e.target.value === '' ? '' : Number(e.target.value))}
+              />
+              <p className="text-xs text-navy-400">
+                Every player gets this many distinct cross-team opponents — Team A and Team B must be the same size.
+              </p>
+            </div>
+          )}
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={() => setOpen(false)}>
             Cancel
           </Button>
-          <Button loading={generate.isPending} disabled={!startTime || !date || roundsInvalid} onClick={handleSubmit}>
+          <Button
+            loading={generate.isPending}
+            disabled={!startTime || !date || roundsInvalid || matchesPerPlayerInvalid}
+            onClick={handleSubmit}
+          >
             {isRegenerate ? 'Regenerate' : 'Generate'}
           </Button>
         </DialogFooter>

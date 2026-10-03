@@ -12,12 +12,21 @@ class CourtScheduler:
         num_courts: int,
         match_duration: int = 35,
         rest_time: int = 25,
-        court_hourly_cost: float = 40.0
+        court_hourly_cost: float = 40.0,
+        time_grid_minutes: int = 30
     ) -> Dict[str, Any]:
         """
         Assigns matches to courts and time slots.
         Optimizes for both tournament duration (makespan) and court rental cost
         by de-ramping courts and booking each court only for its required window.
+
+        Individual matches are still packed back-to-back at whatever cadence the format
+        needs (no artificial gaps between them) — only each court's overall booking WINDOW
+        (its first match's start, its last match's end) is snapped to a `time_grid_minutes`
+        boundary, since that's the part an organiser actually has to call a venue and book.
+        Snapping every match's start to that same grid would insert idle time between every
+        single match whenever the real match+rest cycle is shorter than the grid (e.g. a
+        12-minute match on a 30-minute grid), which defeats minimizing idle time.
         """
         active_matches = [m for m in matches if not m.is_bye and not m.is_completed]
         if not active_matches:
@@ -36,6 +45,7 @@ class CourtScheduler:
         match_ends = {}
         court_intervals = collections.defaultdict(list)
         player_intervals = collections.defaultdict(list)
+        player_match_vars = collections.defaultdict(list)
         match_presences = {}
 
         # 1. Variables & Interval Setup
@@ -67,10 +77,12 @@ class CourtScheduler:
             if m.player1_id and not str(m.player1_id).startswith("TBD"):
                 p1_int = model.NewIntervalVar(start_var, match_duration + rest_time, padded_end_var, f"p1_{m.id}")
                 player_intervals[m.player1_id].append(p1_int)
+                player_match_vars[m.player1_id].append((start_var, end_var))
 
             if m.player2_id and not str(m.player2_id).startswith("TBD"):
                 p2_int = model.NewIntervalVar(start_var, match_duration + rest_time, padded_end_var, f"p2_{m.id}")
                 player_intervals[m.player2_id].append(p2_int)
+                player_match_vars[m.player2_id].append((start_var, end_var))
 
         # 2. Overlap Constraints
         for c in range(1, num_courts + 1):
@@ -79,6 +91,34 @@ class CourtScheduler:
         for pid, intervals in player_intervals.items():
             if len(intervals) > 1:
                 model.AddNoOverlap(intervals)
+
+        # 2b. Player Rest Preference
+        # The no-overlap constraint above only guarantees a player's matches are at
+        # least `rest_time` apart — it says nothing about whether that's the ONLY gap
+        # they get. Left alone, the solver is just as happy to slot a player's next
+        # match in the instant their minimum rest ends, match after match with no
+        # breathing room. We can't fix that by leaving a court idle (makespan/cost
+        # above stay the priority), but with several courts and far more matches
+        # overall than any one player is in, there's almost always another player's
+        # match that can fill what would otherwise be a back-to-back slot — at zero
+        # cost to court utilization, just a different assignment of the same matches.
+        # `touch` fires whenever two of a player's matches land exactly `rest_time`
+        # apart (the tightest the no-overlap constraint allows), in either order; the
+        # objective below nudges the solver away from that when a free swap exists.
+        consecutive_play_penalties = []
+        for pid, pmatches in player_match_vars.items():
+            for i in range(len(pmatches)):
+                s_i, e_i = pmatches[i]
+                for j in range(i + 1, len(pmatches)):
+                    s_j, e_j = pmatches[j]
+
+                    touch_fwd = model.NewBoolVar(f"touch_{pid}_{i}_{j}_fwd")
+                    model.Add(s_j - e_i != rest_time).OnlyEnforceIf(touch_fwd.Not())
+                    consecutive_play_penalties.append(touch_fwd)
+
+                    touch_bwd = model.NewBoolVar(f"touch_{pid}_{i}_{j}_bwd")
+                    model.Add(s_i - e_j != rest_time).OnlyEnforceIf(touch_bwd.Not())
+                    consecutive_play_penalties.append(touch_bwd)
 
         # 3. Round Precedence Constraints
         # GROUP-stage round-robin pairings are fixed in advance and don't depend on
@@ -199,7 +239,15 @@ class CourtScheduler:
         # 5. Multi-Objective Function:
         # Primary: Minimize tournament makespan
         # Secondary: Minimize total court minutes booked across all courts
-        # Tertiary: Pack lower court index numbers first
+        # Tertiary: Avoid back-to-back matches for the same player where a free
+        #           (cost-neutral) alternative exists
+        # Quaternary: Start every used court as close to time zero as possible, so any
+        #             slack a court can't avoid collects at the END of its booking
+        #             window rather than sitting empty before its first match — a
+        #             court idle before the tournament's own advertised start time
+        #             reads as broken, one that frees up early after its last match
+        #             does not
+        # Quinary: Pack lower court index numbers first
         makespan = model.NewIntVar(0, horizon, "makespan")
         model.AddMaxEquality(makespan, [match_ends[m.id] for m in active_matches])
 
@@ -209,6 +257,8 @@ class CourtScheduler:
         model.Minimize(
             (makespan * 100) +
             (total_court_minutes * 10) +
+            (sum(consecutive_play_penalties) * 1) +
+            (sum(court_start_vars[c] for c in range(1, num_courts + 1)) * 1) +
             sum(court_packing_penalties)
         )
 
@@ -240,11 +290,16 @@ class CourtScheduler:
 
             for c in range(1, num_courts + 1):
                 if solver.Value(court_used_vars[c]):
-                    start_min = solver.Value(court_start_vars[c])
-                    end_min = solver.Value(court_end_vars[c])
+                    first_match_start = solver.Value(court_start_vars[c])
+                    last_match_end = solver.Value(court_end_vars[c])
+                    # The real first-start/last-end rarely land on a grid line — round the
+                    # booking window out to the slots an organiser would actually reserve
+                    # (never in, which would either start the booking after play began or
+                    # end it before the last match finished).
+                    start_min = math.floor(first_match_start / time_grid_minutes) * time_grid_minutes
+                    end_min = math.ceil(last_match_end / time_grid_minutes) * time_grid_minutes
                     dur_min = end_min - start_min
-                    # Venues usually bill rounded up to the nearest half-hour or hour
-                    billed_hours = math.ceil(dur_min / 30) * 0.5  # 30-minute rounding
+                    billed_hours = dur_min / 60.0
                     total_billable_hours += billed_hours
 
                     court_bookings[f"Court_{c}"] = {

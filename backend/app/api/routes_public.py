@@ -1,5 +1,5 @@
 import time
-from typing import Callable, Dict, List, TypeVar
+from typing import Callable, Dict, List, Optional, TypeVar
 
 from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy.orm import Session, selectinload
@@ -12,6 +12,7 @@ from app.schemas.public import (
     PublicStandingRow,
     PublicHubStats,
     PublicLiveMatch,
+    TeamFriendlyResult,
 )
 from app.services.fixture_engine.datatypes import (
     Player as EnginePlayer,
@@ -107,10 +108,15 @@ def _load_public_tournaments(db: Session) -> List[PublicTournamentSummary]:
         # hasn't clicked "End tournament" yet — compute_podium only returns names once
         # that final match has a real winner, so this is safe to try unconditionally.
         champion_name = runner_up_name = None
+        team_friendly_result = None
         if t.status in (models.TournamentStatus.IN_PROGRESS, models.TournamentStatus.COMPLETED):
             champion_id, runner_up_id = compute_podium(t.matches)
             champion_name = players_by_id.get(champion_id) if champion_id else None
             runner_up_name = players_by_id.get(runner_up_id) if runner_up_id else None
+            team_friendly_result = _compute_team_friendly_result(t)
+
+        scheduled_starts = [m.scheduled_start_time for m in t.matches if m.scheduled_start_time]
+        earliest_match_start_time = min(scheduled_starts) if scheduled_starts else None
 
         result.append(
             PublicTournamentSummary(
@@ -120,7 +126,9 @@ def _load_public_tournaments(db: Session) -> List[PublicTournamentSummary]:
                 category=t.category,
                 status=t.status,
                 venue=t.venue,
+                venue_link=t.venue_link,
                 tournament_date=t.tournament_date,
+                earliest_match_start_time=earliest_match_start_time,
                 players_count=len([p for p in t.players if not p.is_placeholder]),
                 courts_count=len(t.courts),
                 created_at=t.created_at,
@@ -130,6 +138,7 @@ def _load_public_tournaments(db: Session) -> List[PublicTournamentSummary]:
                 matches_total=len(t.matches),
                 champion_name=champion_name,
                 runner_up_name=runner_up_name,
+                team_friendly_result=team_friendly_result,
             )
         )
     return result
@@ -170,6 +179,45 @@ def _to_engine_match(m: models.Match) -> EngineMatch:
     )
     engine_match.scores = [(s.get("p1"), s.get("p2")) for s in (m.scores or [])]
     return engine_match
+
+
+def _compute_team_friendly_result(tournament: models.Tournament) -> Optional[TeamFriendlyResult]:
+    """None until every crossover match is decided — mirrors the live detail page's
+    "show it the moment it's decided, don't wait for End tournament" behavior."""
+    crossover_matches = [m for m in tournament.matches if m.stage == models.MatchStage.CROSSOVER]
+    if not crossover_matches or not all(m.is_completed for m in crossover_matches):
+        return None
+
+    players_by_id = {p.id: p for p in tournament.players}
+    totals = {"A": {"matches_won": 0, "point_diff": 0}, "B": {"matches_won": 0, "point_diff": 0}}
+    for m in crossover_matches:
+        p1, p2 = players_by_id.get(m.player1_id), players_by_id.get(m.player2_id)
+        if not p1 or not p2 or p1.team not in ("A", "B") or p2.team not in ("A", "B"):
+            continue
+        if m.winner_id == p1.id:
+            totals[p1.team]["matches_won"] += 1
+        elif m.winner_id == p2.id:
+            totals[p2.team]["matches_won"] += 1
+        for s in m.scores or []:
+            diff = s.get("p1", 0) - s.get("p2", 0)
+            totals[p1.team]["point_diff"] += diff
+            totals[p2.team]["point_diff"] -= diff
+
+    a, b = totals["A"], totals["B"]
+    if a["matches_won"] != b["matches_won"]:
+        winner = "A" if a["matches_won"] > b["matches_won"] else "B"
+    elif a["point_diff"] != b["point_diff"]:
+        winner = "A" if a["point_diff"] > b["point_diff"] else "B"
+    else:
+        winner = None
+
+    return TeamFriendlyResult(
+        winner=winner,
+        team_a_matches_won=a["matches_won"],
+        team_b_matches_won=b["matches_won"],
+        team_a_point_diff=a["point_diff"],
+        team_b_point_diff=b["point_diff"],
+    )
 
 
 def _standing_rows(standings) -> List[PublicStandingRow]:

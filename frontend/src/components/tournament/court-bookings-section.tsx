@@ -10,7 +10,7 @@ export function CourtBookingsSection({
   courts: Court[]
   bookings: Record<string, CourtBookingWindow>
 }) {
-  const rows = courts.filter((c) => bookings[c.name]).map((c) => ({ court: c, booking: bookings[c.name] }))
+  const rows = courts.filter((c) => bookings[c.id]).map((c) => ({ court: c, booking: bookings[c.id] }))
   if (rows.length === 0) return null
 
   const starts = rows.map((r) => new Date(r.booking.booked_from).getTime())

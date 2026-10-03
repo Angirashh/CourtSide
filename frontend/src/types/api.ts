@@ -1,4 +1,4 @@
-export type UserRole = 'ORGANISER' | 'OPERATOR'
+export type UserRole = 'ORGANISER' | 'OPERATOR' | 'PLAYER'
 
 export interface User {
   id: string
@@ -31,10 +31,10 @@ export interface PendingOrganiser {
   created_at: string
 }
 
-export type TournamentFormat = 'GROUP_KNOCKOUT' | 'SWISS_KNOCKOUT'
+export type TournamentFormat = 'GROUP_KNOCKOUT' | 'SWISS_KNOCKOUT' | 'TEAM_FRIENDLY'
 export type TournamentCategory = 'CORPORATE' | 'COLLEGE' | 'JUNIOR' | 'FRIENDLY'
 export type TournamentStatus = 'DRAFT' | 'SCHEDULING' | 'IN_PROGRESS' | 'COMPLETED'
-export type MatchStage = 'GROUP' | 'SWISS' | 'KNOCKOUT'
+export type MatchStage = 'GROUP' | 'SWISS' | 'KNOCKOUT' | 'CROSSOVER'
 export type MatchStatus = 'SCHEDULED' | 'IN_PROGRESS' | 'COMPLETED'
 
 export interface Court {
@@ -53,6 +53,7 @@ export interface Player {
   is_withdrawn: boolean
   withdrawn_at: string | null
   withdrawal_reason: string | null
+  team: 'A' | 'B' | null
 }
 
 export interface Match {
@@ -87,6 +88,7 @@ export interface Tournament {
   shuttle_cost: number
   shuttle_matches_per_unit: number
   venue: string | null
+  venue_link: string | null
   tournament_date: string | null
   created_at: string
   updated_at: string
@@ -150,6 +152,14 @@ export interface PublicCourtQueue {
   more_upcoming: number
 }
 
+export interface TeamFriendlyResult {
+  winner: 'A' | 'B' | null
+  team_a_matches_won: number
+  team_b_matches_won: number
+  team_a_point_diff: number
+  team_b_point_diff: number
+}
+
 export interface PublicTournamentSummary {
   id: string
   name: string
@@ -157,7 +167,9 @@ export interface PublicTournamentSummary {
   category: TournamentCategory | null
   status: TournamentStatus
   venue: string | null
+  venue_link: string | null
   tournament_date: string | null
+  earliest_match_start_time: string | null
   players_count: number
   courts_count: number
   created_at: string
@@ -165,6 +177,7 @@ export interface PublicTournamentSummary {
   court_queues: PublicCourtQueue[]
   champion_name: string | null
   runner_up_name: string | null
+  team_friendly_result: TeamFriendlyResult | null
   matches_completed: number
   matches_total: number
 }
@@ -176,6 +189,7 @@ export interface PublicTournamentDetail {
   category: TournamentCategory | null
   status: TournamentStatus
   venue: string | null
+  venue_link: string | null
   tournament_date: string | null
   courts: Court[]
   players: Player[]
@@ -253,6 +267,47 @@ export interface OperatorStatus {
 export interface WithdrawResponse {
   player: Player
   walkover_matches: Match[]
+}
+
+export interface MyRegistration {
+  tournament_id: string
+  tournament_name: string
+  tournament_format: TournamentFormat
+  tournament_status: TournamentStatus
+  tournament_date: string | null
+  venue: string | null
+  player_id: string
+  seed: number | null
+  is_withdrawn: boolean
+}
+
+export interface AthleteTournamentHistoryEntry {
+  tournament_id: string
+  tournament_name: string
+  tournament_date: string
+  category: TournamentCategory | null
+  seed: number | null
+  final_placement: number | null
+  points_earned: number
+}
+
+export interface AthleteCategoryStats {
+  category: TournamentCategory | null
+  tournaments_played: number
+  matches_played: number
+  matches_won: number
+  matches_lost: number
+  win_rate_percentage: number
+}
+
+export interface MyAthleteProfile {
+  tournaments_played: number
+  matches_played: number
+  matches_won: number
+  matches_lost: number
+  win_rate_percentage: number
+  history: AthleteTournamentHistoryEntry[]
+  stats_by_category: AthleteCategoryStats[]
 }
 
 export interface ApiErrorBody {

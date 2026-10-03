@@ -5,9 +5,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.core.exceptions import TournamentAppException, tournament_exception_handler
 from app.db.models import Base
-from app.db.migrations import ensure_user_approval_columns
+from app.db.migrations import (
+    ensure_user_approval_columns,
+    ensure_tournament_venue_link_column,
+    ensure_player_auth_columns,
+    ensure_team_friendly_columns,
+)
 from app.db.session import engine
-from app.api import routes_auth, routes_tournaments, routes_players, routes_matches, routes_athletes, routes_public
+from app.api import routes_auth, routes_player_auth, routes_tournaments, routes_players, routes_matches, routes_athletes, routes_public, routes_courts
 
 
 @asynccontextmanager
@@ -16,6 +21,9 @@ async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
     # Patch columns added after tables already existed in a live deployment (see docstring).
     ensure_user_approval_columns(engine)
+    ensure_tournament_venue_link_column(engine)
+    ensure_player_auth_columns(engine)
+    ensure_team_friendly_columns(engine)
     yield
     # Shutdown: Clean up resources if needed
 
@@ -43,8 +51,10 @@ app.add_exception_handler(TournamentAppException, tournament_exception_handler)
 
 # 3. Mount Routers under /api/v1
 app.include_router(routes_auth.router, prefix=settings.API_V1_STR)
+app.include_router(routes_player_auth.router, prefix=settings.API_V1_STR)
 app.include_router(routes_tournaments.router, prefix=settings.API_V1_STR)
 app.include_router(routes_players.router, prefix=settings.API_V1_STR)
+app.include_router(routes_courts.router, prefix=settings.API_V1_STR)
 app.include_router(routes_matches.router, prefix=settings.API_V1_STR)
 app.include_router(routes_athletes.router, prefix=settings.API_V1_STR)
 app.include_router(routes_public.router, prefix=settings.API_V1_STR)

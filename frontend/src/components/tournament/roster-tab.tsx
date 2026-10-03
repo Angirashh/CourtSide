@@ -10,13 +10,23 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogT
 import { FieldError, Input, Label } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { EmptyState } from '@/components/ui/empty-state'
-import { useDeleteAllPlayers, useRegisterPlayer, useUploadRoster, useWithdrawPlayer } from '@/hooks/use-players'
+import { useDeleteAllPlayers, useRegisterPlayer, useUpdatePlayer, useUploadRoster, useWithdrawPlayer } from '@/hooks/use-players'
 import { useFinalizeSeeding } from '@/hooks/use-tournaments'
 import { extractErrorMessage } from '@/lib/api/client'
 import { cn, initials } from '@/lib/utils'
-import type { Player, TournamentStatus } from '@/types/api'
+import type { Player, TournamentFormat, TournamentStatus } from '@/types/api'
 
-export function RosterTab({ tournamentId, status, players }: { tournamentId: string; status: TournamentStatus; players: Player[] }) {
+export function RosterTab({
+  tournamentId,
+  status,
+  format,
+  players,
+}: {
+  tournamentId: string
+  status: TournamentStatus
+  format: TournamentFormat
+  players: Player[]
+}) {
   const realPlayers = players.filter((p) => !p.is_placeholder).sort((a, b) => (a.seed ?? 999) - (b.seed ?? 999))
   const finalizeSeeding = useFinalizeSeeding(tournamentId)
   // A schedule already exists once SCHEDULING, but nothing's played yet, so roster edits
@@ -58,7 +68,10 @@ export function RosterTab({ tournamentId, status, players }: { tournamentId: str
             )}
           </>
         )}
-        <span className="ml-auto text-xs font-semibold text-navy-400">{realPlayers.length} registered</span>
+        {format === 'TEAM_FRIENDLY' && <TeamSizeReadout players={realPlayers} />}
+        <span className={cn('text-xs font-semibold text-navy-400', format !== 'TEAM_FRIENDLY' && 'ml-auto')}>
+          {realPlayers.length} registered
+        </span>
       </div>
 
       {realPlayers.length === 0 ? (
@@ -71,7 +84,13 @@ export function RosterTab({ tournamentId, status, players }: { tournamentId: str
         <Card className="overflow-hidden p-0">
           <ul className="divide-y divide-cream-200">
             {realPlayers.map((player) => (
-              <PlayerRow key={player.id} player={player} tournamentId={tournamentId} canWithdraw={status !== 'DRAFT' && status !== 'COMPLETED' && !player.is_withdrawn} />
+              <PlayerRow
+                key={player.id}
+                player={player}
+                tournamentId={tournamentId}
+                canWithdraw={status !== 'DRAFT' && status !== 'COMPLETED' && !player.is_withdrawn}
+                showTeamFriendlyControls={format === 'TEAM_FRIENDLY' && canEditRoster && !player.is_withdrawn}
+              />
             ))}
           </ul>
         </Card>
@@ -80,7 +99,32 @@ export function RosterTab({ tournamentId, status, players }: { tournamentId: str
   )
 }
 
-function PlayerRow({ player, tournamentId, canWithdraw }: { player: Player; tournamentId: string; canWithdraw: boolean }) {
+function TeamSizeReadout({ players }: { players: Player[] }) {
+  const teamA = players.filter((p) => p.team === 'A').length
+  const teamB = players.filter((p) => p.team === 'B').length
+  const unassigned = players.length - teamA - teamB
+  const balanced = teamA === teamB && teamA > 0
+
+  return (
+    <span className={cn('ml-auto text-xs font-semibold', balanced ? 'text-navy-400' : 'text-ember-600')}>
+      Team A: {teamA} · Team B: {teamB}
+      {unassigned > 0 && ` · ${unassigned} unassigned`}
+      {!balanced && ' — teams must match to generate'}
+    </span>
+  )
+}
+
+function PlayerRow({
+  player,
+  tournamentId,
+  canWithdraw,
+  showTeamFriendlyControls,
+}: {
+  player: Player
+  tournamentId: string
+  canWithdraw: boolean
+  showTeamFriendlyControls?: boolean
+}) {
   const withdraw = useWithdrawPlayer(tournamentId)
   const [open, setOpen] = useState(false)
   const [reason, setReason] = useState('')
@@ -99,6 +143,7 @@ function PlayerRow({ player, tournamentId, canWithdraw }: { player: Player; tour
           <p className="truncate text-xs text-danger">Withdrawn{player.withdrawal_reason ? ` · ${player.withdrawal_reason}` : ''}</p>
         )}
       </div>
+      {showTeamFriendlyControls && <TeamFriendlyControls player={player} tournamentId={tournamentId} />}
       {player.is_withdrawn ? (
         <Badge variant="danger">
           <UserX className="size-3" />
@@ -150,6 +195,33 @@ function PlayerRow({ player, tournamentId, canWithdraw }: { player: Player; tour
         </Dialog>
       ) : null}
     </li>
+  )
+}
+
+function TeamFriendlyControls({ player, tournamentId }: { player: Player; tournamentId: string }) {
+  const update = useUpdatePlayer(tournamentId)
+
+  function setTeam(team: 'A' | 'B') {
+    if (player.team === team || update.isPending) return
+    update.mutate({ playerId: player.id, team }, { onError: (err) => toast.error(extractErrorMessage(err)) })
+  }
+
+  return (
+    <div className="flex shrink-0 rounded-lg border border-navy-200 p-0.5">
+      {(['A', 'B'] as const).map((t) => (
+        <button
+          key={t}
+          type="button"
+          onClick={() => setTeam(t)}
+          className={cn(
+            'rounded-md px-2 py-1 text-[11px] font-bold transition-colors',
+            player.team === t ? 'bg-navy-900 text-cream-50' : 'text-navy-400 hover:text-navy-700'
+          )}
+        >
+          {t}
+        </button>
+      ))}
+    </div>
   )
 }
 

@@ -29,6 +29,11 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     JWT_EXPIRE_MINUTES: int = 60 * 12  # 12 hours, spans a typical tournament day
 
+    # Player sign-in. Not secret — Google Client IDs are meant to be embedded in frontend JS —
+    # but still environment-configured since it's per-deployment. Used to verify the `aud`
+    # claim on every Google ID token (see routes_player_auth.py).
+    GOOGLE_CLIENT_ID: str = ""
+
     # CORS configuration
     CORS_ORIGINS: List[str] = [
         "http://localhost:3000",

@@ -11,6 +11,7 @@ export interface StandingRow {
   gameDiff: number
   pointDiff: number
   isWithdrawn: boolean
+  team: 'A' | 'B' | null
 }
 
 /**
@@ -34,6 +35,7 @@ export function computeStandings(players: Player[], matches: Match[]): StandingR
       gameDiff: 0,
       pointDiff: 0,
       isWithdrawn: p.is_withdrawn,
+      team: p.team,
     })
   }
 
@@ -96,6 +98,38 @@ export function computeStandings(players: Player[], matches: Match[]): StandingR
     if (b.pointDiff !== a.pointDiff) return b.pointDiff - a.pointDiff
     return (a.seed ?? 999) - (b.seed ?? 999)
   })
+}
+
+export interface TeamStandingRow {
+  team: 'A' | 'B'
+  playerCount: number
+  matchesWon: number
+  matchesLost: number
+  gameDiff: number
+  pointDiff: number
+}
+
+/** Aggregates the per-player rows from computeStandings by team, so team totals always agree with the individual table. */
+export function computeTeamStandings(players: Player[], matches: Match[]): TeamStandingRow[] {
+  const playerRows = new Map(computeStandings(players, matches).map((r) => [r.playerId, r]))
+  const totals: Record<'A' | 'B', TeamStandingRow> = {
+    A: { team: 'A', playerCount: 0, matchesWon: 0, matchesLost: 0, gameDiff: 0, pointDiff: 0 },
+    B: { team: 'B', playerCount: 0, matchesWon: 0, matchesLost: 0, gameDiff: 0, pointDiff: 0 },
+  }
+
+  for (const p of players) {
+    if (p.team !== 'A' && p.team !== 'B') continue
+    const row = playerRows.get(p.id)
+    if (!row) continue
+    const totalsRow = totals[p.team]
+    totalsRow.playerCount += 1
+    totalsRow.matchesWon += row.won
+    totalsRow.matchesLost += row.lost
+    totalsRow.gameDiff += row.gameDiff
+    totalsRow.pointDiff += row.pointDiff
+  }
+
+  return [totals.A, totals.B]
 }
 
 export function groupMatchesByGroupId(matches: Match[]): Map<string, Match[]> {

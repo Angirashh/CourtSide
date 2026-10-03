@@ -1,6 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   tournamentsApi,
+  type CourtPayload,
+  type CourtUpdatePayload,
   type CreateTournamentPayload,
   type GenerateSchedulePayload,
   type UpdateTournamentDetailsPayload,
@@ -85,6 +87,31 @@ export function useEndTournament(tournamentId: string) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: () => tournamentsApi.end(tournamentId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: tournamentKeys.detail(tournamentId) }),
+  })
+}
+
+export function useAddCourt(tournamentId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (payload: CourtPayload) => tournamentsApi.addCourt(tournamentId, payload),
+    onSuccess: () => qc.invalidateQueries({ queryKey: tournamentKeys.detail(tournamentId) }),
+  })
+}
+
+export function useUpdateCourt(tournamentId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ courtId, payload }: { courtId: string; payload: CourtUpdatePayload }) =>
+      tournamentsApi.updateCourt(tournamentId, courtId, payload),
+    onSuccess: () => qc.invalidateQueries({ queryKey: tournamentKeys.detail(tournamentId) }),
+  })
+}
+
+export function useRemoveCourt(tournamentId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (courtId: string) => tournamentsApi.removeCourt(tournamentId, courtId),
     onSuccess: () => qc.invalidateQueries({ queryKey: tournamentKeys.detail(tournamentId) }),
   })
 }

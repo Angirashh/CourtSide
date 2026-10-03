@@ -4,10 +4,10 @@
 @import '@fontsource/fraunces/500.css';
 @import '@fontsource/fraunces/600.css';
 @import '@fontsource/fraunces/600-italic.css';
-@import '@fontsource/plus-jakarta-sans/400.css';
-@import '@fontsource/plus-jakarta-sans/500.css';
-@import '@fontsource/plus-jakarta-sans/600.css';
-@import '@fontsource/plus-jakarta-sans/700.css';
+@import '@fontsource/hanken-grotesk/400.css';
+@import '@fontsource/hanken-grotesk/500.css';
+@import '@fontsource/hanken-grotesk/600.css';
+@import '@fontsource/hanken-grotesk/700.css';
 
 @theme {
   /* Brand */
@@ -43,7 +43,7 @@
 
   /* Fonts */
   --font-display: 'Fraunces', 'Georgia', serif;
-  --font-sans: 'Plus Jakarta Sans', 'system-ui', sans-serif;
+  --font-sans: 'Hanken Grotesk', 'system-ui', sans-serif;
 
   /* Radius scale, slightly larger than default = softer brand feel */
   --radius-md: 0.625rem;

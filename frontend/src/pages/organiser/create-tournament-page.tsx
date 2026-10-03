@@ -15,9 +15,10 @@ import { cn } from '@/lib/utils'
 
 const schema = z.object({
   name: z.string().min(3, 'Give your tournament a name'),
-  format: z.enum(['GROUP_KNOCKOUT', 'SWISS_KNOCKOUT']),
+  format: z.enum(['GROUP_KNOCKOUT', 'SWISS_KNOCKOUT', 'TEAM_FRIENDLY']),
   category: z.enum(['CORPORATE', 'COLLEGE', 'JUNIOR', 'FRIENDLY']),
   venue: z.string().min(2, 'Add a venue'),
+  venue_link: z.string().trim().url('Enter a valid URL (starting with https://)').optional().or(z.literal('')),
   tournament_date: z.string().min(1, 'Pick a date'),
   match_duration_minutes: z.coerce.number().min(10).max(180),
   rest_time_minutes: z.coerce.number().min(0).max(120),
@@ -58,6 +59,7 @@ export function CreateTournamentPage() {
       format: 'GROUP_KNOCKOUT',
       category: 'CORPORATE',
       venue: '',
+      venue_link: '',
       tournament_date: '',
       match_duration_minutes: 15,
       rest_time_minutes: 10,
@@ -73,7 +75,7 @@ export function CreateTournamentPage() {
 
   async function goNext() {
     const fieldsToValidate: (keyof FormInput)[][] = [
-      ['name', 'format', 'category', 'venue', 'tournament_date'],
+      ['name', 'format', 'category', 'venue', 'venue_link', 'tournament_date'],
       ['match_duration_minutes', 'rest_time_minutes', 'shuttle_cost', 'shuttle_matches_per_unit'],
       ['courts'],
     ]
@@ -82,13 +84,16 @@ export function CreateTournamentPage() {
   }
 
   const onSubmit = handleSubmit((values) => {
-    createTournament.mutate(values, {
-      onSuccess: (tournament) => {
-        toast.success('Tournament created — now build your roster.')
-        navigate(`/organiser/${tournament.id}`)
-      },
-      onError: (err) => toast.error(extractErrorMessage(err)),
-    })
+    createTournament.mutate(
+      { ...values, venue_link: values.venue_link || undefined },
+      {
+        onSuccess: (tournament) => {
+          toast.success('Tournament created — now build your roster.')
+          navigate(`/organiser/${tournament.id}`)
+        },
+        onError: (err) => toast.error(extractErrorMessage(err)),
+      }
+    )
   })
 
   return (
@@ -122,8 +127,13 @@ export function CreateTournamentPage() {
                     </FieldGroup>
                   </div>
 
+                  <FieldGroup label="Venue link (optional)">
+                    <Input placeholder="https://maps.google.com/?q=..." {...register('venue_link')} />
+                    <FieldError>{errors.venue_link?.message}</FieldError>
+                  </FieldGroup>
+
                   <FieldGroup label="Format">
-                    <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="grid gap-3 sm:grid-cols-3">
                       <FormatOption
                         active={format === 'GROUP_KNOCKOUT'}
                         title="Group + Knockout"
@@ -135,6 +145,12 @@ export function CreateTournamentPage() {
                         title="Swiss + Knockout"
                         description="Everyone plays every round, best records advance to knockout semis."
                         onClick={() => setValue('format', 'SWISS_KNOCKOUT')}
+                      />
+                      <FormatOption
+                        active={format === 'TEAM_FRIENDLY'}
+                        title="Team Friendly"
+                        description="Split into 2 teams; each player gets a set number of random cross-team singles matches."
+                        onClick={() => setValue('format', 'TEAM_FRIENDLY')}
                       />
                     </div>
                   </FieldGroup>
