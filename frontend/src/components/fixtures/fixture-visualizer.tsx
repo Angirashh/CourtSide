@@ -54,23 +54,34 @@ export function FixtureVisualizer({
   }
 
   if (format === 'TEAM_FRIENDLY') {
-    // Grouped by scheduled time rather than a flat list — with every court kicking off
-    // its matches together, this naturally reads as "rounds", and lets a player scan
-    // straight to the slot they're playing in instead of hunting the whole fixture list.
-    const sorted = [...matches].sort(compareByScheduledTime)
-    const slotMap = new Map<string, Match[]>()
-    for (const m of sorted) {
-      const key = m.scheduled_start_time ?? 'unscheduled'
-      if (!slotMap.has(key)) slotMap.set(key, [])
-      slotMap.get(key)!.push(m)
+    // Grouped by each court's own chronological position (its 1st match, 2nd match, ...)
+    // rather than by exact scheduled time. Exact-time grouping reads fine when every court
+    // kicks off together, but breaks down the moment they don't: a court that opens later
+    // than the others (staggered availability), or one the solver just uses less than the
+    // rest, would otherwise land on a start time nothing else shares and spawn its own
+    // one-match "round" — inflating the round count with entries that aren't really a new
+    // wave of play. Position-based grouping is robust to both cases: that court's Nth match
+    // still joins everyone else's Nth match in the same round, whatever the clock says.
+    const byCourt = new Map<string, Match[]>()
+    for (const m of matches) {
+      const key = m.court_id ?? 'unassigned'
+      if (!byCourt.has(key)) byCourt.set(key, [])
+      byCourt.get(key)!.push(m)
     }
-    const slots = Array.from(slotMap.values()).map((slotMatches) =>
-      [...slotMatches].sort(
-        (a, b) =>
-          (courtRank.get(a.court_id ?? '') ?? Number.MAX_SAFE_INTEGER) -
-          (courtRank.get(b.court_id ?? '') ?? Number.MAX_SAFE_INTEGER)
-      )
-    )
+    const courtLists = Array.from(byCourt.values()).map((list) => [...list].sort(compareByScheduledTime))
+    const slots: Match[][] = []
+    const maxMatchesOnAnyCourt = Math.max(0, ...courtLists.map((list) => list.length))
+    for (let position = 0; position < maxMatchesOnAnyCourt; position++) {
+      const slotMatches = courtLists
+        .map((list) => list[position])
+        .filter((m): m is Match => !!m)
+        .sort(
+          (a, b) =>
+            (courtRank.get(a.court_id ?? '') ?? Number.MAX_SAFE_INTEGER) -
+            (courtRank.get(b.court_id ?? '') ?? Number.MAX_SAFE_INTEGER)
+        )
+      if (slotMatches.length > 0) slots.push(slotMatches)
+    }
     // The "current" step: the first round with a match still unplayed, or the last
     // round once everything's done — same "where's play at right now" logic the
     // group-stage round picker already uses.
@@ -82,11 +93,16 @@ export function FixtureVisualizer({
     return (
       <div>
         {slots.map((slotMatches, idx) => {
-          const time = slotMatches[0].scheduled_start_time
+          // Only show a single time in the round header when every match in it actually
+          // shares one — once a court's staggered opening puts its match at a different
+          // clock time than the rest of the round, each match row already shows its own
+          // time, so a single header time would just be wrong for part of the round.
+          const firstTime = slotMatches[0].scheduled_start_time
+          const commonTime = slotMatches.every((m) => m.scheduled_start_time === firstTime) ? firstTime : null
           const isLast = idx === slots.length - 1
           const isActive = idx === activeIdx
           return (
-            <div key={time ?? 'unscheduled'} ref={isActive ? activeRoundRef : undefined} className="flex gap-4">
+            <div key={idx} ref={isActive ? activeRoundRef : undefined} className="flex gap-4">
               <div className="flex flex-col items-center">
                 <div
                   className={cn(
@@ -101,11 +117,11 @@ export function FixtureVisualizer({
               <div className="min-w-0 flex-1 pb-6">
                 <div className="mb-2 flex items-center justify-between pt-1">
                   <h4 className="font-display text-sm font-semibold text-navy-900">
-                    {time ? `Round ${idx + 1}` : 'Unscheduled'}
+                    {firstTime ? `Round ${idx + 1}` : 'Unscheduled'}
                   </h4>
-                  {time && (
+                  {commonTime && (
                     <span className="text-[10px] font-semibold uppercase tracking-wide text-navy-400">
-                      {formatTime(time)}
+                      {formatTime(commonTime)}
                     </span>
                   )}
                 </div>
