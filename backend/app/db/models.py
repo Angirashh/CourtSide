@@ -326,6 +326,10 @@ class Match(Base):
     court = relationship("Court", back_populates="matches")
     operator = relationship("User", foreign_keys=[operator_id])
 
+    @property
+    def operator_role(self):
+        return self.operator.role if self.operator else None
+
     player1 = relationship("Player", foreign_keys=[player1_id])
     player2 = relationship("Player", foreign_keys=[player2_id])
     winner = relationship("Player", foreign_keys=[winner_id])

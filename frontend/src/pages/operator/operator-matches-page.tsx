@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { CalendarClock, CheckCircle2, MapPin, Play, Radio, Swords, Timer, UserX } from 'lucide-react'
 import { useAuthStore } from '@/stores/auth-store'
@@ -18,7 +19,9 @@ import type { Court, Match, Player } from '@/types/api'
 type Tab = 'live' | 'upcoming' | 'completed'
 
 export function OperatorMatchesPage() {
-  const tournamentId = useAuthStore((s) => s.tournamentId)
+  const { id } = useParams<{ id: string }>()
+  const scopedTournamentId = useAuthStore((s) => s.tournamentId)
+  const tournamentId = id ?? scopedTournamentId
   const { data: tournament, isLoading } = useTournament(tournamentId ?? undefined, { refetchInterval: 10_000 })
   const startMatch = useStartMatch(tournamentId ?? '')
   const [scoringMatch, setScoringMatch] = useState<Match | null>(null)
@@ -31,7 +34,7 @@ export function OperatorMatchesPage() {
 
   if (isLoading) return <FullPageSpinner />
   if (!tournament) {
-    return <EmptyState icon={Swords} title="No tournament found" description="Ask your organiser to double-check your invite." />
+    return <EmptyState icon={Swords} title="No tournament found" description="Check that you have access to this tournament." />
   }
 
   const courtsById = new Map(tournament.courts.map((c) => [c.id, c]))
@@ -276,13 +279,20 @@ function OperatorMatchCard({
             {match.scheduled_start_time && <> · {formatTime(match.scheduled_start_time)}</>}
           </span>
         </div>
-        {isLive ? (
-          <Badge variant="ember" pulse>
-            LIVE
-          </Badge>
-        ) : nextUp ? (
-          <Badge variant="dark">Next up</Badge>
-        ) : null}
+        <div className="flex items-center gap-2">
+          {isLive ? (
+            <Badge variant="ember" pulse>
+              LIVE
+            </Badge>
+          ) : nextUp ? (
+            <Badge variant="dark">Next up</Badge>
+          ) : null}
+          {match.operator_role && (
+            <Badge variant="outline">
+              {match.operator_role === 'ORGANISER' ? 'Organiser-operated' : 'Invited operator'}
+            </Badge>
+          )}
+        </div>
       </div>
 
       <div className="mt-3 space-y-2">
