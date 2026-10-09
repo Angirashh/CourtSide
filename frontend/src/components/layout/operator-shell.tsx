@@ -1,12 +1,14 @@
 import { Outlet, useNavigate } from 'react-router-dom'
 import { LogOut } from 'lucide-react'
 import { useAuthStore } from '@/stores/auth-store'
+import { useScrollToTop } from '@/hooks/use-scroll-to-top'
 import { BrandMark, BrandWordmark } from '@/components/brand/logo'
 
 export function OperatorShell() {
   const user = useAuthStore((s) => s.user)
   const clearSession = useAuthStore((s) => s.clearSession)
   const navigate = useNavigate()
+  useScrollToTop()
 
   return (
     <div className="min-h-svh bg-paper text-court-cream">

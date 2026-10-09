@@ -1,6 +1,7 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { LogOut, PlusCircle, Trophy, User as UserIcon } from 'lucide-react'
 import { useAuthStore } from '@/stores/auth-store'
+import { useScrollToTop } from '@/hooks/use-scroll-to-top'
 import { BrandMark, BrandWordmark } from '@/components/brand/logo'
 import { cn, initials } from '@/lib/utils'
 import { OrganiserApprovalsBell } from './organiser-approvals-bell'
@@ -14,6 +15,7 @@ export function AppShell() {
   const user = useAuthStore((s) => s.user)
   const clearSession = useAuthStore((s) => s.clearSession)
   const navigate = useNavigate()
+  useScrollToTop()
 
   function handleLogout() {
     clearSession()

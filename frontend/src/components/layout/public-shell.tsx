@@ -1,6 +1,8 @@
+import { useRef } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { Info, LayoutGrid, Trophy, UserRound, Users } from 'lucide-react'
 import { usePublicTournaments } from '@/hooks/use-public'
+import { useScrollToTop } from '@/hooks/use-scroll-to-top'
 import { BrandMark, BrandWordmark } from '@/components/brand/logo'
 import { cn } from '@/lib/utils'
 
@@ -12,6 +14,9 @@ const publicNav = [
 ]
 
 export function PublicShell() {
+  const scrollRef = useRef<HTMLDivElement>(null)
+  useScrollToTop(scrollRef)
+
   return (
     // Pinned to the viewport (not normal document flow) so `body` itself never has
     // anything to scroll — all scrolling happens in the inner pane below. That keeps
@@ -20,6 +25,7 @@ export function PublicShell() {
     <div className="fixed inset-0 bg-paper text-court-cream">
       <Sidebar />
       <div
+        ref={scrollRef}
         className="h-full overflow-y-auto overscroll-contain pb-[calc(4rem+env(safe-area-inset-bottom))] lg:pb-0 lg:pl-64"
         style={{ WebkitOverflowScrolling: 'touch' }}
       >
@@ -107,7 +113,7 @@ function Footer() {
               <ul className="mt-3 space-y-2.5">
                 {col.links.map((link) => (
                   <li key={link.label}>
-                    <a href={link.to} className="text-sm text-court-cream/35 transition-colors hover:text-cream-50">
+                    <a href={link.to} className="text-sm text-court-cream/35 underline transition-colors hover:text-cream-50">
                       {link.label}
                     </a>
                   </li>

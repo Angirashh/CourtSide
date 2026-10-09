@@ -99,7 +99,7 @@ export function TournamentLivePage() {
         <div className="relative">
           <Link
             to="/tournaments"
-            className="mb-4 inline-flex items-center gap-1.5 font-sans text-[13px] font-semibold text-court-cream/55 transition-colors hover:text-court-cream"
+            className="mb-4 inline-flex items-center gap-1.5 font-sans text-[13px] font-semibold text-court-cream/55 underline transition-colors hover:text-court-cream"
           >
             <ArrowLeft className="size-3.5" />
             All tournaments

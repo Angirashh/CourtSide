@@ -34,7 +34,7 @@ export function TournamentDetailPage() {
 
   return (
     <div className="space-y-6">
-      <Link to="/organiser" className="inline-flex items-center gap-1.5 text-sm font-semibold text-court-cream/55 hover:text-court-cream/85">
+      <Link to="/organiser" className="inline-flex items-center gap-1.5 text-sm font-semibold text-court-cream/55 underline hover:text-court-cream/85">
         <ArrowLeft className="size-4" />
         All tournaments
       </Link>

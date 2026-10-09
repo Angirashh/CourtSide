@@ -40,7 +40,7 @@ export function AboutPage() {
             </p>
             <Link
               to="/tournaments"
-              className="mt-6 inline-flex items-center gap-2 bg-ember-500 px-5 py-3.5 font-display text-sm text-white transition hover:bg-ember-600"
+              className="mt-6 inline-flex items-center gap-2 rounded-full bg-ember-500 px-5 py-3.5 font-display text-sm text-ink transition hover:bg-ember-600"
             >
               Find your next tournament <ArrowRight className="size-4" />
             </Link>

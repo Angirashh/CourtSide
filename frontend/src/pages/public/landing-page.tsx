@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { ArrowRight, CalendarDays, CheckCircle2, Lock, MapPin, PlayCircle, Radio, Trophy } from 'lucide-react'
 import { usePublicTournaments } from '@/hooks/use-public'
 import { useMyRegistrations } from '@/hooks/use-player-auth'
@@ -56,6 +56,8 @@ export function LandingPage() {
         </section>
       )}
 
+      {!isLoading && live.length === 0 && <BrandHero />}
+
       {nextClosed && (
         <section
           className={cn(
@@ -69,9 +71,9 @@ export function LandingPage() {
       )}
 
       {openForRegistration.length > 0 && (
-        <section>
+        <section id="open-registration">
           <p className="mb-1 font-mono text-[10px] uppercase tracking-[.2em] text-ember-500">Entries closing soon</p>
-          <h2 className="mb-5 font-display text-3xl leading-none text-court-cream">Open registration</h2>
+          <h2 className="mb-5 font-display text-3xl leading-none text-court-cream">Claim your spot</h2>
           <div className="space-y-4">
             {openForRegistration.map((t) => (
               <OpenRegistrationCard key={t.id} tournament={t} />
@@ -87,7 +89,7 @@ export function LandingPage() {
               <p className="mb-1 font-mono text-[10px] uppercase tracking-[.2em] text-ember-500">Next on the radar</p>
               <h2 className="font-display text-3xl leading-none text-court-cream">Upcoming</h2>
             </div>
-            <Link to="/tournaments" className="hidden items-center gap-1 text-xs font-bold text-court-cream hover:text-ember-600 sm:flex">
+            <Link to="/tournaments" className="hidden items-center gap-1 text-xs font-bold text-court-cream underline hover:text-ember-600 sm:flex">
               Full calendar <ArrowRight className="size-3.5" />
             </Link>
           </div>
@@ -131,6 +133,50 @@ export function LandingPage() {
         )}
       </section>
     </div>
+  )
+}
+
+function BrandHero() {
+  const navigate = useNavigate()
+
+  function goToOpenRegistration(e: React.MouseEvent) {
+    e.preventDefault()
+    const section = document.getElementById('open-registration')
+    if (section) {
+      section.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    } else {
+      navigate('/tournaments')
+    }
+  }
+
+  return (
+    <section className="relative -mx-4 -mt-7 overflow-hidden bg-ink sm:-mx-6 lg:-mx-10 lg:-mt-9">
+      <div
+        className="relative bg-cover bg-center px-4 py-14 sm:px-6 sm:py-16 lg:px-10 lg:py-20"
+        style={{ backgroundImage: "url('/images/hero-rackets.jpg')" }}
+      >
+        <div className="absolute inset-0 bg-gradient-to-r from-ink via-ink/90 to-ink/20" />
+        <div className="relative max-w-lg">
+          <p className="font-mono text-[10px] uppercase tracking-[.2em] text-ember-500">For the love of badminton</p>
+          <h1 className="mt-3 font-display text-[40px] leading-[0.95] text-court-cream sm:text-[52px]">
+            Every rally.
+            <br />
+            <span className="text-ember-500">One place.</span>
+          </h1>
+          <p className="mt-4 max-w-md font-sans text-sm leading-relaxed text-court-cream/60">
+            For the early starters. The last-point fighters. The ones who always want one more game. This is your
+            side of the court.
+          </p>
+          <a
+            href="#open-registration"
+            onClick={goToOpenRegistration}
+            className="mt-6 inline-flex items-center gap-2 rounded-full bg-ember-500 px-5 py-3.5 font-display text-sm text-ink transition hover:bg-ember-600"
+          >
+            Find your next tournament <ArrowRight className="size-4" />
+          </a>
+        </div>
+      </div>
+    </section>
   )
 }
 
@@ -287,20 +333,22 @@ function OpenRegistrationCard({ tournament }: { tournament: PublicTournamentSumm
         </div>
       </div>
 
-      <Link
-        to={`/tournaments/${tournament.id}`}
-        className="flex items-center justify-center gap-2 bg-navy-950 py-3.5 font-display text-base text-cream-50 transition hover:bg-ember-500 hover:text-ink"
-      >
-        {alreadyRegistered ? (
-          <>
-            View tournament <ArrowRight className="size-4" />
-          </>
-        ) : (
-          <>
-            Register now <ArrowRight className="size-4" />
-          </>
-        )}
-      </Link>
+      <div className="px-5 pb-5 sm:px-6 sm:pb-6">
+        <Link
+          to={`/tournaments/${tournament.id}`}
+          className="flex items-center justify-center gap-2 rounded-full border-2 border-ember-500 py-3 font-display text-base font-bold text-ember-500 transition hover:bg-ember-500 hover:text-ink"
+        >
+          {alreadyRegistered ? (
+            <>
+              View tournament <ArrowRight className="size-4 animate-nudge" />
+            </>
+          ) : (
+            <>
+              Register now <ArrowRight className="size-4 animate-nudge" />
+            </>
+          )}
+        </Link>
+      </div>
     </Card>
   )
 }
@@ -498,7 +546,7 @@ function ArchiveHeading({ controls }: { controls?: React.ReactNode }) {
       </div>
       <div className="flex shrink-0 items-center gap-3">
         {controls}
-        <Link to="/tournaments" className="flex items-center gap-1 text-xs font-bold text-court-cream hover:text-ember-600">
+        <Link to="/tournaments" className="flex items-center gap-1 text-xs font-bold text-court-cream underline hover:text-ember-600">
           View all <ArrowRight className="size-3.5" />
         </Link>
       </div>
