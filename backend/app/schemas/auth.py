@@ -1,6 +1,7 @@
 from datetime import datetime
 from typing import Optional
-from pydantic import BaseModel, Field, ConfigDict, model_validator
+from pydantic import BaseModel, Field, ConfigDict, model_validator, field_validator
+from app.core.phone import normalize_indian_phone
 from app.db.models import UserRole
 
 
@@ -10,6 +11,8 @@ from app.db.models import UserRole
 class UserResponse(BaseModel):
     id: str
     name: str
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
     email: Optional[str] = None
     phone: Optional[str] = None
     role: UserRole
@@ -37,6 +40,13 @@ class OrganiserSignup(BaseModel):
     email: Optional[str] = None
     phone: Optional[str] = None
     pin: str = Field(..., min_length=4, max_length=20, description="Chosen login PIN/password.")
+
+    @field_validator("phone")
+    @classmethod
+    def _normalize_phone(cls, v: Optional[str]) -> Optional[str]:
+        if not v:
+            return None
+        return normalize_indian_phone(v)
 
     @model_validator(mode="after")
     def require_identifier(self):
@@ -76,6 +86,13 @@ class OperatorInviteRequest(BaseModel):
     name: str = Field(..., min_length=2, max_length=150)
     email: Optional[str] = None
     phone: Optional[str] = None
+
+    @field_validator("phone")
+    @classmethod
+    def _normalize_phone(cls, v: Optional[str]) -> Optional[str]:
+        if not v:
+            return None
+        return normalize_indian_phone(v)
 
     @model_validator(mode="after")
     def require_identifier(self):
@@ -119,16 +136,61 @@ class CoOrganiserResponse(BaseModel):
 
 
 # =====================================================================
-# PLAYER SIGN-IN (GOOGLE) — CLAIM-OR-CREATE
+# PLAYER SIGN-UP / LOGIN (Google Sign-In)
 # =====================================================================
-class PlayerGoogleLogin(BaseModel):
-    id_token: str = Field(..., description="The Google ID token (JWT credential) from Google Identity Services.")
+class PlayerGoogleAuthRequest(BaseModel):
+    id_token: str = Field(..., description="The ID token (credential) returned by Google Identity Services.")
 
 
-class PlayerGoogleLoginResponse(TokenResponse):
+class PlayerGoogleAuthResponse(BaseModel):
+    """
+    Returned by POST /auth/player/google. If `account_exists` is True, `session` is a complete
+    login. Otherwise this Google identity has never signed up here -- the client collects a
+    phone number from the user and calls /auth/player/google/complete-signup with `signup_token`
+    to finish creating the account.
+    """
+    account_exists: bool
+    session: Optional[TokenResponse] = None
+    signup_token: Optional[str] = None
+    name: Optional[str] = None
+    email: Optional[str] = None
+
+
+class PlayerGoogleSignupCompleteRequest(BaseModel):
+    signup_token: str
+    phone: str = Field(..., description="10-digit Indian mobile number.")
+
+    @field_validator("phone")
+    @classmethod
+    def _normalize_phone(cls, v: str) -> str:
+        return normalize_indian_phone(v)
+
+
+class PlayerSignupResponse(TokenResponse):
     claimed_existing_record: bool = Field(
-        ..., description="True if this login just linked an organiser-added roster entry to a new account."
+        ..., description="True if this signup just linked an organiser-added roster entry to a new account."
     )
+
+
+class PlayerClaimEmailRequest(BaseModel):
+    """
+    Lets an existing PLAYER row that only has a placeholder/test email (true phone numbers were
+    seeded from production rosters before email collection existed) set their real email, by
+    proving they know the phone number already on the account. No OTP: this is a self-service
+    data correction, not an authentication event -- the account still only ever logs in via
+    Google, against whatever email is set here.
+    """
+    phone: str = Field(..., description="10-digit Indian mobile number already on your account.")
+    email: str = Field(..., description="Your real email -- must match the Google account you'll sign in with.")
+
+    @field_validator("phone")
+    @classmethod
+    def _normalize_phone(cls, v: str) -> str:
+        return normalize_indian_phone(v)
+
+
+class PlayerClaimEmailResponse(BaseModel):
+    message: str = "Your email has been saved. You can now sign in with Google using that email."
 
 
 class OperatorStatusResponse(BaseModel):

@@ -3,11 +3,12 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
-import { Clock3, LayoutGrid, KeyRound, Mail, ShieldCheck, Users } from 'lucide-react'
+import { Clock3, KeyRound, Mail, ShieldCheck, Users } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
-import { FieldError, Input, Label } from '@/components/ui/input'
+import { FieldError, Input, Label, PhoneInput } from '@/components/ui/input'
+import { BrandMark, BrandWordmark } from '@/components/brand/logo'
 import { useOrganiserLogin, useOrganiserSignup, useOperatorLogin } from '@/hooks/use-auth'
 import { extractErrorMessage } from '@/lib/api/client'
 import { cn } from '@/lib/utils'
@@ -28,19 +29,15 @@ export function AuthPage() {
 
       <div className="relative w-full max-w-md animate-fade-up">
         <div className="mb-8 flex flex-col items-center gap-3 text-center">
-          <div className="flex size-14 items-center justify-center rounded-2xl bg-ember-500 text-navy-950 shadow-lg shadow-ember-500/20">
-            <LayoutGrid className="size-7" strokeWidth={2.5} />
-          </div>
+          <BrandMark size={56} className="text-2xl shadow-lg shadow-ember-500/20" />
           <div>
-            <h1 className="font-display text-3xl font-medium text-cream-50">
-              Court<span className="text-ember-500">side</span>
-            </h1>
+            <BrandWordmark className="text-3xl text-cream-50" />
             <p className="mt-1 text-sm text-cream-200/60">Every route tells a story. Run yours, swiftly.</p>
           </div>
         </div>
 
-        <div className="rounded-2xl border border-cream-50/10 bg-cream-50/[0.04] p-1.5 shadow-2xl shadow-navy-950/40 backdrop-blur-sm">
-          <div className="grid grid-cols-2 gap-1 rounded-xl bg-navy-950/40 p-1">
+        <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-1.5 shadow-2xl shadow-navy-950/40 backdrop-blur-sm">
+          <div className="grid grid-cols-2 gap-1 rounded-full bg-navy-950/40 p-1">
             <RoleTab active={role === 'ORGANISER'} onClick={() => setRole('ORGANISER')} icon={ShieldCheck} label="Organiser" />
             <RoleTab active={role === 'OPERATOR'} onClick={() => setRole('OPERATOR')} icon={Users} label="Court Operator" />
           </div>
@@ -49,16 +46,16 @@ export function AuthPage() {
             <AnimatePresence mode="wait">
               {role === 'ORGANISER' ? (
                 <motion.div key="organiser" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.18 }}>
-                  <div className="mb-4 flex justify-center gap-1 rounded-lg bg-navy-950/30 p-1 text-xs font-semibold">
+                  <div className="mb-4 flex justify-center gap-1 rounded-full bg-navy-950/30 p-1 text-xs font-semibold">
                     <button
                       onClick={() => setMode('login')}
-                      className={cn('flex-1 rounded-md py-1.5 transition-colors', mode === 'login' ? 'bg-cream-50 text-navy-900' : 'text-cream-200/60')}
+                      className={cn('flex-1 rounded-full py-1.5 transition-colors', mode === 'login' ? 'bg-ink text-court-cream' : 'text-cream-200/60')}
                     >
                       Log in
                     </button>
                     <button
                       onClick={() => setMode('signup')}
-                      className={cn('flex-1 rounded-md py-1.5 transition-colors', mode === 'signup' ? 'bg-cream-50 text-navy-900' : 'text-cream-200/60')}
+                      className={cn('flex-1 rounded-full py-1.5 transition-colors', mode === 'signup' ? 'bg-ink text-court-cream' : 'text-cream-200/60')}
                     >
                       Create account
                     </button>
@@ -83,8 +80,8 @@ function RoleTab({ active, onClick, icon: Icon, label }: { active: boolean; onCl
     <button
       onClick={onClick}
       className={cn(
-        'flex items-center justify-center gap-1.5 rounded-lg py-2.5 text-xs font-bold uppercase tracking-wide transition-all',
-        active ? 'bg-ember-500 text-navy-950 shadow-sm' : 'text-cream-200/50 hover:text-cream-100'
+        'flex items-center justify-center gap-1.5 rounded-full py-2.5 text-xs font-bold transition-all',
+        active ? 'bg-ember-500 text-ink shadow-sm' : 'text-cream-200/50 hover:text-cream-100'
       )}
     >
       <Icon className="size-3.5" />
@@ -133,7 +130,7 @@ const organiserSignupSchema = z
   .object({
     name: z.string().min(2, 'Enter your name'),
     email: z.string().email('Enter a valid email').optional().or(z.literal('')),
-    phone: z.string().optional().or(z.literal('')),
+    phone: z.string().regex(/^[6-9]\d{9}$/, 'Enter a valid 10-digit mobile number').optional().or(z.literal('')),
     pin: z.string().min(4, 'At least 4 characters'),
   })
   .refine((data) => data.email || data.phone, { message: 'Add an email or phone number', path: ['email'] })
@@ -169,7 +166,7 @@ function OrganiserSignupForm({ onDone }: { onDone: () => void }) {
             Your account is pending approval from the tournament admin. You'll be able to log in once it's approved.
           </p>
         </div>
-        <Button variant="outline" className="mt-1 border-cream-50/20 text-cream-100 hover:bg-cream-50/10" onClick={onDone}>
+        <Button variant="outline" className="mt-1 border-white/20 text-cream-100 hover:bg-white/10" onClick={onDone}>
           Back to log in
         </Button>
       </div>
@@ -187,7 +184,8 @@ function OrganiserSignupForm({ onDone }: { onDone: () => void }) {
         <FieldError>{errors.email?.message}</FieldError>
       </FormField>
       <FormField label="Phone (optional)">
-        <Input placeholder="+91 98765 43210" {...register('phone')} />
+        <PhoneInput {...register('phone')} />
+        <FieldError>{errors.phone?.message}</FieldError>
       </FormField>
       <FormField label="Choose a PIN">
         <Input type="password" placeholder="At least 4 characters" {...register('pin')} />

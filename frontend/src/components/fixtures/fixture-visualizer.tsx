@@ -107,31 +107,32 @@ export function FixtureVisualizer({
                 <div
                   className={cn(
                     'flex size-8 shrink-0 items-center justify-center rounded-full border-2 font-display text-sm font-semibold',
-                    isActive ? 'border-navy-900 bg-navy-900 text-cream-50' : 'border-navy-200 bg-cream-50 text-navy-400'
+                    isActive ? 'border-navy-900 bg-navy-900 text-cream-50' : 'border-white/20 bg-ink text-court-cream/45'
                   )}
                 >
                   {idx + 1}
                 </div>
-                {!isLast && <div className="w-px flex-1 bg-navy-200" />}
+                {!isLast && <div className="w-px flex-1 bg-white/15" />}
               </div>
               <div className="min-w-0 flex-1 pb-6">
                 <div className="mb-2 flex items-center justify-between pt-1">
-                  <h4 className="font-display text-sm font-semibold text-navy-900">
+                  <h4 className="font-display text-sm font-semibold text-court-cream">
                     {firstTime ? `Round ${idx + 1}` : 'Unscheduled'}
                   </h4>
                   {commonTime && (
-                    <span className="text-[10px] font-semibold uppercase tracking-wide text-navy-400">
+                    <span className="text-[10px] font-semibold uppercase tracking-wide text-court-cream/45">
                       {formatTime(commonTime)}
                     </span>
                   )}
                 </div>
                 <div className="grid gap-2 sm:grid-cols-2">
-                  {slotMatches.map((m) => (
+                  {slotMatches.map((m, mIdx) => (
                     <FixtureMatchRow
                       key={m.id}
                       match={m}
                       playersById={playersById}
                       courtName={m.court_id ? courtsById.get(m.court_id) : undefined}
+                      index={slots.slice(0, idx).reduce((n, s) => n + s.length, 0) + mIdx + 1}
                     />
                   ))}
                 </div>
@@ -145,19 +146,28 @@ export function FixtureVisualizer({
 
   return (
     <Tabs defaultValue={format === 'GROUP_KNOCKOUT' ? 'groups' : 'swiss'} className="space-y-5">
-      <TabsList>
+      <TabsList className="grid w-full grid-cols-2 gap-0 bg-white/10 p-1">
         {format === 'GROUP_KNOCKOUT' ? (
-          <TabsTrigger value="groups">
+          <TabsTrigger
+            value="groups"
+            className="font-sans text-sm font-semibold text-court-cream/55 shadow-none data-[state=active]:bg-navy-950 data-[state=active]:text-court-cream data-[state=active]:shadow-none"
+          >
             <Network className="mr-1.5 size-3.5 inline" />
             Group stage
           </TabsTrigger>
         ) : (
-          <TabsTrigger value="swiss">
+          <TabsTrigger
+            value="swiss"
+            className="font-sans text-sm font-semibold text-court-cream/55 shadow-none data-[state=active]:bg-navy-950 data-[state=active]:text-court-cream data-[state=active]:shadow-none"
+          >
             <Network className="mr-1.5 size-3.5 inline" />
             Swiss rounds
           </TabsTrigger>
         )}
-        <TabsTrigger value="knockout">
+        <TabsTrigger
+          value="knockout"
+          className="font-sans text-sm font-semibold text-court-cream/55 shadow-none data-[state=active]:bg-navy-950 data-[state=active]:text-court-cream data-[state=active]:shadow-none"
+        >
           <GitBranch className="mr-1.5 size-3.5 inline" />
           Knockout
         </TabsTrigger>
@@ -222,27 +232,41 @@ function GroupStageView({
   const groupMatches = groups.get(activeGroup) ?? groups.get(groupIds[0])!
   const rounds = Array.from(new Set(groupMatches.map((m) => m.round_num))).sort((a, b) => a - b)
   const roundMatches = groupMatches.filter((m) => m.round_num === activeRound).sort(compareByScheduledTime)
+  const sortedGroupMatches = [...groupMatches].sort((a, b) => a.round_num - b.round_num || compareByScheduledTime(a, b))
+  const matchNumberById = new Map(sortedGroupMatches.map((m, i) => [m.id, i + 1]))
 
   return (
     <Tabs value={activeGroup} onValueChange={selectGroup}>
-      <TabsList>
-        {groupIds.map((gid) => (
-          <TabsTrigger key={gid} value={gid}>
-            {gid.replace(/_/g, ' ')}
-          </TabsTrigger>
-        ))}
-      </TabsList>
+      <div className="mb-4 flex items-end justify-between gap-4">
+        <div>
+          <p className="mb-1 font-sans text-[10px] font-bold uppercase tracking-[.16em] text-ember-500">Round robin</p>
+          <h3 className="font-display text-2xl leading-none text-court-cream">{activeGroup.replace(/_/g, ' ')}</h3>
+        </div>
+        {groupIds.length > 1 && (
+          <TabsList className="gap-1.5 bg-transparent p-0">
+            {groupIds.map((gid) => (
+              <TabsTrigger
+                key={gid}
+                value={gid}
+                className="size-9 bg-white/10 p-0 font-display text-base text-court-cream/55 shadow-none data-[state=active]:bg-navy-950 data-[state=active]:text-court-cream data-[state=active]:shadow-none"
+              >
+                {gid.split('_').pop()}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        )}
+      </div>
 
-      <TabsContent value={activeGroup} className="space-y-3.5">
-        <div className="flex flex-wrap gap-1.5">
+      <TabsContent value={activeGroup} className="mt-0 space-y-3.5">
+        <div className="flex gap-2">
           {rounds.map((round) => (
             <button
               key={round}
               type="button"
               onClick={() => setActiveRound(round)}
               className={cn(
-                'rounded-lg px-3 py-1.5 text-xs font-bold uppercase tracking-wide transition-colors',
-                round === activeRound ? 'bg-ember-500 text-navy-950' : 'bg-navy-100/70 text-navy-500 hover:text-navy-800'
+                'flex-1 rounded-lg px-3 py-2.5 font-display text-lg transition-colors',
+                round === activeRound ? 'bg-ember-500 text-ink' : 'bg-white/10 text-court-cream/55 hover:text-court-cream/85'
               )}
             >
               Round {round}
@@ -256,6 +280,7 @@ function GroupStageView({
               match={m}
               playersById={playersById}
               courtName={m.court_id ? courtsById.get(m.court_id) : undefined}
+              index={matchNumberById.get(m.id)}
             />
           ))}
         </div>

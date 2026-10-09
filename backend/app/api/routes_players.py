@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import CurrentUser, ensure_tournament_access, get_db, require_operator_or_organiser, require_organiser, require_player
+from app.core.phone import normalize_indian_phone
 from app.db import models
 from app.schemas.player import (
     PlayerCreate,
@@ -19,6 +20,28 @@ from app.schemas.player import (
 from app.services.match_progression import resolve_pending_walkovers
 
 router = APIRouter(prefix="/tournaments/{tournament_id}/players", tags=["Players"])
+
+
+def _active_player_count(db: Session, tournament_id: str) -> int:
+    return db.query(models.Player).filter(
+        models.Player.tournament_id == tournament_id, models.Player.is_placeholder == False
+    ).count()
+
+
+def _auto_close_registration_if_full(db: Session, tournament: models.Tournament) -> None:
+    """
+    Flips registration to CLOSED the moment the roster cap is reached, regardless of which
+    endpoint added the player that filled the last slot (self-register, a single organiser
+    add, a batch add, or a roster file upload). Relies on SQLAlchemy's autoflush to count
+    players just added in this same session before they're committed.
+    """
+    if tournament.max_players is None or tournament.registration_status == models.RegistrationStatus.CLOSED:
+        return
+    # The session here has autoflush off (see tests/conftest.py), so a just-added player
+    # isn't visible to a query until explicitly flushed.
+    db.flush()
+    if _active_player_count(db, tournament.id) >= tournament.max_players:
+        tournament.registration_status = models.RegistrationStatus.CLOSED
 
 
 def _find_or_create_athlete(db: Session, name: str, email: Optional[str]) -> Optional[models.Athlete]:
@@ -73,6 +96,8 @@ def register_player(
         is_placeholder=payload.is_placeholder
     )
     db.add(player)
+    if not player.is_placeholder:
+        _auto_close_registration_if_full(db, tournament)
     db.commit()
     db.refresh(player)
     return player
@@ -98,6 +123,12 @@ def self_register_player(
 
     if tournament.status not in (models.TournamentStatus.DRAFT, models.TournamentStatus.SCHEDULING):
         raise HTTPException(status_code=400, detail="Registration is closed for this tournament.")
+    if tournament.registration_status != models.RegistrationStatus.OPEN:
+        if tournament.registration_status == models.RegistrationStatus.NOT_OPEN:
+            raise HTTPException(status_code=400, detail="Registration hasn't opened yet for this tournament.")
+        is_full = tournament.max_players is not None and _active_player_count(db, tournament_id) >= tournament.max_players
+        detail = "This tournament is full." if is_full else "Registration is closed for this tournament."
+        raise HTTPException(status_code=400, detail=detail)
 
     user = db.query(models.User).filter(models.User.id == current_user.id).first()
     if not user.athlete_id:
@@ -110,6 +141,9 @@ def self_register_player(
     if existing_entry:
         raise HTTPException(status_code=400, detail="You're already registered for this tournament.")
 
+    if tournament.max_players is not None and _active_player_count(db, tournament_id) >= tournament.max_players:
+        raise HTTPException(status_code=400, detail="This tournament is full.")
+
     athlete = db.query(models.Athlete).filter(models.Athlete.id == user.athlete_id).first()
     player = models.Player(
         id=f"P_{uuid.uuid4().hex[:8]}",
@@ -118,6 +152,7 @@ def self_register_player(
         name=athlete.name,
     )
     db.add(player)
+    _auto_close_registration_if_full(db, tournament)
     db.commit()
     db.refresh(player)
     return player
@@ -156,6 +191,8 @@ def register_players_batch(
         db.add(player)
         created_players.append(player)
 
+    if any(not p.is_placeholder for p in created_players):
+        _auto_close_registration_if_full(db, tournament)
     db.commit()
     for p in created_players:
         db.refresh(p)
@@ -306,15 +343,27 @@ async def upload_roster_file(
         raise HTTPException(status_code=400, detail="The uploaded file contains no data.")
 
     # 2. Process rows and deduplicate athletes
-    stats = {"total_processed": 0, "new_athletes_created": 0, "returning_athletes": 0, "skipped_duplicates": 0}
-    
+    stats = {
+        "total_processed": 0,
+        "new_athletes_created": 0,
+        "returning_athletes": 0,
+        "skipped_duplicates": 0,
+        "invalid_phone_skipped": 0,
+    }
+
     for row in parsed_rows:
         name = row.get("name")
         if not name:
             continue # Name is mandatory, skip empty/invalid rows
-            
+
         email = row.get("email") or None
         phone = row.get("phone") or None
+        if phone:
+            try:
+                phone = normalize_indian_phone(phone)
+            except ValueError:
+                phone = None
+                stats["invalid_phone_skipped"] += 1
         club_or_city = row.get("club_or_city") or row.get("club") or row.get("city") or None
 
         # Look for existing athlete by email, then by phone
@@ -363,6 +412,8 @@ async def upload_roster_file(
         db.add(player)
         stats["total_processed"] += 1
 
+    if stats["total_processed"] > 0:
+        _auto_close_registration_if_full(db, tournament)
     db.commit()
     return {
         "message": "Roster upload complete.",

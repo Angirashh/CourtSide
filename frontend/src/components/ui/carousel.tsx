@@ -106,7 +106,7 @@ export const Carousel = forwardRef<
               aria-selected={i === active}
               aria-label={`Go to slide ${i + 1}`}
               onClick={() => goTo(i)}
-              className={cn('h-1.5 rounded-full transition-all', i === active ? 'w-6 bg-ember-500' : 'w-1.5 bg-navy-200')}
+              className={cn('h-1.5 rounded-full transition-all', i === active ? 'w-6 bg-ember-500' : 'w-1.5 bg-white/20')}
             />
           ))}
         </div>
@@ -132,7 +132,7 @@ function ArrowButton({
       aria-label={label}
       disabled={disabled}
       onClick={onClick}
-      className="flex size-9 items-center justify-center rounded-full border border-cream-200 bg-cream-25 text-navy-700 transition hover:border-ember-400 disabled:opacity-35 disabled:hover:border-cream-200"
+      className="flex size-9 items-center justify-center rounded-full border border-white/10 bg-ink-card text-court-cream/70 transition hover:border-ember-400 disabled:opacity-35 disabled:hover:border-white/10"
     >
       {children}
     </button>

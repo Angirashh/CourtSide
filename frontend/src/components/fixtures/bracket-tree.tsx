@@ -150,13 +150,13 @@ export function BracketTree({
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="flex items-center justify-center gap-2.5 rounded-2xl border border-ember-300 bg-gradient-to-br from-ember-100 to-cream-100 px-5 py-4"
+          className="flex items-center justify-center gap-2.5 rounded-2xl border border-ember-300/60 bg-gradient-to-br from-ember-500/20 to-ink-card px-5 py-4"
         >
-          <div className="flex size-9 items-center justify-center rounded-full bg-ember-500 text-navy-950">
+          <div className="flex size-9 items-center justify-center rounded-full bg-ember-500 text-ink">
             <Trophy className="size-4" />
           </div>
-          <p className="font-display text-lg font-medium text-navy-900">
-            {playerLabel(champion.winner_id, playersById)} <span className="text-navy-500 text-sm font-sans">wins the title</span>
+          <p className="font-display text-lg font-medium text-court-cream">
+            {playerLabel(champion.winner_id, playersById)} <span className="text-court-cream/55 text-sm font-sans">wins the title</span>
           </p>
         </motion.div>
       )}
@@ -187,8 +187,8 @@ function BracketMatchCard({
       animate={{ opacity: 1, x: 0 }}
       transition={{ delay, duration: 0.3 }}
       className={cn(
-        'relative w-[220px] overflow-hidden rounded-xl border bg-cream-25 shadow-sm',
-        match.is_completed && match.winner_id ? 'border-ember-300' : 'border-cream-200'
+        'relative w-[220px] overflow-hidden rounded-xl border bg-ink-card shadow-sm',
+        match.is_completed && match.winner_id ? 'border-ember-300' : 'border-white/10'
       )}
     >
       <PlayerRow
@@ -198,7 +198,7 @@ function BracketMatchCard({
         isPlaceholder={!!p1?.is_placeholder}
         score={match.scores?.map((s) => s.p1)}
       />
-      <div className="h-px bg-cream-200" />
+      <div className="h-px bg-ink-card" />
       <PlayerRow
         label={playerLabel(match.player2_id, playersById)}
         isWinner={!!match.winner_id && match.winner_id === match.player2_id}
@@ -206,21 +206,21 @@ function BracketMatchCard({
         isPlaceholder={!!p2?.is_placeholder}
         score={match.scores?.map((s) => s.p2)}
       />
-      <div className="flex items-center justify-between gap-2 border-t border-cream-200 bg-navy-100/40 px-2.5 py-1.5">
+      <div className="flex items-center justify-between gap-2 border-t border-white/10 bg-white/10 px-2.5 py-1.5">
         <div className="flex min-w-0 items-center gap-1.5">
           <MatchStatusBadge status={match.status} />
           {courtName && (
-            <span className="inline-flex min-w-0 items-center gap-1 truncate text-[10px] font-semibold text-navy-400">
+            <span className="inline-flex min-w-0 items-center gap-1 truncate text-[10px] font-semibold text-court-cream/45">
               <MapPin className="size-2.5 shrink-0" />
               <span className="truncate">{courtName}</span>
             </span>
           )}
         </div>
         {match.is_walkover && (
-          <span className="text-[10px] font-bold uppercase tracking-wide text-navy-400">Walkover</span>
+          <span className="text-[10px] font-bold uppercase tracking-wide text-court-cream/45">Walkover</span>
         )}
         {!match.is_completed && match.scheduled_start_time && (
-          <span className="truncate text-[10px] font-medium text-navy-400">{formatDateTime(match.scheduled_start_time)}</span>
+          <span className="truncate text-[10px] font-medium text-court-cream/45">{formatDateTime(match.scheduled_start_time)}</span>
         )}
       </div>
     </motion.div>
@@ -241,12 +241,12 @@ function PlayerRow({
   score?: number[]
 }) {
   return (
-    <div className={cn('flex items-center justify-between gap-2 px-3 py-2', isWinner && 'bg-ember-100/60')}>
+    <div className={cn('flex items-center justify-between gap-2 px-3 py-2', isWinner && 'bg-ember-500/15')}>
       <span
         className={cn(
           'truncate text-sm',
-          isPlaceholder ? 'italic text-navy-400' : 'text-navy-800',
-          isWinner && 'font-bold text-navy-900'
+          isPlaceholder ? 'italic text-court-cream/45' : 'text-court-cream/85',
+          isWinner && 'font-bold text-court-cream'
         )}
       >
         {label}
@@ -258,8 +258,8 @@ function PlayerRow({
             <span
               key={i}
               className={cn(
-                'flex size-5 items-center justify-center rounded text-[10px] font-bold',
-                isWinner ? 'bg-ember-500 text-navy-950' : 'bg-navy-100 text-navy-500'
+                'flex size-5 items-center justify-center rounded-md text-[10px] font-bold',
+                isWinner ? 'bg-ember-500 text-ink' : 'bg-white/10 text-court-cream/55'
               )}
             >
               {s}

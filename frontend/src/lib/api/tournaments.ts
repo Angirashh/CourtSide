@@ -2,6 +2,7 @@ import { api } from './client'
 import type {
   Court,
   CourtRescheduleResponse,
+  RegistrationStatus,
   ScheduleGenerationResponse,
   Tournament,
   TournamentCategory,
@@ -34,6 +35,8 @@ export interface UpdateTournamentDetailsPayload {
   venue?: string
   venue_link?: string
   tournament_date?: string
+  registration_status?: RegistrationStatus
+  max_players?: number
 }
 
 export interface CourtPayload {

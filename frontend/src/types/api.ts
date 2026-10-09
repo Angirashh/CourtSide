@@ -3,6 +3,8 @@ export type UserRole = 'ORGANISER' | 'OPERATOR' | 'PLAYER'
 export interface User {
   id: string
   name: string
+  first_name: string | null
+  last_name: string | null
   email: string | null
   phone: string | null
   role: UserRole
@@ -36,6 +38,7 @@ export type TournamentCategory = 'CORPORATE' | 'COLLEGE' | 'JUNIOR' | 'FRIENDLY'
 export type TournamentStatus = 'DRAFT' | 'SCHEDULING' | 'IN_PROGRESS' | 'COMPLETED'
 export type MatchStage = 'GROUP' | 'SWISS' | 'KNOCKOUT' | 'CROSSOVER'
 export type MatchStatus = 'SCHEDULED' | 'IN_PROGRESS' | 'COMPLETED'
+export type RegistrationStatus = 'NOT_OPEN' | 'OPEN' | 'CLOSED'
 
 export interface Court {
   id: string
@@ -92,6 +95,8 @@ export interface Tournament {
   venue: string | null
   venue_link: string | null
   tournament_date: string | null
+  registration_status: RegistrationStatus
+  max_players: number | null
   created_at: string
   updated_at: string
 }
@@ -181,6 +186,8 @@ export interface PublicTournamentSummary {
   earliest_match_start_time: string | null
   players_count: number
   courts_count: number
+  registration_status: RegistrationStatus
+  max_players: number | null
   created_at: string
   live_matches: PublicLiveMatch[]
   court_queues: PublicCourtQueue[]
@@ -200,6 +207,8 @@ export interface PublicTournamentDetail {
   venue: string | null
   venue_link: string | null
   tournament_date: string | null
+  registration_status: RegistrationStatus
+  max_players: number | null
   courts: Court[]
   players: Player[]
   matches: Match[]

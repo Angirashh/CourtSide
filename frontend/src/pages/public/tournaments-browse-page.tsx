@@ -42,19 +42,19 @@ export function TournamentsBrowsePage() {
     <div className="mx-auto max-w-[1400px] space-y-6">
       <div>
         <p className="font-mono text-[10px] uppercase tracking-[.2em] text-ember-600">Plan the season</p>
-        <h1 className="mt-2 font-display text-3xl font-medium tracking-tight text-navy-900 sm:text-4xl">Tournament calendar</h1>
-        <p className="mt-2 max-w-xl text-sm leading-6 text-navy-500">
+        <h1 className="mt-2 font-display text-3xl font-medium tracking-tight text-court-cream sm:text-4xl">Tournament calendar</h1>
+        <p className="mt-2 max-w-xl text-sm leading-6 text-court-cream/55">
           Everything on court, from first serve to final point. Find the one you care about.
         </p>
       </div>
 
-      <div className="flex flex-col gap-3 rounded-2xl border border-cream-200 bg-cream-25 p-3 md:flex-row">
-        <label className="flex flex-1 items-center gap-2 rounded-xl bg-cream-100 px-3 py-2.5 text-navy-400">
+      <div className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-ink-card p-3 md:flex-row">
+        <label className="flex flex-1 items-center gap-2 rounded-xl bg-ink-card px-3 py-2.5 text-court-cream/45">
           <Search className="size-4" />
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            className="w-full bg-transparent text-sm text-navy-900 outline-none placeholder:text-navy-400"
+            className="w-full bg-transparent text-sm text-court-cream outline-none placeholder:text-court-cream/45"
             placeholder="Find a tournament"
           />
         </label>
@@ -76,7 +76,7 @@ export function TournamentsBrowsePage() {
         </div>
       </div>
 
-      <p className="font-mono text-[10px] uppercase tracking-[.16em] text-navy-400">
+      <p className="font-mono text-[10px] uppercase tracking-[.16em] text-court-cream/45">
         {isLoading ? 'Loading…' : `${filtered.length} tournament${filtered.length === 1 ? '' : 's'} found`}
       </p>
 
@@ -129,12 +129,12 @@ function FilterSelect<T extends string>({
   optionLabel: (value: T) => string
 }) {
   return (
-    <label className="flex min-w-[130px] items-center gap-2 rounded-xl bg-cream-100 px-3 py-2 text-[11px] font-bold text-navy-600">
-      <span className="font-mono text-[9px] uppercase tracking-[.12em] text-navy-400">{label}</span>
+    <label className="flex min-w-[130px] items-center gap-2 rounded-xl bg-ink-card px-3 py-2 text-[11px] font-bold text-court-cream/60">
+      <span className="font-mono text-[9px] uppercase tracking-[.12em] text-court-cream/45">{label}</span>
       <select
         value={value}
         onChange={(e) => onChange(e.target.value as T)}
-        className="w-full bg-transparent text-xs font-bold text-navy-900 outline-none"
+        className="w-full bg-transparent text-xs font-bold text-court-cream outline-none"
       >
         {options.map((opt) => (
           <option value={opt} key={opt}>

@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
-import { FieldError, Input, Label } from '@/components/ui/input'
+import { FieldError, Input, Label, PhoneInput } from '@/components/ui/input'
 import { EmptyState } from '@/components/ui/empty-state'
 import { FullPageSpinner } from '@/components/ui/spinner'
 import { useInviteOperator, useOperators, useRevokeOperator } from '@/hooks/use-operators'
@@ -20,7 +20,7 @@ const inviteSchema = z
   .object({
     name: z.string().min(1, 'Enter a name'),
     email: z.string().email('Enter a valid email').optional().or(z.literal('')),
-    phone: z.string().optional().or(z.literal('')),
+    phone: z.string().regex(/^[6-9]\d{9}$/, 'Enter a valid 10-digit mobile number').optional().or(z.literal('')),
   })
   .refine((d) => d.email || d.phone, { message: 'Add an email or phone', path: ['email'] })
 
@@ -76,7 +76,7 @@ export function OperatorsTab({ tournamentId }: { tournamentId: string }) {
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-navy-500">Invite court operators with a one-time PIN scoped to this tournament.</p>
+        <p className="text-sm text-court-cream/55">Invite court operators with a one-time PIN scoped to this tournament.</p>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
             <Button size="sm">
@@ -101,7 +101,8 @@ export function OperatorsTab({ tournamentId }: { tournamentId: string }) {
               </div>
               <div className="space-y-1.5">
                 <Label>Phone (optional)</Label>
-                <Input placeholder="+91 98765 43210" {...register('phone')} />
+                <PhoneInput {...register('phone')} />
+                <FieldError>{errors.phone?.message}</FieldError>
               </div>
               <DialogFooter>
                 <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
@@ -161,11 +162,11 @@ const OperatorRow = memo(
             {initials(operator.name)}
           </div>
           <div className="min-w-0 flex-1 space-y-0.5">
-            <p className="break-words text-sm font-semibold text-navy-900">{operator.name}</p>
-            {operator.email && <p className="break-all text-xs text-navy-500">{operator.email}</p>}
-            {operator.phone && <p className="break-words text-xs text-navy-500">{operator.phone}</p>}
-            {!operator.email && !operator.phone && <p className="text-xs text-navy-400">—</p>}
-            <p className="text-[11px] text-navy-400">Invited {formatDate(operator.invited_at)}</p>
+            <p className="break-words text-sm font-semibold text-court-cream">{operator.name}</p>
+            {operator.email && <p className="break-all text-xs text-court-cream/55">{operator.email}</p>}
+            {operator.phone && <p className="break-words text-xs text-court-cream/55">{operator.phone}</p>}
+            {!operator.email && !operator.phone && <p className="text-xs text-court-cream/45">—</p>}
+            <p className="text-[11px] text-court-cream/45">Invited {formatDate(operator.invited_at)}</p>
           </div>
         </div>
 
@@ -190,7 +191,7 @@ const OperatorRow = memo(
               aria-label="Issue a new code"
               onClick={() => onIssueCode(operator)}
             >
-              <RefreshCw className="size-4 text-navy-400" />
+              <RefreshCw className="size-4 text-court-cream/45" />
               <span className="sm:hidden">New code</span>
             </Button>
             <Button
@@ -202,7 +203,7 @@ const OperatorRow = memo(
               disabled={operator.is_revoked}
               onClick={() => onRevoke(operator)}
             >
-              <ShieldOff className="size-4 text-navy-400" />
+              <ShieldOff className="size-4 text-court-cream/45" />
               <span className="sm:hidden">Revoke</span>
             </Button>
           </div>
@@ -243,7 +244,7 @@ function InviteCodeChip({ code }: { code: string }) {
         setTimeout(() => setCopied(false), 1500)
       }}
       className={cn(
-        'flex shrink-0 items-center gap-1.5 rounded-lg bg-ember-100 px-2.5 py-1.5 font-mono text-xs font-bold text-ember-700 transition-colors hover:bg-ember-100/70'
+        'flex shrink-0 items-center gap-1.5 rounded-full bg-ember-500/15 px-2.5 py-1.5 font-mono text-xs font-bold text-ember-400 transition-colors hover:bg-ember-500/25'
       )}
     >
       {copied ? <Check className="size-3.5" /> : <KeyRound className="size-3.5" />}

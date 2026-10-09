@@ -1,7 +1,7 @@
 from datetime import date, datetime
 from typing import Optional, List, Dict
 from pydantic import BaseModel, Field, ConfigDict
-from app.db.models import TournamentFormat, TournamentStatus, TournamentCategory
+from app.db.models import RegistrationStatus, TournamentFormat, TournamentStatus, TournamentCategory
 from app.schemas.player import PlayerResponse
 from app.schemas.match import MatchResponse
 
@@ -65,6 +65,13 @@ class TournamentBase(BaseModel):
     venue: Optional[str] = Field(default=None, max_length=200, examples=["Koramangala Indoor Stadium"])
     venue_link: Optional[str] = Field(default=None, max_length=500, examples=["https://maps.google.com/?q=..."])
     tournament_date: Optional[date] = Field(default=None, examples=["2026-10-12"])
+    registration_status: RegistrationStatus = Field(
+        default=RegistrationStatus.NOT_OPEN,
+        description="NOT_OPEN, OPEN, or CLOSED. NOT_OPEN by default on creation.",
+    )
+    max_players: Optional[int] = Field(
+        default=None, ge=1, description="Optional roster cap shown as a public progress bar. Uncapped if unset."
+    )
 
 
 class TournamentCreate(TournamentBase):
@@ -83,6 +90,10 @@ class TournamentDetailsUpdate(BaseModel):
     venue: Optional[str] = Field(None, min_length=2, max_length=200, examples=["Koramangala Indoor Stadium"])
     venue_link: Optional[str] = Field(None, max_length=500, examples=["https://maps.google.com/?q=..."])
     tournament_date: Optional[date] = Field(None, examples=["2026-10-12"])
+    registration_status: Optional[RegistrationStatus] = Field(
+        None, description="Set to NOT_OPEN, OPEN, or CLOSED. Auto-flips to CLOSED when the roster cap is reached."
+    )
+    max_players: Optional[int] = Field(None, ge=1, description="Optional roster cap. Uncapped if never set.")
 
 
 class TournamentUpdate(BaseModel):

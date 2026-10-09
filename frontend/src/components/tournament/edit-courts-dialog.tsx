@@ -120,7 +120,7 @@ export function EditCourtsDialog({ tournamentId, courts, matches }: { tournament
       <DialogTrigger asChild>
         <button
           type="button"
-          className="inline-flex items-center gap-1 rounded px-1 py-0.5 text-navy-400 transition-colors hover:bg-navy-100 hover:text-navy-900"
+          className="inline-flex items-center gap-1 rounded px-1 py-0.5 text-court-cream/45 transition-colors hover:bg-white/10 hover:text-court-cream"
           title="Edit courts"
           aria-label="Edit courts"
         >
@@ -142,9 +142,9 @@ export function EditCourtsDialog({ tournamentId, courts, matches }: { tournament
             {fields.map((field, idx) => {
               const isBusy = !!field.courtId && busyCourtIds.has(field.courtId)
               return (
-                <div key={field.id} className="rounded-lg border border-cream-300 p-3">
+                <div key={field.id} className="rounded-lg border border-white/10 p-3">
                   <div className="flex items-center gap-2.5">
-                    <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-navy-100 text-navy-500">
+                    <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-white/10 text-court-cream/55">
                       <MapPin className="size-4" />
                     </div>
                     <Input placeholder="Court name" className="flex-1" {...register(`courts.${idx}.name` as const)} />
@@ -153,18 +153,18 @@ export function EditCourtsDialog({ tournamentId, courts, matches }: { tournament
                       onClick={() => remove(idx)}
                       disabled={fields.length === 1 || isBusy}
                       title={isBusy ? "Can't remove — has a match on it right now" : 'Remove court'}
-                      className="flex size-9 shrink-0 items-center justify-center rounded-lg text-navy-400 transition-colors hover:bg-danger-bg hover:text-danger disabled:opacity-30"
+                      className="flex size-9 shrink-0 items-center justify-center rounded-lg text-court-cream/45 transition-colors hover:bg-danger-bg hover:text-danger disabled:opacity-30"
                     >
                       <Trash2 className="size-4" />
                     </button>
                   </div>
                   <div className="mt-2.5 grid grid-cols-2 gap-2.5 pl-11">
                     <div className="space-y-1">
-                      <Label className="text-xs font-normal text-navy-500">Rate (₹/hr)</Label>
+                      <Label className="text-xs font-normal text-court-cream/55">Rate (₹/hr)</Label>
                       <Input type="number" min={0} {...register(`courts.${idx}.hourly_rate` as const)} />
                     </div>
                     <div className="space-y-1">
-                      <Label className="text-xs font-normal text-navy-500">Opens late by (min)</Label>
+                      <Label className="text-xs font-normal text-court-cream/55">Opens late by (min)</Label>
                       <Input
                         type="number"
                         min={0}

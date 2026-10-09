@@ -21,7 +21,7 @@ export function DialogContent({
       <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-navy-950/70 backdrop-blur-sm data-[state=open]:animate-fade-in" />
       <DialogPrimitive.Content
         className={cn(
-          'fixed z-50 border border-cream-200 bg-cream-25 shadow-2xl shadow-navy-950/20',
+          'fixed z-50 border border-white/10 bg-ink-card shadow-2xl shadow-navy-950/20',
           sheet
             ? [
                 'inset-x-0 bottom-0 w-full rounded-t-2xl px-5 pt-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] animate-fade-up max-h-[92svh]',
@@ -34,7 +34,7 @@ export function DialogContent({
         {...props}
       >
         {children}
-        <DialogPrimitive.Close className="absolute right-4 top-4 rounded-full p-1.5 text-navy-400 transition-colors hover:bg-navy-100 hover:text-navy-700">
+        <DialogPrimitive.Close className="absolute right-4 top-4 rounded-full p-1.5 text-court-cream/45 transition-colors hover:bg-white/10 hover:text-court-cream/70">
           <X className="size-4" />
         </DialogPrimitive.Close>
       </DialogPrimitive.Content>
@@ -47,14 +47,14 @@ export function DialogHeader({ className, ...props }: React.HTMLAttributes<HTMLD
 }
 
 export function DialogTitle({ className, ...props }: React.ComponentPropsWithoutRef<typeof DialogPrimitive.Title>) {
-  return <DialogPrimitive.Title className={cn('font-display text-xl font-medium text-navy-900', className)} {...props} />
+  return <DialogPrimitive.Title className={cn('font-display text-xl font-medium text-court-cream', className)} {...props} />
 }
 
 export function DialogDescription({
   className,
   ...props
 }: React.ComponentPropsWithoutRef<typeof DialogPrimitive.Description>) {
-  return <DialogPrimitive.Description className={cn('text-sm text-navy-500', className)} {...props} />
+  return <DialogPrimitive.Description className={cn('text-sm text-court-cream/55', className)} {...props} />
 }
 
 export function DialogFooter({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {

@@ -131,6 +131,8 @@ def _load_public_tournaments(db: Session) -> List[PublicTournamentSummary]:
                 earliest_match_start_time=earliest_match_start_time,
                 players_count=len([p for p in t.players if not p.is_placeholder]),
                 courts_count=len(t.courts),
+                registration_status=t.registration_status,
+                max_players=t.max_players,
                 created_at=t.created_at,
                 live_matches=live_matches,
                 court_queues=build_court_queues(t) if t.status == models.TournamentStatus.IN_PROGRESS else [],

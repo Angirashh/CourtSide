@@ -91,7 +91,7 @@ export function ScheduleDialog({
             </Label>
             <Input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} />
             {tournamentDate ? (
-              <p className="text-xs text-navy-400">On {formatPlainDate(tournamentDate)}, the date you set for this tournament.</p>
+              <p className="text-xs text-court-cream/45">On {formatPlainDate(tournamentDate)}, the date you set for this tournament.</p>
             ) : (
               <div className="space-y-1.5 pt-1">
                 <Label>Tournament date</Label>
@@ -109,7 +109,7 @@ export function ScheduleDialog({
                 value={roundsValue}
                 onChange={(e) => setSwissRounds(e.target.value === '' ? '' : Number(e.target.value))}
               />
-              <p className="text-xs text-navy-400">
+              <p className="text-xs text-court-cream/45">
                 Recommended {recommendedRounds} for {playerCount} players (max {maxRounds}). Each round pairs players on
                 similar records and never repeats an opponent. The top 4 then go to the knockout.
               </p>
@@ -130,7 +130,7 @@ export function ScheduleDialog({
                 value={matchesPerPlayer}
                 onChange={(e) => setMatchesPerPlayer(e.target.value === '' ? '' : Number(e.target.value))}
               />
-              <p className="text-xs text-navy-400">
+              <p className="text-xs text-court-cream/45">
                 Every player gets this many distinct cross-team opponents — Team A and Team B must be the same size.
               </p>
             </div>

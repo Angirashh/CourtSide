@@ -1,60 +1,91 @@
 @import 'tailwindcss';
 
-@import '@fontsource/fraunces/400.css';
-@import '@fontsource/fraunces/500.css';
-@import '@fontsource/fraunces/600.css';
-@import '@fontsource/fraunces/600-italic.css';
 @import '@fontsource/hanken-grotesk/400.css';
 @import '@fontsource/hanken-grotesk/500.css';
 @import '@fontsource/hanken-grotesk/600.css';
 @import '@fontsource/hanken-grotesk/700.css';
+@import '@fontsource/hanken-grotesk/800.css';
 
 @theme {
-  /* Brand */
-  --color-navy-950: #0e1622;
-  --color-navy-900: #1b2a3d;
-  --color-navy-800: #253a52;
-  --color-navy-700: #324965;
-  --color-navy-600: #435f80;
-  --color-navy-500: #5c7797;
-  --color-navy-400: #8298b3;
-  --color-navy-300: #b0c0d3;
-  --color-navy-200: #d7e0ea;
-  --color-navy-100: #eef2f6;
+  /* Brand -- "Match Point" scoreboard palette, repainted charcoal + electric orange. Token
+     NAMES (navy, cream, ember ramps) are kept unchanged from the previous brand system on
+     purpose: every component in the app already references them, so repainting the values
+     here reskins the whole application without touching component markup. The navy/cream
+     ramps are no longer used as a light "page surface" scale (that's ink/ink-card/court-cream
+     now, everywhere) -- they're kept only for the handful of "always dark chip/panel" and
+     "always light overlay tint" roles components already reference. */
+  --color-navy-950: #101418;
+  --color-navy-900: #15191e;
+  --color-navy-800: #1d2227;
+  --color-navy-700: #2c3137;
+  --color-navy-600: #454b52;
+  --color-navy-500: #6b7680;
+  --color-navy-400: #8b949c;
+  --color-navy-300: #adb4ba;
+  --color-navy-200: #d6d6d2;
+  --color-navy-100: #e9e8e3;
 
-  --color-cream-300: #d9cdb6;
-  --color-cream-200: #e8e0d1;
-  --color-cream-100: #f6f1e8;
-  --color-cream-50: #f1ece2;
-  --color-cream-25: #faf7f1;
+  --color-cream-300: #ddd9cd;
+  --color-cream-200: #e6e3da;
+  --color-cream-100: #efede6;
+  --color-cream-50: #f6f5f0;
+  --color-cream-25: #fbfaf8;
 
-  --color-ember-600: #c96a24;
-  --color-ember-500: #e8883a;
-  --color-ember-400: #ee9f5c;
-  --color-ember-300: #f3bd8f;
-  --color-ember-100: #fbe6d2;
+  /* Electric orange -- the exact "RALLY" reference accent (#ff6538), ramp interpolated around it. */
+  --color-ember-600: #e34f24;
+  --color-ember-500: #ff6538;
+  --color-ember-400: #ff8660;
+  --color-ember-300: #ffaa8c;
+  --color-ember-100: #ffe1d4;
 
-  --color-success: #4f7d5c;
-  --color-success-bg: #e3ead9;
-  --color-danger: #b6483f;
-  --color-danger-bg: #f5ded9;
-  --color-warning: #b8842a;
-  --color-warning-bg: #f5ead0;
+  /* Charcoal chrome -- the exact "RALLY" reference values: ink = base dark background
+     (#121212), ink-card = the elevated grey surface every Card/Dialog/Input/etc. sits on
+     (#292929), court-cream = the primary light text color used everywhere on top of them.
+     Used by the sticky header, bottom nav, every card/table/dialog/input surface app-wide,
+     and dark panels on the tournament detail page (banner, standings headers, final panel). */
+  --color-ink: #121212;
+  --color-ink-card: #292929;
+  --color-court-cream: #f7f3eb;
+  --color-signal: #ff6538;
 
-  /* Fonts */
-  --font-display: 'Fraunces', 'Georgia', serif;
+  --color-success: #4ade80;
+  --color-success-bg: #16301f;
+  --color-danger: #e2685c;
+  --color-danger-bg: rgba(226, 104, 92, 0.16);
+  --color-warning: #d9a53f;
+  --color-warning-bg: rgba(217, 165, 63, 0.16);
+
+  /* Fonts -- bold rounded grotesque (Hanken Grotesk) replacing the old condensed-caps Bebas
+     Neue, per the RALLY reference. `.font-display` additionally gets a font-weight override
+     below (Tailwind's --font-* tokens only emit font-family), so every existing font-display
+     call site app-wide reads as bold without touching component markup. */
+  --font-display: 'Hanken Grotesk', 'system-ui', sans-serif;
   --font-sans: 'Hanken Grotesk', 'system-ui', sans-serif;
+  /* The existing eyebrow-label convention used across this app (font-mono text-[10px]
+     uppercase tracking-[...]) is reused below instead of inventing a parallel class. */
+  --font-mono: 'Hanken Grotesk', 'system-ui', sans-serif;
 
-  /* Radius scale, slightly larger than default = softer brand feel */
-  --radius-md: 0.625rem;
-  --radius-lg: 0.875rem;
-  --radius-xl: 1.25rem;
-  --radius-2xl: 1.75rem;
+  /* Radius scale -- generously rounded, matching the RALLY reference's soft card/button/chip
+     corners instead of the old sharp scoreboard-ticket look. */
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 18px;
+  --radius-2xl: 22px;
+
+  /* Soft, understated shadows instead of the old hard offset "ticket stub" shadows -- the
+     reference's cards read as flat, bordered panels with barely any shadow at all. */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 2px 10px 0 rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 6px 20px 0 rgba(0, 0, 0, 0.35);
+  --shadow-xl: 0 10px 30px 0 rgba(0, 0, 0, 0.4);
 
   --animate-fade-up: fade-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
   --animate-fade-in: fade-in 0.15s ease-out both;
   --animate-scale-in: scale-in 0.2s cubic-bezier(0.16, 1, 0.3, 1) both;
   --animate-shimmer: shimmer 2s linear infinite;
+  --animate-pulse-glow: pulse-glow 1.8s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  --animate-cta-glow: cta-glow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  --animate-nudge: nudge 1.4s ease-in-out infinite;
 
   @keyframes fade-up {
     from {
@@ -92,21 +123,53 @@
       background-position: 200% 0;
     }
   }
+  @keyframes pulse-glow {
+    0%,
+    100% {
+      opacity: 1;
+      box-shadow: 0 0 0 0 rgba(255, 101, 56, 0.5);
+    }
+    50% {
+      opacity: 0.85;
+      box-shadow: 0 0 0 5px rgba(255, 101, 56, 0);
+    }
+  }
+  /* Breathing ring around a CTA button -- unlike pulse-glow, never touches opacity so the
+     label stays fully legible through the cycle. */
+  @keyframes cta-glow {
+    0%,
+    100% {
+      box-shadow: 0 0 0 0 rgba(255, 101, 56, 0.55);
+    }
+    50% {
+      box-shadow: 0 0 0 7px rgba(255, 101, 56, 0);
+    }
+  }
+  /* Small rightward nudge on a trailing icon -- a "take action" cue. */
+  @keyframes nudge {
+    0%,
+    100% {
+      transform: translateX(0);
+    }
+    50% {
+      transform: translateX(4px);
+    }
+  }
 }
 
 @layer base {
   * {
-    border-color: var(--color-cream-200);
+    border-color: rgba(255, 255, 255, 0.1);
   }
 
   html {
-    color-scheme: light;
+    color-scheme: dark;
   }
 
   body {
     font-family: var(--font-sans);
-    background-color: var(--color-cream-50);
-    color: var(--color-navy-900);
+    background-color: var(--color-ink);
+    color: var(--color-court-cream);
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
   }
@@ -116,7 +179,9 @@
   h3,
   h4 {
     font-family: var(--font-display);
-    color: var(--color-navy-900);
+    font-weight: 800;
+    color: var(--color-court-cream);
+    line-height: 1.1;
     letter-spacing: -0.01em;
   }
 
@@ -128,31 +193,39 @@
   /* Slim, brand-tinted scrollbars */
   * {
     scrollbar-width: thin;
-    scrollbar-color: var(--color-navy-300) transparent;
+    scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
   }
   *::-webkit-scrollbar {
     width: 8px;
     height: 8px;
   }
   *::-webkit-scrollbar-thumb {
-    background-color: var(--color-navy-300);
+    background-color: rgba(255, 255, 255, 0.25);
     border-radius: 999px;
   }
 }
 
 @layer utilities {
-  /* Warm atmospheric backdrop for hero/auth surfaces */
+  /* Tailwind's --font-display theme token only emits a font-family utility; this adds the
+     bold weight the RALLY reference's headline font needs, so every existing font-display
+     call site app-wide (headings, button labels, card titles) reads as bold with no
+     component edits. Individual call sites can still override with an explicit font-* class. */
+  .font-display {
+    font-weight: 700;
+  }
+
+  /* Ink backdrop for hero/auth/live surfaces */
   .bg-atmosphere {
     background-color: var(--color-navy-900);
     background-image:
-      radial-gradient(ellipse 80% 60% at 15% 0%, rgba(232, 136, 58, 0.22), transparent 60%),
-      radial-gradient(ellipse 70% 60% at 100% 100%, rgba(87, 118, 151, 0.35), transparent 60%),
+      radial-gradient(ellipse 80% 60% at 15% 0%, rgba(255, 101, 56, 0.16), transparent 60%),
+      radial-gradient(ellipse 70% 60% at 100% 100%, rgba(107, 118, 128, 0.3), transparent 60%),
       linear-gradient(160deg, var(--color-navy-950) 0%, var(--color-navy-900) 55%, var(--color-navy-800) 100%);
   }
 
   .bg-paper {
-    background-color: var(--color-cream-50);
-    background-image: radial-gradient(ellipse 60% 40% at 50% -10%, rgba(232, 136, 58, 0.08), transparent 65%);
+    background-color: var(--color-ink);
+    background-image: radial-gradient(ellipse 60% 40% at 50% -10%, rgba(255, 101, 56, 0.08), transparent 65%);
   }
 
   .text-balance {
@@ -166,8 +239,16 @@
     display: none;
   }
 
+  /* Decorative skewed "court line" outline, bleeding off the edge of a dark section/card */
+  .court-line {
+    position: absolute;
+    border: 1px solid rgba(255, 101, 56, 0.32);
+    transform: skewX(-20deg);
+    pointer-events: none;
+  }
+
   .shimmer-bg {
-    background: linear-gradient(90deg, var(--color-cream-100) 25%, var(--color-cream-200) 37%, var(--color-cream-100) 63%);
+    background: linear-gradient(90deg, var(--color-ink-card) 25%, var(--color-navy-700) 37%, var(--color-ink-card) 63%);
     background-size: 400% 100%;
     animation: shimmer 1.6s ease-in-out infinite;
   }
@@ -189,20 +270,20 @@
 @layer utilities {
   .live-border {
     padding: 2px;
-    /* Must nest cleanly around the card's own rounded-2xl (1.75rem) corner plus the 2px
-       padding ring, or the ring bulges into a wedge at the corners instead of staying a
-       uniform width all the way around. */
-    border-radius: calc(1.75rem + 2px);
-    background-color: rgba(232, 136, 58, 0.25);
+    /* Must nest cleanly around the cards own rounded-2xl corner plus the 2px padding ring, or
+       the ring bulges into a wedge at the corners instead of staying a uniform width all the
+       way around. */
+    border-radius: calc(var(--radius-2xl) + 2px);
+    background-color: rgba(255, 101, 56, 0.25);
     background-image: conic-gradient(
       from var(--live-angle),
-      rgba(232, 136, 58, 0) 0deg,
-      rgba(232, 136, 58, 0) 190deg,
+      rgba(255, 101, 56, 0) 0deg,
+      rgba(255, 101, 56, 0) 190deg,
       var(--color-ember-500) 300deg,
       var(--color-ember-300) 340deg,
-      rgba(232, 136, 58, 0) 360deg
+      rgba(255, 101, 56, 0) 360deg
     );
-    box-shadow: 0 0 28px -8px rgba(232, 136, 58, 0.5);
+    box-shadow: 0 0 28px -8px rgba(255, 101, 56, 0.5);
     animation: live-border-spin 3.5s linear infinite;
   }
 
@@ -211,4 +292,29 @@
       animation: none;
     }
   }
+}
+
+/* phone.email Sign in with Phone widget paints its button with inline styles (including on
+   hover, re-applied via its own JS) -- only !important in a stylesheet reliably wins over that,
+   so this cannot live in @layer utilities (Tailwind layers are deliberately low-specificity
+   and would still lose). Recolored to match the primary Button variant exactly. */
+.pe_signin_button button {
+  background-color: var(--color-ember-500) !important;
+  border-radius: var(--radius-lg) !important;
+  box-shadow: 0 1px 2px rgba(255, 101, 56, 0.3) !important;
+}
+
+.pe_signin_button button:hover {
+  background-color: var(--color-ember-400) !important;
+}
+
+.pe_signin_button button span {
+  color: var(--color-navy-950) !important;
+  font-family: var(--font-display) !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.02em !important;
+}
+
+.pe_signin_button button svg path {
+  fill: var(--color-navy-950) !important;
 }

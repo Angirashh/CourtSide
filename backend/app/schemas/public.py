@@ -1,7 +1,7 @@
 from datetime import date, datetime
 from typing import List, Optional
 from pydantic import BaseModel, ConfigDict
-from app.db.models import MatchStatus, TournamentFormat, TournamentStatus, TournamentCategory
+from app.db.models import MatchStatus, RegistrationStatus, TournamentFormat, TournamentStatus, TournamentCategory
 from app.schemas.player import PlayerResponse
 from app.schemas.match import MatchResponse
 from app.schemas.tournament import CourtResponse
@@ -71,6 +71,8 @@ class PublicTournamentSummary(BaseModel):
     earliest_match_start_time: Optional[datetime] = None
     players_count: int
     courts_count: int
+    registration_status: RegistrationStatus = RegistrationStatus.OPEN
+    max_players: Optional[int] = None
     created_at: datetime
     live_matches: List[PublicLiveMatch] = []
     court_queues: List[PublicCourtQueue] = []
@@ -93,6 +95,8 @@ class PublicTournamentDetail(BaseModel):
     venue: Optional[str] = None
     venue_link: Optional[str] = None
     tournament_date: Optional[date] = None
+    registration_status: RegistrationStatus = RegistrationStatus.OPEN
+    max_players: Optional[int] = None
     courts: List[CourtResponse] = []
     players: List[PlayerResponse] = []
     matches: List[MatchResponse] = []

@@ -101,17 +101,17 @@ function StatCard({
   accent?: boolean
 }) {
   return (
-    <Card className={cn('p-3 sm:p-4', accent && 'border-ember-300/60 bg-ember-100/30')}>
+    <Card className={cn('p-3 sm:p-4', accent && 'border-ember-300/60 bg-ember-500/10')}>
       <div className="flex items-center gap-2.5">
-        <div className={cn('hidden size-8 shrink-0 items-center justify-center rounded-lg sm:flex', accent ? 'bg-ember-500 text-cream-50' : 'bg-navy-100 text-navy-600')}>
+        <div className={cn('hidden size-8 shrink-0 items-center justify-center rounded-lg sm:flex', accent ? 'bg-ember-500 text-ink' : 'bg-white/10 text-court-cream/60')}>
           <Icon className="size-4" />
         </div>
         <div className="min-w-0">
-          <p className={cn('font-display text-base font-medium leading-tight sm:truncate sm:text-lg sm:leading-none', accent ? 'text-ember-600' : 'text-navy-900')}>{value}</p>
-          <p className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-navy-400">{label}</p>
+          <p className={cn('font-display text-base font-medium leading-tight sm:truncate sm:text-lg sm:leading-none', accent ? 'text-ember-600' : 'text-court-cream')}>{value}</p>
+          <p className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-court-cream/45">{label}</p>
         </div>
       </div>
-      {sub && <p className="mt-2 text-xs text-navy-400">{sub}</p>}
+      {sub && <p className="mt-2 text-xs text-court-cream/45">{sub}</p>}
     </Card>
   )
 }
@@ -129,7 +129,7 @@ function CourtScheduleCard({
 }) {
   return (
     <Card className="overflow-hidden p-0">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-cream-200 bg-navy-900 px-4 py-3">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 bg-navy-900 px-4 py-3">
         <div className="flex items-center gap-2 text-cream-50">
           <MapPin className="size-4 text-ember-400" />
           <span className="font-display text-sm font-medium">{court.name}</span>
@@ -149,13 +149,13 @@ function CourtScheduleCard({
       </div>
 
       {matches.length === 0 ? (
-        <p className="px-4 py-5 text-center text-sm text-navy-400">No matches assigned to this court.</p>
+        <p className="px-4 py-5 text-center text-sm text-court-cream/45">No matches assigned to this court.</p>
       ) : (
-        <ul className="divide-y divide-cream-200">
+        <ul className="divide-y divide-white/10">
           {matches.map((m) => (
             <li key={m.id} className="flex flex-col gap-1.5 px-4 py-3 sm:flex-row sm:items-center sm:gap-3 sm:py-2.5">
               <div className="flex items-center gap-2 sm:contents">
-                <div className="whitespace-nowrap text-xs font-semibold text-navy-500 sm:w-[92px] sm:shrink-0 sm:whitespace-normal">
+                <div className="whitespace-nowrap text-xs font-semibold text-court-cream/55 sm:w-[92px] sm:shrink-0 sm:whitespace-normal">
                   {formatTime(m.scheduled_start_time)} – {formatTime(m.scheduled_end_time)}
                 </div>
                 <Badge variant="outline" className="shrink-0">
@@ -163,10 +163,10 @@ function CourtScheduleCard({
                 </Badge>
                 <MatchStatusBadge status={m.status} className="ml-auto sm:hidden" />
               </div>
-              <div className="min-w-0 flex-1 truncate text-sm text-navy-800">
-                <span className={cn(m.winner_id === m.player1_id && 'font-bold text-navy-900')}>{playerLabel(m.player1_id, playersById)}</span>
+              <div className="min-w-0 flex-1 truncate text-sm text-court-cream/85">
+                <span className={cn(m.winner_id === m.player1_id && 'font-bold text-court-cream')}>{playerLabel(m.player1_id, playersById)}</span>
                 <VsBadge />
-                <span className={cn(m.winner_id === m.player2_id && 'font-bold text-navy-900')}>{playerLabel(m.player2_id, playersById)}</span>
+                <span className={cn(m.winner_id === m.player2_id && 'font-bold text-court-cream')}>{playerLabel(m.player2_id, playersById)}</span>
               </div>
               <MatchStatusBadge status={m.status} className="hidden sm:inline-flex" />
             </li>

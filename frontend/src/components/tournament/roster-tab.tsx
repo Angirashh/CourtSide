@@ -36,7 +36,7 @@ export function RosterTab({
   return (
     <div className="space-y-5">
       {status === 'SCHEDULING' && (
-        <div className="flex items-start gap-2 rounded-lg border border-ember-300 bg-ember-100/40 px-3.5 py-2.5 text-xs font-medium text-navy-700">
+        <div className="flex items-start gap-2 rounded-lg border border-ember-300/60 bg-ember-500/10 px-3.5 py-2.5 text-xs font-medium text-court-cream/70">
           <Info className="mt-0.5 size-3.5 shrink-0 text-ember-600" />
           Changed the roster? Use "Regenerate schedule" at the top of this page so fixtures reflect withdrawals and
           new players.
@@ -69,7 +69,7 @@ export function RosterTab({
           </>
         )}
         {format === 'TEAM_FRIENDLY' && <TeamSizeReadout players={realPlayers} />}
-        <span className={cn('text-xs font-semibold text-navy-400', format !== 'TEAM_FRIENDLY' && 'ml-auto')}>
+        <span className={cn('text-xs font-semibold text-court-cream/45', format !== 'TEAM_FRIENDLY' && 'ml-auto')}>
           {realPlayers.length} registered
         </span>
       </div>
@@ -82,7 +82,7 @@ export function RosterTab({
         />
       ) : (
         <Card className="overflow-hidden p-0">
-          <ul className="divide-y divide-cream-200">
+          <ul className="divide-y divide-white/10">
             {realPlayers.map((player) => (
               <PlayerRow
                 key={player.id}
@@ -106,7 +106,7 @@ function TeamSizeReadout({ players }: { players: Player[] }) {
   const balanced = teamA === teamB && teamA > 0
 
   return (
-    <span className={cn('ml-auto text-xs font-semibold', balanced ? 'text-navy-400' : 'text-ember-600')}>
+    <span className={cn('ml-auto text-xs font-semibold', balanced ? 'text-court-cream/45' : 'text-ember-600')}>
       Team A: {teamA} · Team B: {teamB}
       {unassigned > 0 && ` · ${unassigned} unassigned`}
       {!balanced && ' — teams must match to generate'}
@@ -131,14 +131,14 @@ function PlayerRow({
 
   return (
     <li className={cn('flex items-center gap-3 px-4 py-3', player.is_withdrawn && 'bg-danger-bg/30')}>
-      <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-navy-100 text-xs font-bold text-navy-600">
+      <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-white/10 text-xs font-bold text-court-cream/60">
         {player.seed ?? '–'}
       </div>
       <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-navy-900 text-[11px] font-bold text-cream-50">
         {initials(player.name)}
       </div>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-semibold text-navy-900">{player.name}</p>
+        <p className="truncate text-sm font-semibold text-court-cream">{player.name}</p>
         {player.is_withdrawn && (
           <p className="truncate text-xs text-danger">Withdrawn{player.withdrawal_reason ? ` · ${player.withdrawal_reason}` : ''}</p>
         )}
@@ -207,15 +207,15 @@ function TeamFriendlyControls({ player, tournamentId }: { player: Player; tourna
   }
 
   return (
-    <div className="flex shrink-0 rounded-lg border border-navy-200 p-0.5">
+    <div className="flex shrink-0 rounded-full border border-white/20 p-0.5">
       {(['A', 'B'] as const).map((t) => (
         <button
           key={t}
           type="button"
           onClick={() => setTeam(t)}
           className={cn(
-            'rounded-md px-2 py-1 text-[11px] font-bold transition-colors',
-            player.team === t ? 'bg-navy-900 text-cream-50' : 'text-navy-400 hover:text-navy-700'
+            'rounded-full px-2 py-1 text-[11px] font-bold transition-colors',
+            player.team === t ? 'bg-navy-900 text-cream-50' : 'text-court-cream/45 hover:text-court-cream/70'
           )}
         >
           {t}
@@ -380,12 +380,12 @@ function UploadRosterDialog({ tournamentId }: { tournamentId: string }) {
           onClick={() => fileInputRef.current?.click()}
           className={cn(
             'flex w-full flex-col items-center gap-2 rounded-xl border-2 border-dashed p-8 text-center transition-colors',
-            file ? 'border-ember-400 bg-ember-100/30' : 'border-navy-200 hover:border-navy-300'
+            file ? 'border-ember-400 bg-ember-500/10' : 'border-white/20 hover:border-white/25'
           )}
         >
-          <FileUp className="size-6 text-navy-400" />
-          <p className="text-sm font-semibold text-navy-700">{file ? file.name : 'Choose a file'}</p>
-          <p className="text-xs text-navy-400">.csv or .xlsx</p>
+          <FileUp className="size-6 text-court-cream/45" />
+          <p className="text-sm font-semibold text-court-cream/70">{file ? file.name : 'Choose a file'}</p>
+          <p className="text-xs text-court-cream/45">.csv or .xlsx</p>
         </button>
         <input
           ref={fileInputRef}
