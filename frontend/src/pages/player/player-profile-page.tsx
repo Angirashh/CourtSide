@@ -1,14 +1,17 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { GoogleLogin, GoogleOAuthProvider } from '@react-oauth/google'
 import { toast } from 'sonner'
 import { ArrowRight, CalendarDays, LogOut, MapPin, Medal, Trophy } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { EmptyState } from '@/components/ui/empty-state'
+import { Label, PhoneInput } from '@/components/ui/input'
 import { TournamentStatusBadge } from '@/components/ui/status-badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { GoogleSignInButton } from '@/components/auth/google-signin-button'
+import { Badge } from '@/components/ui/badge'
 import { useMyAthleteProfile } from '@/hooks/use-athletes'
-import { useGooglePlayerLogin, useMyRegistrations } from '@/hooks/use-player-auth'
+import { useCompleteSignup, useGoogleAuth, useMyRegistrations } from '@/hooks/use-player-auth'
 import { useSelfRegister } from '@/hooks/use-players'
 import { usePublicTournaments } from '@/hooks/use-public'
 import { useAuthStore } from '@/stores/auth-store'
@@ -16,6 +19,8 @@ import { extractErrorMessage } from '@/lib/api/client'
 import { categoryMeta } from '@/lib/tournament-category'
 import { cn, formatPlainDate } from '@/lib/utils'
 import type { AthleteTournamentHistoryEntry, PublicTournamentSummary } from '@/types/api'
+
+const PHONE_RE = /^[6-9]\d{9}$/
 
 export function PlayerProfilePage() {
   const user = useAuthStore((s) => s.user)
@@ -28,40 +33,72 @@ export function PlayerProfilePage() {
 // LOGGED OUT: GOOGLE SIGN-IN
 // =====================================================================
 function LoggedOutView() {
-  const googleLogin = useGooglePlayerLogin()
-  const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID
+  const setSession = useAuthStore((s) => s.setSession)
+  const [pendingSignup, setPendingSignup] = useState<{ signupToken: string; name: string | null } | null>(null)
+  const [phone, setPhone] = useState('')
+  const googleAuth = useGoogleAuth()
+  const completeSignup = useCompleteSignup()
+
+  function handleCredential(idToken: string) {
+    googleAuth.mutate(idToken, {
+      onSuccess: (res) => {
+        if (res.account_exists && res.session) {
+          setSession(res.session)
+          toast.success('Welcome back!')
+        } else if (res.signup_token) {
+          setPendingSignup({ signupToken: res.signup_token, name: res.name })
+        }
+      },
+      onError: (err) => toast.error(extractErrorMessage(err)),
+    })
+  }
 
   return (
     <div className="py-6">
       <div className="mb-8 text-center">
-        <h1 className="font-display text-3xl font-medium text-navy-900">My profile</h1>
-        <p className="mt-1.5 text-sm text-navy-500">Sign in with Google to register for tournaments and track your fixtures.</p>
+        <h1 className="font-display text-3xl font-medium text-court-cream">My profile</h1>
+        <p className="mt-1.5 text-sm text-court-cream/55">Sign in with Google to register for tournaments and track your fixtures.</p>
       </div>
 
-      <Card className="mx-auto flex max-w-md flex-col items-center gap-3 p-8">
-        {!clientId ? (
-          <p className="text-center text-sm text-navy-500">
-            Google sign-in isn't configured yet — set <code>VITE_GOOGLE_CLIENT_ID</code> in{' '}
-            <code>frontend/.env</code>.
-          </p>
+      <Card className="mx-auto max-w-md p-8">
+        {!pendingSignup ? (
+          <div className="flex flex-col items-center gap-4">
+            <GoogleSignInButton onCredential={handleCredential} disabled={googleAuth.isPending} />
+            <Link to="/players/claim-email" className="text-xs font-medium text-court-cream/45 underline">
+              Already played with us? Set up your email
+            </Link>
+          </div>
         ) : (
-          <GoogleOAuthProvider clientId={clientId}>
-            <GoogleLogin
-              onSuccess={(credentialResponse) => {
-                if (!credentialResponse.credential) return
-                googleLogin.mutate(credentialResponse.credential, {
-                  onSuccess: (res) =>
-                    toast.success(
-                      res.claimed_existing_record
-                        ? "Welcome! We found you on an existing tournament roster and linked your account."
-                        : 'Welcome!'
-                    ),
-                  onError: (err) => toast.error(extractErrorMessage(err)),
-                })
-              }}
-              onError={() => toast.error('Google sign-in failed. Please try again.')}
-            />
-          </GoogleOAuthProvider>
+          <div className="flex flex-col gap-4">
+            <p className="text-center text-sm text-court-cream/55">
+              Hey {pendingSignup.name ?? 'there'} — one last thing. What's your phone number?
+            </p>
+            <div className="space-y-1.5">
+              <Label>Phone number</Label>
+              <PhoneInput value={phone} onChange={(e) => setPhone(e.target.value)} autoFocus />
+            </div>
+            <Button
+              className="w-full"
+              disabled={!PHONE_RE.test(phone)}
+              loading={completeSignup.isPending}
+              onClick={() =>
+                completeSignup.mutate(
+                  { signupToken: pendingSignup.signupToken, phone },
+                  {
+                    onSuccess: (res) =>
+                      toast.success(
+                        res.claimed_existing_record
+                          ? "Welcome! We found you on an existing tournament roster and linked your account."
+                          : 'Welcome!'
+                      ),
+                    onError: (err) => toast.error(extractErrorMessage(err)),
+                  }
+                )
+              }
+            >
+              Create account
+            </Button>
+          </div>
         )}
       </Card>
     </div>
@@ -92,8 +129,8 @@ function LoggedInView() {
     <div className="space-y-8 py-6">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h1 className="font-display text-3xl font-medium text-navy-900">Hey, {user?.name}</h1>
-          <p className="mt-1 text-sm text-navy-500">{user?.email}</p>
+          <h1 className="font-display text-3xl font-medium text-court-cream">Hey, {user?.name}</h1>
+          <p className="mt-1 text-sm text-court-cream/55">{user?.email}</p>
         </div>
         <Button variant="outline" onClick={clearSession}>
           <LogOut className="size-4" /> Log out
@@ -123,7 +160,7 @@ function LoggedInView() {
       )}
 
       <section>
-        <h2 className="mb-3 font-display text-lg font-medium text-navy-900">My registrations</h2>
+        <h2 className="mb-3 font-display text-lg font-medium text-court-cream">My registrations</h2>
         {!isLoading && upcomingRegistrations.length === 0 ? (
           <EmptyState icon={Trophy} title="No upcoming registrations" description="Join a tournament below to get started." />
         ) : (
@@ -132,10 +169,10 @@ function LoggedInView() {
               <Link key={r.player_id} to={`/tournaments/${r.tournament_id}`}>
                 <Card className="p-4 transition-shadow hover:shadow-md">
                   <div className="flex items-center justify-between gap-2">
-                    <p className="font-display text-base font-medium text-navy-900">{r.tournament_name}</p>
+                    <p className="font-display text-base font-medium text-court-cream">{r.tournament_name}</p>
                     <TournamentStatusBadge status={r.tournament_status} />
                   </div>
-                  <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-navy-500">
+                  <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-court-cream/55">
                     {r.venue && (
                       <span className="flex items-center gap-1.5">
                         <MapPin className="size-3.5" /> {r.venue}
@@ -156,7 +193,7 @@ function LoggedInView() {
       </section>
 
       <section>
-        <h2 className="mb-3 font-display text-lg font-medium text-navy-900">Tournaments you can join</h2>
+        <h2 className="mb-3 font-display text-lg font-medium text-court-cream">Tournaments you can join</h2>
         {joinable.length === 0 ? (
           <EmptyState icon={Trophy} title="Nothing open right now" description="Check back once a new tournament opens registration." />
         ) : (
@@ -187,7 +224,7 @@ function CareerStatsSection({ stats, history }: { stats: CareerStats; history: A
           <WinRateDonut winRate={stats.win_rate_percentage} />
           <div className="flex flex-col gap-2">
             <LegendRow colorClassName="bg-ember-500" label="Won" value={stats.matches_won} />
-            <LegendRow colorClassName="bg-navy-100" label="Lost" value={stats.matches_lost} />
+            <LegendRow colorClassName="bg-white/10" label="Lost" value={stats.matches_lost} />
           </div>
         </div>
         <div className="grid w-full grid-cols-2 gap-3 sm:w-auto">
@@ -204,8 +241,8 @@ function CareerStatsSection({ stats, history }: { stats: CareerStats; history: A
 function StatTile({ value, label }: { value: number | string; label: string }) {
   return (
     <Card className="p-3 text-center sm:p-4">
-      <p className="font-display text-2xl font-medium tracking-tight text-navy-900 sm:text-3xl">{value}</p>
-      <p className="mt-1 text-[11px] font-semibold text-navy-500 sm:text-xs">{label}</p>
+      <p className="font-display text-2xl font-medium tracking-tight text-court-cream sm:text-3xl">{value}</p>
+      <p className="mt-1 text-[11px] font-semibold text-court-cream/55 sm:text-xs">{label}</p>
     </Card>
   )
 }
@@ -233,8 +270,8 @@ function WinRateDonut({ winRate }: { winRate: number }) {
         />
       </svg>
       <div className="absolute flex flex-col items-center">
-        <span className="font-display text-2xl font-medium text-navy-900">{winRate}%</span>
-        <span className="text-[10px] font-semibold text-navy-500">win rate</span>
+        <span className="font-display text-2xl font-medium text-court-cream">{winRate}%</span>
+        <span className="text-[10px] font-semibold text-court-cream/55">win rate</span>
       </div>
     </div>
   )
@@ -244,8 +281,8 @@ function LegendRow({ colorClassName, label, value }: { colorClassName: string; l
   return (
     <div className="flex items-center gap-2 text-sm">
       <span className={cn('size-2.5 rounded-full', colorClassName)} />
-      <span className="text-navy-500">{label}</span>
-      <span className="font-semibold text-navy-900">{value}</span>
+      <span className="text-court-cream/55">{label}</span>
+      <span className="font-semibold text-court-cream">{value}</span>
     </div>
   )
 }
@@ -261,24 +298,24 @@ function TournamentHistoryChart({ history }: { history: AthleteTournamentHistory
 
   return (
     <section>
-      <h2 className="mb-3 font-display text-lg font-medium text-navy-900">Tournament history</h2>
-      <Card className="divide-y divide-cream-200 p-0">
+      <h2 className="mb-3 font-display text-lg font-medium text-court-cream">Tournament history</h2>
+      <Card className="divide-y divide-white/10 p-0">
         {history.map((h) => (
           <div key={h.tournament_id} className="flex items-center gap-3 p-4">
             <div className="w-24 shrink-0 sm:w-40">
-              <p className="line-clamp-2 text-sm font-medium leading-tight text-navy-900">{h.tournament_name}</p>
-              <p className="mt-0.5 text-xs text-navy-500">{formatHistoryDate(h.tournament_date)}</p>
+              <p className="line-clamp-2 text-sm font-medium leading-tight text-court-cream">{h.tournament_name}</p>
+              <p className="mt-0.5 text-xs text-court-cream/55">{formatHistoryDate(h.tournament_date)}</p>
             </div>
-            <div className="h-2 flex-1 overflow-hidden rounded-full bg-navy-100">
+            <div className="h-2 flex-1 overflow-hidden rounded-full bg-white/10">
               <div
                 className="h-full rounded-full bg-ember-500 transition-[width] duration-500"
                 style={{ width: `${(h.points_earned / maxPoints) * 100}%` }}
               />
             </div>
-            <div className="flex w-16 shrink-0 items-center justify-end gap-1.5 text-xs font-semibold text-navy-700">
+            <div className="flex w-16 shrink-0 items-center justify-end gap-1.5 text-xs font-semibold text-court-cream/70">
               {h.final_placement === 1 && <Trophy className="size-3.5 text-ember-500" />}
               {h.final_placement !== null && h.final_placement > 1 && h.final_placement <= 3 && (
-                <Medal className="size-3.5 text-navy-400" />
+                <Medal className="size-3.5 text-court-cream/45" />
               )}
               {h.points_earned} pts
             </div>
@@ -294,8 +331,8 @@ function JoinableTournamentCard({ tournament }: { tournament: PublicTournamentSu
 
   return (
     <Card className="p-4">
-      <p className="font-display text-base font-medium text-navy-900">{tournament.name}</p>
-      <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-navy-500">
+      <p className="font-display text-base font-medium text-court-cream">{tournament.name}</p>
+      <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-court-cream/55">
         <span className="flex items-center gap-1.5">
           <MapPin className="size-3.5" /> {tournament.venue ?? 'Venue TBD'}
         </span>
@@ -305,19 +342,25 @@ function JoinableTournamentCard({ tournament }: { tournament: PublicTournamentSu
           </span>
         )}
       </div>
-      <Button
-        className="mt-3 w-full"
-        size="sm"
-        loading={selfRegister.isPending}
-        onClick={() =>
-          selfRegister.mutate(undefined, {
-            onSuccess: () => toast.success('Registered! See you on court.'),
-            onError: (err) => toast.error(extractErrorMessage(err)),
-          })
-        }
-      >
-        Register <ArrowRight className="size-3.5" />
-      </Button>
+      {tournament.registration_status === 'OPEN' ? (
+        <Button
+          className="mt-3 w-full"
+          size="sm"
+          loading={selfRegister.isPending}
+          onClick={() =>
+            selfRegister.mutate(undefined, {
+              onSuccess: () => toast.success('Registered! See you on court.'),
+              onError: (err) => toast.error(extractErrorMessage(err)),
+            })
+          }
+        >
+          Register <ArrowRight className="size-3.5" />
+        </Button>
+      ) : (
+        <Badge variant="neutral" className="mt-3 w-full justify-center py-2">
+          {tournament.registration_status === 'CLOSED' ? 'Registrations are closed' : 'Registrations will open soon'}
+        </Badge>
+      )}
     </Card>
   )
 }

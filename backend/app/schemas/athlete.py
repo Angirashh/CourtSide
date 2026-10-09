@@ -1,15 +1,23 @@
 from datetime import datetime
 from typing import Optional, List
-from pydantic import BaseModel, ConfigDict, Field, EmailStr
+from pydantic import BaseModel, ConfigDict, Field, EmailStr, field_validator
 
+from app.core.phone import normalize_indian_phone
 from app.db.models import TournamentCategory
 
 
 class AthleteBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=100, examples=["Viktor Axelsen"])
     email: Optional[EmailStr] = Field(None, examples=["viktor@badminton.org"])
-    phone: Optional[str] = Field(None, max_length=20, examples=["+1-555-0199"])
+    phone: Optional[str] = Field(None, examples=["9876543210"])
     club_or_city: Optional[str] = Field(None, max_length=100, examples=["Odense"])
+
+    @field_validator("phone")
+    @classmethod
+    def _normalize_phone(cls, v: Optional[str]) -> Optional[str]:
+        if not v:
+            return None
+        return normalize_indian_phone(v)
 
 
 class AthleteCreate(AthleteBase):
@@ -21,6 +29,13 @@ class AthleteUpdate(BaseModel):
     email: Optional[EmailStr] = None
     phone: Optional[str] = None
     club_or_city: Optional[str] = None
+
+    @field_validator("phone")
+    @classmethod
+    def _normalize_phone(cls, v: Optional[str]) -> Optional[str]:
+        if not v:
+            return None
+        return normalize_indian_phone(v)
 
 
 class AthleteResponse(AthleteBase):

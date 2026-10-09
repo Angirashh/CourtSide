@@ -1,26 +1,25 @@
 import { Outlet, useNavigate } from 'react-router-dom'
-import { LayoutGrid, LogOut } from 'lucide-react'
+import { LogOut } from 'lucide-react'
 import { useAuthStore } from '@/stores/auth-store'
+import { useScrollToTop } from '@/hooks/use-scroll-to-top'
+import { BrandMark, BrandWordmark } from '@/components/brand/logo'
 
 export function OperatorShell() {
   const user = useAuthStore((s) => s.user)
   const clearSession = useAuthStore((s) => s.clearSession)
   const navigate = useNavigate()
+  useScrollToTop()
 
   return (
-    <div className="min-h-svh bg-paper">
+    <div className="min-h-svh bg-paper text-court-cream">
       <header
-        className="sticky top-0 z-30 flex items-center justify-between border-b border-cream-200 bg-atmosphere px-4 py-3.5 shadow-sm"
+        className="sticky top-0 z-30 flex items-center justify-between border-b border-white/10 bg-atmosphere px-4 py-3.5 shadow-sm"
         style={{ paddingTop: 'max(0.875rem, env(safe-area-inset-top))' }}
       >
         <div className="flex items-center gap-2.5">
-          <div className="flex size-8 items-center justify-center rounded-lg bg-ember-500 text-navy-950">
-            <LayoutGrid className="size-4" strokeWidth={2.5} />
-          </div>
+          <BrandMark size={32} />
           <div>
-            <p className="font-display text-sm font-medium leading-none text-cream-50">
-              Court<span className="text-ember-500">side</span>
-            </p>
+            <BrandWordmark className="text-sm text-cream-50" />
             <p className="mt-0.5 text-[11px] text-cream-200/50">{user?.name}</p>
           </div>
         </div>
@@ -29,7 +28,7 @@ export function OperatorShell() {
             clearSession()
             navigate('/login', { replace: true })
           }}
-          className="flex size-9 items-center justify-center rounded-full bg-cream-50/10 text-cream-100 active:scale-95"
+          className="flex size-9 items-center justify-center rounded-full bg-white/10 text-cream-100 active:scale-95"
           aria-label="Log out"
         >
           <LogOut className="size-4" />

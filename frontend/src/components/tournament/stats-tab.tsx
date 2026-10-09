@@ -54,15 +54,15 @@ export function StatsTab({ tournament }: { tournament: TournamentDetail }) {
       )}
 
       {summary && summary.savings > 0 && (
-        <Card className="border-ember-300/50 bg-gradient-to-br from-ember-100/60 via-cream-25 to-cream-25 p-4">
+        <Card className="border-ember-300/50 bg-gradient-to-br from-ember-500/15 via-ink-card to-ink-card p-4">
           <div className="flex items-start gap-3">
-            <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-ember-500 text-cream-50 shadow-[0_4px_12px_-2px_rgba(232,136,58,0.5)]">
+            <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-ember-500 text-ink shadow-[0_4px_12px_-2px_rgba(232,136,58,0.5)]">
               <PiggyBank className="size-4.5" />
             </div>
-            <p className="text-sm leading-relaxed text-navy-700">
+            <p className="text-sm leading-relaxed text-court-cream/70">
               De-ramping each court as its rounds finish costs{' '}
-              <span className="font-bold text-navy-900">{formatCurrency(summary.total_estimated_cost)}</span>, versus{' '}
-              <span className="text-navy-400 line-through">{formatCurrency(summary.flat_booking_cost)}</span> for renting every
+              <span className="font-bold text-court-cream">{formatCurrency(summary.total_estimated_cost)}</span>, versus{' '}
+              <span className="text-court-cream/45 line-through">{formatCurrency(summary.flat_booking_cost)}</span> for renting every
               court for the full {formatDuration(summary.makespan_minutes)} — a saving of{' '}
               <span className="font-bold text-ember-600">
                 {formatCurrency(summary.savings)}
@@ -91,17 +91,17 @@ function StatTile({
   accent?: boolean
 }) {
   return (
-    <Card className={cn('p-3 sm:p-4', accent && 'border-ember-300/60 bg-ember-100/30')}>
+    <Card className={cn('p-3 sm:p-4', accent && 'border-ember-300/60 bg-ember-500/10')}>
       <div className="flex items-center gap-2.5">
-        <div className={cn('hidden size-8 shrink-0 items-center justify-center rounded-lg sm:flex', accent ? 'bg-ember-500 text-cream-50' : 'bg-navy-100 text-navy-600')}>
+        <div className={cn('hidden size-8 shrink-0 items-center justify-center rounded-lg sm:flex', accent ? 'bg-ember-500 text-ink' : 'bg-white/10 text-court-cream/60')}>
           <Icon className="size-4" />
         </div>
         <div className="min-w-0">
-          <p className={cn('truncate font-display text-xl font-medium leading-none', accent ? 'text-ember-600' : 'text-navy-900')}>{value}</p>
-          <p className="mt-0.5 text-[11px] font-semibold uppercase tracking-wide text-navy-400">{label}</p>
+          <p className={cn('truncate font-display text-xl font-medium leading-none', accent ? 'text-ember-600' : 'text-court-cream')}>{value}</p>
+          <p className="mt-0.5 text-[11px] font-semibold uppercase tracking-wide text-court-cream/45">{label}</p>
         </div>
       </div>
-      {sub && <p className="mt-1.5 text-xs text-navy-400 sm:mt-2">{sub}</p>}
+      {sub && <p className="mt-1.5 text-xs text-court-cream/45 sm:mt-2">{sub}</p>}
     </Card>
   )
 }

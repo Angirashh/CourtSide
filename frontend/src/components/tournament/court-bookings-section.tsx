@@ -38,12 +38,12 @@ export function CourtBookingsSection({
   return (
     <Card className="p-4 sm:p-5">
       <div className="mb-4 flex items-center gap-2.5">
-        <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-navy-100 text-navy-600">
+        <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-white/10 text-court-cream/60">
           <CalendarClock className="size-4" />
         </div>
         <div>
-          <h2 className="font-display text-base font-medium leading-none text-navy-900">Court bookings</h2>
-          <p className="mt-1 text-xs text-navy-400">When each court needs to be booked, and what it costs.</p>
+          <h2 className="font-display text-base font-medium leading-none text-court-cream">Court bookings</h2>
+          <p className="mt-1 text-xs text-court-cream/45">When each court needs to be booked, and what it costs.</p>
         </div>
       </div>
 
@@ -53,7 +53,7 @@ export function CourtBookingsSection({
           const width = Math.max(((ends[i] - starts[i]) / windowSpan) * 100, 2)
           return (
             <li key={court.id} className="grid items-center gap-x-5 gap-y-1.5 sm:grid-cols-[6rem_minmax(0,1fr)_13.5rem]">
-              <p className="flex items-center gap-1 truncate text-sm font-semibold text-navy-900">
+              <p className="flex items-center gap-1 truncate text-sm font-semibold text-court-cream">
                 {court.name}
                 {canEditTiming && firstUpcomingStartByCourt.has(court.id) && (
                   <RescheduleCourtDialog
@@ -64,14 +64,14 @@ export function CourtBookingsSection({
                   />
                 )}
               </p>
-              <div className="relative h-2.5 rounded-full bg-cream-200" aria-hidden>
+              <div className="relative h-2.5 rounded-full bg-ink-card" aria-hidden>
                 <div className="absolute inset-y-0 rounded-full bg-ember-500" style={{ left: `${left}%`, width: `${width}%` }} />
               </div>
               <div className="whitespace-nowrap sm:text-right">
-                <p className="text-sm font-semibold text-navy-900">
+                <p className="text-sm font-semibold text-court-cream">
                   {formatTime(booking.booked_from)} – {formatTime(booking.booked_until)}
                 </p>
-                <p className="text-xs text-navy-400">
+                <p className="text-xs text-court-cream/45">
                   {formatDuration(booking.duration_minutes)} · {booking.billed_hours}h billed ·{' '}
                   <span className="font-semibold text-ember-600">{formatCurrency(booking.court_cost)}</span>
                 </p>

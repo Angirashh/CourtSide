@@ -2,7 +2,7 @@ import hashlib
 import hmac
 import secrets
 from datetime import datetime, timedelta
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 import jwt
 
@@ -32,9 +32,9 @@ def generate_invite_code(length: int = 6) -> str:
     return "".join(secrets.choice("0123456789") for _ in range(length))
 
 
-def create_access_token(claims: Dict[str, Any]) -> str:
+def create_access_token(claims: Dict[str, Any], expires_minutes: Optional[int] = None) -> str:
     to_encode = claims.copy()
-    to_encode["exp"] = datetime.utcnow() + timedelta(minutes=settings.JWT_EXPIRE_MINUTES)
+    to_encode["exp"] = datetime.utcnow() + timedelta(minutes=expires_minutes or settings.JWT_EXPIRE_MINUTES)
     to_encode["iat"] = datetime.utcnow()
     return jwt.encode(to_encode, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
 

@@ -5,16 +5,16 @@ import { Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const buttonVariants = cva(
-  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-semibold transition-all duration-150 disabled:pointer-events-none disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-cream-50 active:scale-[0.98]',
+  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full font-display text-base transition-all duration-150 disabled:pointer-events-none disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-ink active:scale-[0.98]',
   {
     variants: {
       variant: {
         primary:
-          'bg-ember-500 text-navy-950 shadow-sm shadow-ember-500/30 hover:bg-ember-400 focus-visible:ring-ember-500',
-        dark: 'bg-navy-900 text-cream-50 shadow-sm hover:bg-navy-800 focus-visible:ring-navy-700',
+          'bg-ember-500 text-ink shadow-sm shadow-ember-500/30 hover:bg-ember-400 focus-visible:ring-ember-500',
+        dark: 'bg-court-cream text-ink shadow-sm hover:bg-white focus-visible:ring-court-cream/50',
         outline:
-          'border border-navy-200 bg-transparent text-navy-900 hover:bg-navy-100/60 focus-visible:ring-navy-400',
-        ghost: 'text-navy-700 hover:bg-navy-900/5 focus-visible:ring-navy-300',
+          'border border-white/20 bg-transparent text-court-cream hover:bg-white/10 focus-visible:ring-white/40',
+        ghost: 'text-court-cream/70 hover:bg-white/5 focus-visible:ring-white/30',
         danger: 'bg-danger text-cream-50 hover:bg-danger/90 focus-visible:ring-danger',
         link: 'text-ember-600 underline-offset-4 hover:underline p-0 h-auto',
       },

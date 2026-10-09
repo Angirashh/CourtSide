@@ -53,7 +53,7 @@ export function RescheduleCourtDialog({
       <DialogTrigger asChild>
         <button
           type="button"
-          className="inline-flex items-center gap-1 rounded px-1 py-0.5 text-navy-400 transition-colors hover:bg-navy-100 hover:text-navy-900"
+          className="inline-flex items-center gap-1 rounded px-1 py-0.5 text-court-cream/45 transition-colors hover:bg-white/10 hover:text-court-cream"
           title={`Edit ${courtName}'s start time`}
           aria-label={`Edit ${courtName}'s start time`}
         >

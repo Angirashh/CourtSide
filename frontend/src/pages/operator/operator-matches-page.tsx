@@ -87,8 +87,8 @@ export function OperatorMatchesPage() {
   return (
     <div className="space-y-4 pb-24">
       <div>
-        <h1 className="font-display text-xl font-medium leading-tight text-navy-900 sm:text-2xl">{tournament.name}</h1>
-        <p className="mt-0.5 text-sm text-navy-500">
+        <h1 className="font-display text-xl font-medium leading-tight text-court-cream sm:text-2xl">{tournament.name}</h1>
+        <p className="mt-0.5 text-sm text-court-cream/55">
           {live.length} on court · {upcoming.length} up next
         </p>
       </div>
@@ -141,7 +141,7 @@ export function OperatorMatchesPage() {
       </div>
 
       <nav
-        className="fixed inset-x-0 bottom-0 z-30 border-t border-cream-200 bg-cream-25/95 backdrop-blur"
+        className="fixed inset-x-0 bottom-0 z-30 border-t border-white/10 bg-ink/95 backdrop-blur"
         style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
         aria-label="Match lists"
       >
@@ -173,7 +173,7 @@ function CourtChip({ active, onClick, children }: { active: boolean; onClick: ()
       onClick={onClick}
       className={cn(
         'inline-flex h-10 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-4 text-sm font-semibold transition-colors active:scale-[0.97]',
-        active ? 'border-navy-900 bg-navy-900 text-cream-50' : 'border-navy-200 bg-cream-25 text-navy-600'
+        active ? 'border-navy-900 bg-navy-900 text-cream-50' : 'border-white/20 bg-ink-card text-court-cream/60'
       )}
     >
       {children}
@@ -202,8 +202,8 @@ function TabButton({
       onClick={onClick}
       aria-current={active ? 'page' : undefined}
       className={cn(
-        'relative flex h-16 flex-col items-center justify-center gap-0.5 text-[11px] font-semibold transition-colors active:bg-navy-100/60',
-        active ? 'text-navy-900' : 'text-navy-400'
+        'relative flex h-16 flex-col items-center justify-center gap-0.5 text-[11px] font-semibold transition-colors active:bg-white/10',
+        active ? 'text-court-cream' : 'text-court-cream/45'
       )}
     >
       {active && <span className="absolute inset-x-6 top-0 h-0.5 rounded-b-full bg-ember-500" />}
@@ -213,7 +213,7 @@ function TabButton({
           <span
             className={cn(
               'absolute -right-3.5 -top-2 flex min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-bold leading-4',
-              pulse ? 'bg-ember-500 text-navy-950' : 'bg-navy-100 text-navy-600'
+              pulse ? 'bg-ember-500 text-ink' : 'bg-white/10 text-court-cream/60'
             )}
           >
             {count}
@@ -238,7 +238,7 @@ function ElapsedTime({ since }: { since: string }) {
   const now = useMinuteTick()
   const minutes = Math.max(0, Math.floor((now - parseUtcTimestamp(since).getTime()) / 60_000))
   return (
-    <span className="inline-flex items-center gap-1 text-xs font-semibold text-navy-500">
+    <span className="inline-flex items-center gap-1 text-xs font-semibold text-court-cream/55">
       <Timer className="size-3.5" />
       {minutes < 1 ? 'Just started' : `${minutes} min`}
     </span>
@@ -270,9 +270,9 @@ function OperatorMatchCard({
   const isLive = match.status === 'IN_PROGRESS' && !match.is_completed
 
   return (
-    <Card className={cn('p-4', isLive && 'border-ember-300 bg-ember-100/20')}>
+    <Card className={cn('p-4', isLive && 'border-ember-300/60 bg-ember-500/10')}>
       <div className="flex items-center justify-between gap-2">
-        <div className="flex min-w-0 items-center gap-1.5 text-xs font-semibold text-navy-500">
+        <div className="flex min-w-0 items-center gap-1.5 text-xs font-semibold text-court-cream/55">
           <MapPin className="size-3.5 shrink-0" />
           <span className="truncate">
             {court ? court.name : 'No court'}
@@ -328,7 +328,7 @@ function OperatorMatchCard({
                 <Play className="size-4" />
                 Start match
               </Button>
-              <Button variant="ghost" size="sm" className="h-10 w-full text-navy-500 sm:h-10" onClick={onScore}>
+              <Button variant="ghost" size="sm" className="h-10 w-full text-court-cream/55 sm:h-10" onClick={onScore}>
                 Already played? Enter result
               </Button>
             </>
@@ -342,7 +342,7 @@ function OperatorMatchCard({
 function PlayerLine({ label, isWinner, isWithdrawn, score }: { label: string; isWinner: boolean; isWithdrawn: boolean; score?: number[] }) {
   return (
     <div className="flex items-center justify-between gap-3">
-      <span className={cn('min-w-0 truncate text-base', isWinner ? 'font-bold text-navy-900' : 'font-medium text-navy-700')}>
+      <span className={cn('min-w-0 truncate text-base', isWinner ? 'font-bold text-court-cream' : 'font-medium text-court-cream/70')}>
         {label}
         {isWithdrawn && <UserX className="ml-1 inline size-3.5 text-danger" />}
       </span>
@@ -353,7 +353,7 @@ function PlayerLine({ label, isWinner, isWithdrawn, score }: { label: string; is
               key={i}
               className={cn(
                 'flex h-6 min-w-6 items-center justify-center rounded px-1 text-xs font-bold',
-                isWinner ? 'bg-ember-500 text-navy-950' : 'bg-navy-100 text-navy-500'
+                isWinner ? 'bg-ember-500 text-ink' : 'bg-white/10 text-court-cream/55'
               )}
             >
               {s}

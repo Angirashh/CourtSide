@@ -2,39 +2,32 @@ from collections import defaultdict
 
 import pytest
 
-from app.core.config import settings
 from app.core.security import create_access_token
 from app.db import models
 
 API = "/api/v1"
 
 
-def _google_claims(email="player@example.com", sub="google-sub-1", name="Test Player", email_verified=True):
-    return {"email": email, "email_verified": email_verified, "sub": sub, "name": name}
-
-
 @pytest.fixture
-def mock_google(monkeypatch):
-    # Must not depend on a real backend/.env (absent in CI/a fresh checkout) — the endpoint
-    # refuses to even try verification when GOOGLE_CLIENT_ID is unset.
-    monkeypatch.setattr(settings, "GOOGLE_CLIENT_ID", "test-client-id")
-    state = {"claims": _google_claims()}
+def mock_phone_verify(monkeypatch):
+    """Stubs google_auth.verify_google_id_token so tests don't need a real Google token. The fake
+    "id_token" a test sends is "email|First Last" -- the stub splits that into a verified profile."""
+    def _fake_verify(id_token):
+        email, _, name = id_token.partition("|")
+        return {"email": email, "name": name or "Test Player", "email_verified": "true", "aud": "test-aud"}
 
-    def _verify(id_token, request, audience):
-        if state["claims"] is None:
-            raise ValueError("invalid token")
-        return state["claims"]
-
-    monkeypatch.setattr("app.api.routes_player_auth.google_id_token.verify_oauth2_token", _verify)
-
-    def _set(claims):
-        state["claims"] = claims
-
-    return _set
+    monkeypatch.setattr("app.api.routes_player_auth.verify_google_id_token", _fake_verify)
 
 
-def _google_login(client):
-    return client.post(f"{API}/auth/player/google", json={"id_token": "fake-token"})
+def _signup(client, phone="9123456780", first_name="Test", last_name="Player", email="player@example.com"):
+    start = client.post(f"{API}/auth/player/google", json={"id_token": f"{email}|{first_name} {last_name}".strip()})
+    assert start.status_code == 200, start.text
+    body = start.json()
+    assert body["account_exists"] is False, "test setup expects a brand-new signup"
+    return client.post(
+        f"{API}/auth/player/google/complete-signup",
+        json={"signup_token": body["signup_token"], "phone": phone},
+    )
 
 
 def _organiser_token(db_session):
@@ -198,13 +191,15 @@ def test_regenerating_schedule_can_produce_a_different_draw(client, db_session):
     assert len(seen_pairings) > 1
 
 
-def test_full_team_friendly_lifecycle_updates_career_stats(client, db_session, mock_google):
+def test_full_team_friendly_lifecycle_updates_career_stats(client, db_session, mock_phone_verify):
     tournament = _create_team_friendly_tournament(db_session)
     headers = {"Authorization": f"Bearer {_organiser_token(db_session)}"}
 
-    def _register_player(email, sub, name):
-        mock_google(_google_claims(email=email, sub=sub, name=name))
-        token = _google_login(client).json()["access_token"]
+    def _register_player(email, phone, name):
+        first_name, _, last_name = name.partition(" ")
+        token = _signup(
+            client, phone=phone, first_name=first_name or name, last_name=last_name or name, email=email
+        ).json()["access_token"]
         reg = client.post(
             f"{API}/tournaments/{tournament.id}/players/self-register",
             headers={"Authorization": f"Bearer {token}"},
@@ -212,10 +207,10 @@ def test_full_team_friendly_lifecycle_updates_career_stats(client, db_session, m
         assert reg.status_code == 201, reg.text
         return reg.json()
 
-    a1 = _register_player("a1@example.com", "sub-a1", "A1")
-    a2 = _register_player("a2@example.com", "sub-a2", "A2")
-    b1 = _register_player("b1@example.com", "sub-b1", "B1")
-    b2 = _register_player("b2@example.com", "sub-b2", "B2")
+    a1 = _register_player("a1@example.com", "9000000001", "A1")
+    a2 = _register_player("a2@example.com", "9000000002", "A2")
+    b1 = _register_player("b1@example.com", "9000000003", "B1")
+    b2 = _register_player("b2@example.com", "9000000004", "B2")
 
     for p, team in [(a1, "A"), (a2, "A"), (b1, "B"), (b2, "B")]:
         resp = client.patch(

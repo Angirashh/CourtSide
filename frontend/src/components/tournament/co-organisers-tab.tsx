@@ -50,7 +50,7 @@ export function CoOrganisersTab({ tournamentId }: { tournamentId: string }) {
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-navy-500">
+        <p className="text-sm text-court-cream/55">
           Give another organiser's account full access to this tournament — same as your own.
         </p>
         <Dialog open={open} onOpenChange={setOpen}>
@@ -102,18 +102,18 @@ export function CoOrganisersTab({ tournamentId }: { tournamentId: string }) {
                   {initials(co.name)}
                 </div>
                 <div className="min-w-0 flex-1 space-y-0.5">
-                  <p className="break-words text-sm font-semibold text-navy-900">{co.name}</p>
+                  <p className="break-words text-sm font-semibold text-court-cream">{co.name}</p>
                   {co.email && (
-                    <p className="flex items-center gap-1.5 break-all text-xs text-navy-500">
+                    <p className="flex items-center gap-1.5 break-all text-xs text-court-cream/55">
                       <Mail className="size-3 shrink-0" /> {co.email}
                     </p>
                   )}
                   {co.phone && (
-                    <p className="flex items-center gap-1.5 break-words text-xs text-navy-500">
+                    <p className="flex items-center gap-1.5 break-words text-xs text-court-cream/55">
                       <Phone className="size-3 shrink-0" /> {co.phone}
                     </p>
                   )}
-                  <p className="text-[11px] text-navy-400">Added {formatDate(co.added_at)}</p>
+                  <p className="text-[11px] text-court-cream/45">Added {formatDate(co.added_at)}</p>
                 </div>
               </div>
               <Button

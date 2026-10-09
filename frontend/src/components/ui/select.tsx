@@ -15,15 +15,15 @@ export function SelectTrigger({
   return (
     <SelectPrimitive.Trigger
       className={cn(
-        'flex h-11 w-full items-center justify-between rounded-lg border border-navy-200 bg-cream-25 px-3.5 text-sm text-navy-900 shadow-sm',
-        'focus:outline-none focus:ring-2 focus:ring-ember-500/40 focus:border-ember-500 data-[placeholder]:text-navy-400',
+        'flex h-11 w-full items-center justify-between rounded-lg border border-white/20 bg-ink-card px-3.5 text-sm text-court-cream shadow-sm',
+        'focus:outline-none focus:ring-2 focus:ring-ember-500/40 focus:border-ember-500 data-[placeholder]:text-court-cream/45',
         className
       )}
       {...props}
     >
       {children}
       <SelectPrimitive.Icon>
-        <ChevronDown className="size-4 text-navy-400" />
+        <ChevronDown className="size-4 text-court-cream/45" />
       </SelectPrimitive.Icon>
     </SelectPrimitive.Trigger>
   )
@@ -38,7 +38,7 @@ export function SelectContent({
     <SelectPrimitive.Portal>
       <SelectPrimitive.Content
         className={cn(
-          'z-50 overflow-hidden rounded-xl border border-cream-200 bg-cream-25 shadow-xl shadow-navy-950/10 animate-scale-in',
+          'z-50 overflow-hidden rounded-xl border border-white/10 bg-ink-card shadow-xl shadow-navy-950/10 animate-scale-in',
           className
         )}
         position="popper"
@@ -59,8 +59,8 @@ export function SelectItem({
   return (
     <SelectPrimitive.Item
       className={cn(
-        'relative flex cursor-pointer select-none items-center rounded-lg py-2 pl-8 pr-3 text-sm text-navy-800 outline-none',
-        'data-[highlighted]:bg-ember-100 data-[highlighted]:text-navy-900',
+        'relative flex cursor-pointer select-none items-center rounded-lg py-2 pl-8 pr-3 text-sm text-court-cream/85 outline-none',
+        'data-[highlighted]:bg-ember-500/15 data-[highlighted]:text-court-cream',
         className
       )}
       {...props}

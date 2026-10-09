@@ -16,8 +16,8 @@ export function DashboardPage() {
     <div className="space-y-7">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="font-display text-2xl font-medium text-navy-900 sm:text-3xl">Your tournaments</h1>
-          <p className="mt-1 text-sm text-navy-500">Every bracket, every route, one place to run it from.</p>
+          <h1 className="font-display text-2xl font-medium text-court-cream sm:text-3xl">Your tournaments</h1>
+          <p className="mt-1 text-sm text-court-cream/55">Every bracket, every route, one place to run it from.</p>
         </div>
         <Button asChild size="lg">
           <Link to="/organiser/new">
@@ -75,14 +75,14 @@ function TournamentCard({ tournament, index }: { tournament: Tournament; index: 
               <TournamentStatusBadge status={tournament.status} />
             </div>
             <div>
-              <h3 className="font-display text-lg font-medium leading-snug text-navy-900 group-hover:text-ember-600 transition-colors">
+              <h3 className="font-display text-lg font-medium leading-snug text-court-cream group-hover:text-ember-600 transition-colors">
                 {tournament.name}
               </h3>
-              <p className="mt-0.5 text-xs font-semibold uppercase tracking-wide text-navy-400">
+              <p className="mt-0.5 text-xs font-semibold uppercase tracking-wide text-court-cream/45">
                 {formatLabel(tournament.format)}
               </p>
             </div>
-            <div className="mt-auto flex flex-col gap-1.5 border-t border-cream-200 pt-3 text-xs text-navy-500">
+            <div className="mt-auto flex flex-col gap-1.5 border-t border-white/10 pt-3 text-xs text-court-cream/55">
               <div className="flex items-center gap-1.5">
                 <MapPin className="size-3.5" />
                 {tournament.venue ?? 'Venue TBD'}

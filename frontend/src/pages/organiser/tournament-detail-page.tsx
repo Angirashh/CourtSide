@@ -4,7 +4,7 @@ import { ArrowLeft, Check, Copy, Play, Trophy } from 'lucide-react'
 import { useTournament } from '@/hooks/use-tournaments'
 import { FullPageSpinner } from '@/components/ui/spinner'
 import { EmptyState } from '@/components/ui/empty-state'
-import { TournamentStatusBadge } from '@/components/ui/status-badge'
+import { RegistrationStatusBadge, TournamentStatusBadge } from '@/components/ui/status-badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { RosterTab } from '@/components/tournament/roster-tab'
 import { OperatorsTab } from '@/components/tournament/operators-tab'
@@ -34,7 +34,7 @@ export function TournamentDetailPage() {
 
   return (
     <div className="space-y-6">
-      <Link to="/organiser" className="inline-flex items-center gap-1.5 text-sm font-semibold text-navy-500 hover:text-navy-800">
+      <Link to="/organiser" className="inline-flex items-center gap-1.5 text-sm font-semibold text-court-cream/55 underline hover:text-court-cream/85">
         <ArrowLeft className="size-4" />
         All tournaments
       </Link>
@@ -42,10 +42,11 @@ export function TournamentDetailPage() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
-            <h1 className="min-w-0 break-words font-display text-2xl font-medium text-navy-900 sm:text-3xl">{tournament.name}</h1>
+            <h1 className="min-w-0 break-words font-display text-2xl font-medium text-court-cream sm:text-3xl">{tournament.name}</h1>
             <TournamentStatusBadge status={tournament.status} />
+            <RegistrationStatusBadge status={tournament.registration_status} />
           </div>
-          <p className="mt-1 flex flex-wrap items-center gap-x-1 text-sm font-medium text-navy-500">
+          <p className="mt-1 flex flex-wrap items-center gap-x-1 text-sm font-medium text-court-cream/55">
             <span>
               {formatLabel(tournament.format)}
               {tournament.venue && <> · {tournament.venue}</>}
@@ -56,6 +57,8 @@ export function TournamentDetailPage() {
               venue={tournament.venue}
               venueLink={tournament.venue_link}
               tournamentDate={tournament.tournament_date}
+              registrationStatus={tournament.registration_status}
+              maxPlayers={tournament.max_players}
             />
             <EditCourtsDialog tournamentId={tournament.id} courts={tournament.courts} matches={tournament.matches} />
             <span>
@@ -144,7 +147,7 @@ function CopyTournamentId({ id }: { id: string }) {
         setCopied(true)
         setTimeout(() => setCopied(false), 1500)
       }}
-      className="inline-flex items-center gap-1 rounded px-1 py-0.5 font-mono text-xs text-navy-500 transition-colors hover:bg-navy-100 hover:text-navy-900"
+      className="inline-flex items-center gap-1 rounded px-1 py-0.5 font-mono text-xs text-court-cream/55 transition-colors hover:bg-white/10 hover:text-court-cream"
       title="Copy tournament ID"
       aria-label="Copy tournament ID"
     >

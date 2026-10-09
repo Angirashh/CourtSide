@@ -19,7 +19,7 @@ export function PublicTournamentCard({ tournament, delayMs = 0 }: { tournament: 
         </div>
         <div className="mt-4">
           <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
-            <p className="font-mono text-[10px] uppercase tracking-[.14em] text-navy-400">{formatLabel(tournament.format)}</p>
+            <p className="font-mono text-[10px] uppercase tracking-[.14em] text-court-cream/45">{formatLabel(tournament.format)}</p>
             {category && (
               <span className="inline-flex items-center gap-1.5 rounded-full bg-ember-100 px-2 py-1 text-[11px] font-bold leading-none text-ember-600">
                 <category.icon className="size-3" />
@@ -27,11 +27,11 @@ export function PublicTournamentCard({ tournament, delayMs = 0 }: { tournament: 
               </span>
             )}
           </div>
-          <h3 className="mt-1.5 font-display text-lg font-medium leading-snug text-navy-900 group-hover:text-ember-600 transition-colors">
+          <h3 className="mt-1.5 font-display text-lg font-medium leading-snug text-court-cream group-hover:text-ember-600 transition-colors">
             {tournament.name}
           </h3>
         </div>
-        <div className="mt-5 flex flex-col gap-1.5 border-t border-cream-200 pt-3.5 text-xs text-navy-500">
+        <div className="mt-5 flex flex-col gap-1.5 border-t border-white/10 pt-3.5 text-xs text-court-cream/55">
           <div className="flex items-center gap-1.5">
             <MapPin className="size-3.5 shrink-0" />
             <span className="truncate">{tournament.venue ?? 'Venue TBD'}</span>
@@ -42,19 +42,19 @@ export function PublicTournamentCard({ tournament, delayMs = 0 }: { tournament: 
           </div>
         </div>
         {tournament.champion_name && (
-          <div className="mt-3.5 flex items-center gap-1.5 rounded-lg bg-amber-100/60 px-2.5 py-1.5 text-xs font-semibold text-navy-800">
+          <div className="mt-3.5 flex items-center gap-1.5 rounded-full bg-amber-100/60 px-2.5 py-1.5 text-xs font-semibold text-court-cream/85">
             <Medal className="size-3.5 shrink-0 text-amber-500" />
             <span className="truncate">{tournament.champion_name}</span>
             {tournament.runner_up_name && (
-              <span className="truncate font-normal text-navy-400">· 2nd {tournament.runner_up_name}</span>
+              <span className="truncate font-normal text-court-cream/45">· 2nd {tournament.runner_up_name}</span>
             )}
           </div>
         )}
-        <div className="mt-4 flex items-center justify-between border-t border-cream-200 pt-3.5">
-          <span className="flex items-center gap-1.5 font-mono text-[10px] text-navy-400">
+        <div className="mt-4 flex items-center justify-between border-t border-white/10 pt-3.5">
+          <span className="flex items-center gap-1.5 font-mono text-[10px] text-court-cream/45">
             <Users className="size-3.5" /> {tournament.players_count} players
           </span>
-          <span className="inline-flex items-center gap-1 text-xs font-bold text-navy-900 group-hover:text-ember-600">
+          <span className="inline-flex items-center gap-1 text-xs font-bold text-court-cream group-hover:text-ember-600">
             {tournament.status === 'IN_PROGRESS' ? 'Watch live' : 'Details'} <ArrowRight className="size-3.5" />
           </span>
         </div>

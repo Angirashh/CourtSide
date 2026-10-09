@@ -47,14 +47,16 @@ export function SwissLadder({
       >
         {rounds.map((round) => {
           const roundMatches = matches.filter((m) => m.round_num === round).sort(compareByScheduledTime)
+          const priorCount = matches.filter((m) => m.round_num < round).length
           return (
             <div key={round} className="grid gap-2 sm:grid-cols-2">
-              {roundMatches.map((match) => (
+              {roundMatches.map((match, mIdx) => (
                 <FixtureMatchRow
                   key={match.id}
                   match={match}
                   playersById={playersById}
                   courtName={match.court_id ? courtsById.get(match.court_id) : undefined}
+                  index={priorCount + mIdx + 1}
                 />
               ))}
             </div>
@@ -90,16 +92,16 @@ function RoundStepper({
             className={cn(
               'flex size-7 shrink-0 items-center justify-center rounded-full border-2 text-[11px] font-bold transition-colors',
               i === activeIndex
-                ? 'border-navy-900 bg-navy-900 text-cream-50'
+                ? 'border-ember-500 bg-ember-500 text-ink'
                 : roundComplete[i]
-                  ? 'border-ember-500 bg-ember-500 text-navy-950'
-                  : 'border-navy-300 bg-cream-50 text-navy-400'
+                  ? 'border-ember-500 bg-ember-500 text-ink'
+                  : 'border-white/25 bg-ink text-court-cream/45'
             )}
           >
             {round}
           </button>
           {i < rounds.length - 1 && (
-            <div className={cn('h-0.5 flex-1', roundComplete[i] ? 'bg-ember-500' : 'bg-navy-200')} />
+            <div className={cn('h-0.5 flex-1', roundComplete[i] ? 'bg-ember-500' : 'bg-white/15')} />
           )}
         </Fragment>
       ))}

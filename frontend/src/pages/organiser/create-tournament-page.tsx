@@ -99,8 +99,8 @@ export function CreateTournamentPage() {
   return (
     <div className="mx-auto max-w-2xl space-y-7">
       <div>
-        <h1 className="font-display text-2xl font-medium text-navy-900 sm:text-3xl">Create a tournament</h1>
-        <p className="mt-1 text-sm text-navy-500">Three quick steps, then straight to your roster.</p>
+        <h1 className="font-display text-2xl font-medium text-court-cream sm:text-3xl">Create a tournament</h1>
+        <p className="mt-1 text-sm text-court-cream/55">Three quick steps, then straight to your roster.</p>
       </div>
 
       <Stepper current={step} />
@@ -196,7 +196,7 @@ export function CreateTournamentPage() {
                     <Input type="number" min={0} {...register('rest_time_minutes')} />
                     <FieldError>{errors.rest_time_minutes?.message}</FieldError>
                   </FieldGroup>
-                  <p className="rounded-lg bg-navy-100/60 px-3.5 py-3 text-xs leading-relaxed text-navy-600">
+                  <p className="rounded-lg bg-white/10 px-3.5 py-3 text-xs leading-relaxed text-court-cream/60">
                     These feed the court-scheduling solver directly — it uses them to keep the whole event as short as
                     possible while never double-booking a court or a player.
                   </p>
@@ -211,7 +211,7 @@ export function CreateTournamentPage() {
                       <FieldError>{errors.shuttle_matches_per_unit?.message}</FieldError>
                     </FieldGroup>
                   </div>
-                  <p className="rounded-lg bg-navy-100/60 px-3.5 py-3 text-xs leading-relaxed text-navy-600">
+                  <p className="rounded-lg bg-white/10 px-3.5 py-3 text-xs leading-relaxed text-court-cream/60">
                     Used to estimate total shuttle spend and cost per player alongside court costs, once matches are
                     scheduled.
                   </p>
@@ -224,12 +224,12 @@ export function CreateTournamentPage() {
                     <div className="space-y-2.5">
                       {fields.map((field, idx) => (
                         <div key={field.id} className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2.5 sm:flex">
-                          <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-navy-100 text-navy-500">
+                          <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-white/10 text-court-cream/55">
                             <MapPin className="size-4" />
                           </div>
                           <Input placeholder="Court name" {...register(`courts.${idx}.name` as const)} />
                           <div className="relative col-start-2 row-start-2 sm:w-32 sm:shrink-0">
-                            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs text-navy-400">
+                            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs text-court-cream/45">
                               ₹/hr
                             </span>
                             <Input
@@ -243,7 +243,7 @@ export function CreateTournamentPage() {
                             type="button"
                             onClick={() => remove(idx)}
                             disabled={fields.length === 1}
-                            className="flex size-9 shrink-0 items-center justify-center rounded-lg text-navy-400 transition-colors hover:bg-danger-bg hover:text-danger disabled:opacity-30"
+                            className="flex size-9 shrink-0 items-center justify-center rounded-lg text-court-cream/45 transition-colors hover:bg-danger-bg hover:text-danger disabled:opacity-30"
                           >
                             <Trash2 className="size-4" />
                           </button>
@@ -302,17 +302,17 @@ function Stepper({ current }: { current: number }) {
             <div
               className={cn(
                 'flex size-9 shrink-0 items-center justify-center rounded-full border-2 transition-colors',
-                state === 'done' && 'border-ember-500 bg-ember-500 text-navy-950',
+                state === 'done' && 'border-ember-500 bg-ember-500 text-ink',
                 state === 'active' && 'border-ember-500 text-ember-600',
-                state === 'upcoming' && 'border-navy-200 text-navy-300'
+                state === 'upcoming' && 'border-white/20 text-court-cream/35'
               )}
             >
               {state === 'done' ? <Check className="size-4" /> : <Icon className="size-4" />}
             </div>
-            <span className={cn('hidden text-sm font-semibold sm:inline', state === 'upcoming' ? 'text-navy-300' : 'text-navy-700')}>
+            <span className={cn('hidden text-sm font-semibold sm:inline', state === 'upcoming' ? 'text-court-cream/35' : 'text-court-cream/70')}>
               {label}
             </span>
-            {i < steps.length - 1 && <div className={cn('h-0.5 flex-1 rounded-full', state === 'done' ? 'bg-ember-500' : 'bg-navy-200')} />}
+            {i < steps.length - 1 && <div className={cn('h-0.5 flex-1 rounded-full', state === 'done' ? 'bg-ember-500' : 'bg-white/15')} />}
           </div>
         )
       })}
@@ -360,16 +360,16 @@ function FormatOption({
       onClick={onClick}
       className={cn(
         'flex flex-col gap-2 rounded-xl border-2 p-4 text-left transition-all',
-        active ? 'border-ember-500 bg-ember-100/50 shadow-sm' : 'border-navy-200 hover:border-navy-300'
+        active ? 'border-ember-500 bg-ember-500/15 shadow-sm' : 'border-white/20 hover:border-white/25'
       )}
     >
       <div className="flex items-center justify-between">
-        <Swords className={cn('size-4', active ? 'text-ember-600' : 'text-navy-400')} />
+        <Swords className={cn('size-4', active ? 'text-ember-600' : 'text-court-cream/45')} />
         {active && <Check className="size-4 text-ember-600" />}
       </div>
       <div>
-        <p className="text-sm font-bold text-navy-900">{title}</p>
-        <p className="mt-0.5 text-xs leading-relaxed text-navy-500">{description}</p>
+        <p className="text-sm font-bold text-court-cream">{title}</p>
+        <p className="mt-0.5 text-xs leading-relaxed text-court-cream/55">{description}</p>
       </div>
     </button>
   )
@@ -392,11 +392,11 @@ function CategoryOption({
       onClick={onClick}
       className={cn(
         'flex flex-col items-center gap-2 rounded-xl border-2 p-3.5 text-center transition-all',
-        active ? 'border-ember-500 bg-ember-100/50 shadow-sm' : 'border-navy-200 hover:border-navy-300'
+        active ? 'border-ember-500 bg-ember-500/15 shadow-sm' : 'border-white/20 hover:border-white/25'
       )}
     >
-      <Icon className={cn('size-5', active ? 'text-ember-600' : 'text-navy-400')} />
-      <p className="text-xs font-bold text-navy-900">{title}</p>
+      <Icon className={cn('size-5', active ? 'text-ember-600' : 'text-court-cream/45')} />
+      <p className="text-xs font-bold text-court-cream">{title}</p>
     </button>
   )
 }

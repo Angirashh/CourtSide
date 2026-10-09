@@ -9,9 +9,12 @@ from app.db.migrations import (
     ensure_user_approval_columns,
     ensure_tournament_venue_link_column,
     ensure_player_auth_columns,
+    ensure_player_name_columns,
     ensure_team_friendly_columns,
     ensure_team_friendly_enum_values,
     ensure_court_available_from_column,
+    ensure_tournament_registration_columns,
+    ensure_tournament_registration_status_column,
 )
 from app.db.session import engine
 from app.api import routes_auth, routes_player_auth, routes_tournaments, routes_players, routes_matches, routes_athletes, routes_public, routes_courts
@@ -25,9 +28,12 @@ async def lifespan(app: FastAPI):
     ensure_user_approval_columns(engine)
     ensure_tournament_venue_link_column(engine)
     ensure_player_auth_columns(engine)
+    ensure_player_name_columns(engine)
     ensure_team_friendly_columns(engine)
     ensure_team_friendly_enum_values(engine)
     ensure_court_available_from_column(engine)
+    ensure_tournament_registration_columns(engine)
+    ensure_tournament_registration_status_column(engine)
     yield
     # Shutdown: Clean up resources if needed
 

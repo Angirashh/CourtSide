@@ -17,5 +17,3 @@ openpyxl
 pytest
 psycopg2-binary==2.9.9
 pyjwt
-google-auth
-requests

@@ -136,6 +136,8 @@ def create_tournament(
         venue=payload.venue,
         venue_link=payload.venue_link,
         tournament_date=payload.tournament_date,
+        registration_status=payload.registration_status,
+        max_players=payload.max_players,
         status=models.TournamentStatus.DRAFT,
         organiser_id=current_user.id,
     )
@@ -208,9 +210,10 @@ def update_tournament_details(
     db: Session = Depends(get_db),
 ):
     """
-    Edits venue/date — pure logistics, so allowed at any status, including after a schedule
-    is generated or the event has started. Note: this doesn't touch already-persisted match
-    times, which were fixed to whatever start time was given when the schedule was generated.
+    Edits venue/date/registration settings — pure logistics, so allowed at any status, including
+    after a schedule is generated or the event has started. Note: this doesn't touch already-
+    persisted match times, which were fixed to whatever start time was given when the schedule
+    was generated.
     """
     tournament = db.query(models.Tournament).filter(models.Tournament.id == tournament_id).first()
     if not tournament:
@@ -224,6 +227,10 @@ def update_tournament_details(
         tournament.venue_link = payload.venue_link or None
     if payload.tournament_date is not None:
         tournament.tournament_date = payload.tournament_date
+    if payload.registration_status is not None:
+        tournament.registration_status = payload.registration_status
+    if payload.max_players is not None:
+        tournament.max_players = payload.max_players
 
     db.commit()
     db.refresh(tournament)

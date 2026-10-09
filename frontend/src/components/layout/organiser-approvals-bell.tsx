@@ -28,13 +28,13 @@ export function OrganiserApprovalsBell({ compact }: { compact?: boolean }) {
         onClick={() => setOpen(true)}
         className={cn(
           'relative flex items-center justify-center rounded-full transition-colors',
-          compact ? 'size-9 bg-navy-100 text-navy-600' : 'size-9 text-cream-200/70 hover:bg-cream-50/10 hover:text-cream-50'
+          compact ? 'size-9 bg-white/10 text-court-cream/60' : 'size-9 text-cream-200/70 hover:bg-white/10 hover:text-cream-50'
         )}
         aria-label="Pending organiser requests"
       >
         <Bell className="size-4" />
         {count > 0 && (
-          <span className="absolute -right-0.5 -top-0.5 flex size-4 items-center justify-center rounded-full bg-ember-500 text-[9px] font-bold text-navy-950">
+          <span className="absolute -right-0.5 -top-0.5 flex size-4 items-center justify-center rounded-full bg-ember-500 text-[9px] font-bold text-ink">
             {count > 9 ? '9+' : count}
           </span>
         )}
@@ -76,13 +76,13 @@ function PendingOrganiserRow({
   const busy = approve.isPending || reject.isPending
 
   return (
-    <div className="flex items-center gap-3 rounded-xl border border-navy-100 bg-cream-25 p-3">
+    <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-ink-card p-3">
       <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-navy-900 text-xs font-bold text-cream-50">
         {initials(name)}
       </div>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-semibold text-navy-900">{name}</p>
-        <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-navy-400">
+        <p className="truncate text-sm font-semibold text-court-cream">{name}</p>
+        <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-court-cream/45">
           {email && (
             <span className="flex items-center gap-1">
               <Mail className="size-3" /> {email}
@@ -94,7 +94,7 @@ function PendingOrganiserRow({
             </span>
           )}
         </div>
-        <p className="mt-0.5 text-[11px] text-navy-300">Requested {formatDateTime(requestedAt)}</p>
+        <p className="mt-0.5 text-[11px] text-court-cream/35">Requested {formatDateTime(requestedAt)}</p>
       </div>
       <div className="flex shrink-0 items-center gap-1.5">
         <Button

@@ -55,18 +55,18 @@ function CountdownUnit({ value, label, variant }: { value: number; label: string
     <div
       className={cn(
         'rounded-lg border py-2 text-center',
-        variant === 'dark' ? 'border-navy-700 bg-navy-800/60' : 'border-cream-200 bg-cream-50'
+        variant === 'dark' ? 'border-navy-700 bg-navy-800/60' : 'border-white/10 bg-ink'
       )}
     >
       <p
         className={cn(
-          'font-display text-lg font-medium tabular-nums sm:text-xl',
-          variant === 'dark' ? 'text-cream-50' : 'text-navy-900'
+          'font-display text-2xl leading-none tabular-nums sm:text-3xl',
+          variant === 'dark' ? 'text-cream-50' : 'text-court-cream'
         )}
       >
         {String(value).padStart(2, '0')}
       </p>
-      <p className="mt-0.5 text-[9px] font-bold uppercase tracking-wide text-navy-400">{label}</p>
+      <p className="mt-0.5 text-[9px] font-bold uppercase tracking-wide text-court-cream/45">{label}</p>
     </div>
   )
 }

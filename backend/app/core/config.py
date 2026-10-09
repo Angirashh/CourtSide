@@ -29,10 +29,13 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     JWT_EXPIRE_MINUTES: int = 60 * 12  # 12 hours, spans a typical tournament day
 
-    # Player sign-in. Not secret — Google Client IDs are meant to be embedded in frontend JS —
-    # but still environment-configured since it's per-deployment. Used to verify the `aud`
-    # claim on every Google ID token (see routes_player_auth.py).
-    GOOGLE_CLIENT_ID: str = ""
+    # Player sign-in. Google is the live path; MSG91 OTP is wired but dormant, kept for when
+    # phone-based sign-in is reintroduced at scale.
+    GOOGLE_CLIENT_ID: str = Field(
+        default="", description="OAuth 2.0 Web Client ID from Google Cloud Console, used to verify player sign-in tokens."
+    )
+    MSG91_AUTH_KEY: str = Field(default="", description="Auth key from the MSG91 dashboard.")
+    MSG91_OTP_TEMPLATE_ID: str = Field(default="", description="OTP SMS template ID configured in MSG91.")
 
     # CORS configuration
     CORS_ORIGINS: List[str] = [

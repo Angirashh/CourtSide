@@ -55,6 +55,12 @@ class MatchStatus(enum.Enum):
     COMPLETED = "COMPLETED"      # Score submitted (or resolved as a bye)
 
 
+class RegistrationStatus(str, enum.Enum):
+    NOT_OPEN = "NOT_OPEN"  # Organiser hasn't opened registration yet
+    OPEN = "OPEN"          # Players can self-register right now
+    CLOSED = "CLOSED"      # Organiser closed it manually, or the roster cap was reached
+
+
 class UserRole(enum.Enum):
     ORGANISER = "ORGANISER"
     OPERATOR = "OPERATOR"
@@ -75,12 +81,16 @@ class User(Base):
 
     id = Column(String, primary_key=True, default=lambda: f"USR_{uuid.uuid4().hex[:8]}")
     name = Column(String, nullable=False)
+    # PLAYER accounts only — collected separately at signup; `name` is kept in sync as
+    # "{first_name} {last_name}" so ORGANISER/OPERATOR code that only ever reads `name` still works.
+    first_name = Column(String, nullable=True)
+    last_name = Column(String, nullable=True)
     email = Column(String, unique=True, index=True, nullable=True)
     phone = Column(String, unique=True, index=True, nullable=True)
     role = Column(Enum(UserRole), nullable=False)
 
     # Only set for ORGANISER accounts; operators log in via OperatorAssignment.pin_hash instead.
-    # PLAYER accounts authenticate via Google (see google_sub) and never set this.
+    # PLAYER accounts authenticate via Google sign-in and never set this.
     pin_hash = Column(String, nullable=True)
 
     # Gate on self-service ORGANISER signup: new signups default to False and can't log in
@@ -96,10 +106,6 @@ class User(Base):
     # claiming a pre-existing Athlete (an organiser already added them via manual add/CSV
     # before they ever signed in) or by creating a fresh one. NULL for ORGANISER/OPERATOR rows.
     athlete_id = Column(String, ForeignKey("athletes.id", ondelete="SET NULL"), nullable=True, index=True)
-
-    # PLAYER accounts only. Google's stable per-account identifier (the JWT `sub` claim) — the
-    # lookup key for returning players, since email isn't guaranteed permanent the way sub is.
-    google_sub = Column(String, unique=True, index=True, nullable=True)
 
     created_at = Column(DateTime, default=datetime.utcnow)
 
@@ -197,6 +203,18 @@ class Tournament(Base):
 
     match_duration_minutes = Column(Integer, default=15)
     rest_time_minutes = Column(Integer, default=10)
+
+    # Public self-registration gate, independent of `status` -- an organiser can keep a
+    # DRAFT/SCHEDULING tournament out of public view while still setting it up, then flip
+    # this to OPEN when ready, and it auto-flips to CLOSED the moment the roster cap is hit
+    # (see `_auto_close_registration_if_full` in routes_players.py). Plain string column
+    # (not a native Postgres enum) so adding future statuses never needs an `ALTER TYPE`.
+    # Defaults to OPEN so every existing tournament (created before this flag existed, when
+    # registration was implicitly always open at DRAFT/SCHEDULING) keeps behaving as before.
+    registration_status = Column(String, default=RegistrationStatus.OPEN.value, nullable=False)
+    # Optional roster cap shown as a public "X / Y players registered" progress bar.
+    # NULL means uncapped.
+    max_players = Column(Integer, nullable=True)
 
     # Shuttle economics: a shuttle wears out after a fixed number of matches,
     # so cost scales with how many matches actually get played, not with time.

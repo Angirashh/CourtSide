@@ -1,8 +1,9 @@
 import { Link } from 'react-router-dom'
-import { ArrowRight, Baby, Briefcase, CalendarSearch, GraduationCap, Handshake, Swords, Trophy } from 'lucide-react'
+import { ArrowRight, Award, Briefcase, CalendarSearch, GraduationCap, Handshake, Swords, Trophy } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { usePublicHubStats, usePublicTournaments } from '@/hooks/use-public'
 import { Card } from '@/components/ui/card'
+import { BrandWordmark } from '@/components/brand/logo'
 
 export function AboutPage() {
   const { data: tournaments } = usePublicTournaments()
@@ -17,73 +18,84 @@ export function AboutPage() {
 
   return (
     <div className="mx-auto max-w-[1400px] space-y-10">
-      <section className="relative overflow-hidden rounded-2xl bg-navy-900 p-6 pt-9 text-cream-50 shadow-lg sm:p-8 sm:pt-10 md:p-10 md:pt-12">
-        <div className="pointer-events-none absolute -right-10 -top-20 size-64 rounded-full border border-ember-500/20" />
-        <div className="pointer-events-none absolute bottom-[-90px] right-[18%] size-52 rounded-full border-[26px] border-ember-500/10" />
-        <div className="relative flex flex-col gap-8">
-          <div>
-            <p className="font-mono text-[10px] uppercase tracking-[.2em] text-navy-300">About Courtside</p>
-            <h1 className="mt-4 max-w-lg font-display text-4xl font-medium leading-[1.02] tracking-tight text-cream-50 md:text-5xl">
+      <section className="-mx-4 -mt-7 overflow-hidden bg-ink sm:-mx-6 lg:-mx-10 lg:-mt-9">
+        <div className="relative overflow-hidden px-4 pb-10 pt-8 sm:px-6 sm:pb-12 sm:pt-10 lg:px-10 lg:pb-14 lg:pt-12">
+          <div className="pointer-events-none absolute -bottom-10 -right-10 h-[220px] w-[220px] sm:h-[280px] sm:w-[280px]">
+            <div className="absolute inset-0 skew-x-[-18deg] border border-ember-500/25" />
+            <div className="absolute inset-[28px] skew-x-[-18deg] border border-ember-500/25" />
+            <div className="absolute left-0 right-0 top-1/2 h-px skew-x-[-18deg] bg-ember-500/25" />
+          </div>
+
+          <div className="relative max-w-lg">
+            <p className="font-mono text-[10px] uppercase tracking-[.2em] text-ember-500">For the love of badminton</p>
+            <BrandWordmark className="mt-1 text-xl text-court-cream" />
+            <h1 className="mt-4 font-display text-[44px] leading-[0.95] text-court-cream sm:text-[56px]">
               Every rally.
               <br />
-              <span className="text-ember-400">One place.</span>
+              <span className="text-ember-500">One place.</span>
             </h1>
-            <p className="mt-4 max-w-md text-sm leading-relaxed text-navy-300">
-              Courtside is the home for badminton tournaments across corporates, colleges, juniors and friendly
-              circuits — fixtures, live scores and standings, all in one place.
+            <p className="mt-4 max-w-md font-sans text-sm leading-relaxed text-court-cream/60">
+              For the early starters. The last-point fighters. The ones who always want one more game. This is your
+              side of the court.
             </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-3">
             <Link
               to="/tournaments"
-              className="inline-flex items-center gap-2 rounded-xl bg-ember-500 px-4 py-3 text-sm font-bold text-navy-950 transition hover:bg-ember-400"
+              className="mt-6 inline-flex items-center gap-2 rounded-full bg-ember-500 px-5 py-3.5 font-display text-sm text-ink transition hover:bg-ember-600"
             >
-              Browse tournaments <ArrowRight className="size-4" />
+              Find your next tournament <ArrowRight className="size-4" />
             </Link>
           </div>
-
-          {stats && (
-            <div className="border-t border-navy-700 pt-6">
-              <p className="mb-3 font-mono text-[10px] uppercase tracking-[.2em] text-ember-400">Today at a glance</p>
-              <div className="grid grid-cols-3 gap-2.5 sm:gap-3">
-                <HeroStat value={stats.upcoming_tournaments} label="upcoming tournaments" />
-                <HeroStat value={stats.athletes_in_competition} label="athletes competing" />
-                <HeroStat value={stats.courts_in_use} label="courts in rotation" />
-              </div>
-            </div>
-          )}
         </div>
+
+        {stats && (
+          <div className="relative border-t border-white/10 bg-ink-card px-4 py-7 sm:px-6 sm:py-8 lg:px-10">
+            <p className="mb-5 font-mono text-[10px] uppercase tracking-[.2em] text-ember-600">
+              One community. Countless rallies.
+            </p>
+            <div className="grid grid-cols-3 divide-x divide-white/10">
+              <HeroStat value={stats.upcoming_tournaments} label="upcoming tournaments" />
+              <HeroStat value={stats.athletes_in_competition} label="athletes competing" />
+              <HeroStat value={stats.courts_in_use} label="courts in rotation" />
+            </div>
+          </div>
+        )}
       </section>
 
-      <section className="relative overflow-hidden rounded-2xl bg-navy-900 p-6 text-cream-50 shadow-lg sm:p-8 md:p-10">
-        <h2 className="max-w-lg font-display text-3xl font-medium leading-tight tracking-tight text-cream-50 md:text-4xl">
-          Built for every kind of competitor
-        </h2>
-        <p className="mt-3 max-w-md text-sm text-navy-300">Four tracks, one platform. Pick the world you play in.</p>
+      <section>
+        <div className="flex items-end gap-5">
+          <div>
+            <p className="mb-1 font-mono text-[10px] uppercase tracking-[.2em] text-ember-500">Your game. Your people.</p>
+            <h2 className="font-display text-3xl leading-tight text-court-cream md:text-4xl">
+              There&apos;s a court for you.
+            </h2>
+          </div>
+          <div className="mb-2 hidden h-px flex-1 bg-navy-950/15 sm:block" />
+        </div>
+        <p className="mt-3 max-w-md font-sans text-sm text-court-cream/55">Different journeys. The same love for the game.</p>
 
-        <div className="mt-6 grid grid-cols-2 gap-3 sm:mt-8 sm:gap-4 lg:grid-cols-4">
+        <div className="mt-6 grid grid-cols-2 gap-3 sm:mt-8 sm:gap-4">
           <CompetitorTrackCard
             icon={Briefcase}
             title="Corporate"
-            description="Inter-company leagues and invitationals that turn colleagues into rivals and clients into fans."
+            description="Colleagues off the clock. Rivals on the court."
             count={categoryCounts.CORPORATE}
           />
           <CompetitorTrackCard
             icon={GraduationCap}
             title="College"
-            description="Fast, high-energy campus circuits with Swiss stages, group play and knockout drama."
+            description="Campus pride. Match-point energy."
             count={categoryCounts.COLLEGE}
           />
           <CompetitorTrackCard
-            icon={Baby}
+            icon={Award}
             title="Juniors"
-            description="Friendly, well-organised events that give young athletes their first taste of real competition."
+            description="Small beginnings. Big ambitions."
             count={categoryCounts.JUNIOR}
           />
           <CompetitorTrackCard
             icon={Handshake}
             title="Friendly"
-            description="Relaxed get-togethers among friends and clubs — all the fixtures, none of the pressure."
+            description="Good company. Even better rallies."
             count={categoryCounts.FRIENDLY}
           />
         </div>
@@ -91,11 +103,11 @@ export function AboutPage() {
 
       <section id="how-it-works" className="grid scroll-mt-20 gap-8 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] lg:items-start">
         <div>
-          <p className="mb-1 font-mono text-[10px] uppercase tracking-[.2em] text-ember-600">How it works</p>
-          <h2 className="font-display text-3xl font-medium leading-tight tracking-tight text-navy-900 md:text-4xl">
+          <p className="mb-1 font-mono text-[10px] uppercase tracking-[.2em] text-ember-500">How it works</p>
+          <h2 className="font-display text-3xl leading-tight text-court-cream md:text-4xl">
             From first serve to final whistle
           </h2>
-          <p className="mt-4 max-w-sm text-sm leading-relaxed text-navy-500">
+          <p className="mt-4 max-w-sm font-sans text-sm leading-relaxed text-court-cream/55">
             Courtside keeps players, organisers and supporters on the same page — no spreadsheets, no group-chat chaos.
           </p>
         </div>
@@ -137,13 +149,15 @@ function CompetitorTrackCard({
   count: number
 }) {
   return (
-    <div className="rounded-xl border border-navy-700 bg-navy-800/40 p-4 sm:p-6">
-      <div className="flex size-10 items-center justify-center rounded-xl bg-ember-500 text-navy-950 sm:size-11">
+    <div className="relative flex min-h-[230px] flex-col overflow-hidden border-b-4 border-b-ember-500 bg-ink p-5 text-court-cream sm:p-6">
+      <div className="pointer-events-none absolute -bottom-10 -right-8 h-40 w-px skew-x-[-20deg] bg-ember-500/20" />
+
+      <div className="relative flex size-11 shrink-0 items-center justify-center bg-ember-500 text-ink">
         <Icon className="size-5" />
       </div>
-      <h3 className="mt-4 font-display text-lg font-medium text-cream-50 sm:mt-5 sm:text-xl">{title}</h3>
-      <p className="mt-2.5 hidden text-sm leading-relaxed text-navy-300 sm:block">{description}</p>
-      <p className="mt-2 text-sm font-bold text-ember-400 sm:mt-6">
+      <h3 className="relative mt-5 font-display text-2xl leading-none text-court-cream">{title}</h3>
+      <p className="relative mt-2 font-sans text-sm leading-relaxed text-court-cream/55">{description}</p>
+      <p className="relative mt-auto pt-6 font-sans text-xs font-bold uppercase tracking-wide text-ember-500">
         {count} tournament{count === 1 ? '' : 's'}
       </p>
     </div>
@@ -163,15 +177,15 @@ function HowItWorksStep({
 }) {
   return (
     <Card className="flex items-start gap-4 p-6">
-      <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-navy-900 text-ember-400">
+      <div className="flex size-11 shrink-0 items-center justify-center bg-ink text-ember-500">
         <Icon className="size-5" />
       </div>
       <div>
         <p className="flex items-center gap-2">
-          <span className="font-mono text-xs font-bold text-navy-400">{number}</span>
-          <span className="font-display text-lg font-medium text-navy-900">{title}</span>
+          <span className="font-mono text-xs font-bold text-court-cream/45">{number}</span>
+          <span className="font-display text-lg leading-none text-court-cream">{title}</span>
         </p>
-        <p className="mt-1.5 text-sm leading-relaxed text-navy-500">{description}</p>
+        <p className="mt-1.5 font-sans text-sm leading-relaxed text-court-cream/55">{description}</p>
       </div>
     </Card>
   )
@@ -179,9 +193,9 @@ function HowItWorksStep({
 
 function HeroStat({ value, label }: { value: number; label: string }) {
   return (
-    <div className="rounded-xl border border-navy-700 bg-navy-800/50 p-3 sm:p-4">
-      <p className="font-display text-2xl font-medium tracking-tight text-cream-50 sm:text-3xl">{value}</p>
-      <p className="mt-1.5 text-[11px] font-bold leading-tight text-navy-300 sm:text-xs">{label}</p>
+    <div className="px-3 first:pl-0 sm:px-4">
+      <p className="font-display text-4xl leading-none text-court-cream sm:text-5xl">{value}</p>
+      <p className="mt-2 font-sans text-[13px] leading-tight text-court-cream/55">{label}</p>
     </div>
   )
 }

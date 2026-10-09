@@ -1,41 +1,46 @@
 import pytest
 
-from app.core.config import settings
 from app.core.security import create_access_token
 from app.db import models
 
 API = "/api/v1"
 
 
-def _google_claims(email="player@example.com", sub="google-sub-1", name="Test Player", email_verified=True):
-    return {"email": email, "email_verified": email_verified, "sub": sub, "name": name}
-
-
 @pytest.fixture
-def mock_google(monkeypatch):
-    """Returns a setter that makes the next verify_oauth2_token call return the given claims
-    (or raise ValueError when claims is None) — avoids needing a real Google-signed JWT.
-    Also stubs in a non-empty GOOGLE_CLIENT_ID: these tests must not depend on a real
-    backend/.env being present (it isn't, in CI or a fresh checkout), since the endpoint
-    itself refuses to even try verification when that setting is unset."""
-    monkeypatch.setattr(settings, "GOOGLE_CLIENT_ID", "test-client-id")
-    state = {"claims": _google_claims()}
+def mock_google_verify(monkeypatch):
+    """
+    Stubs google_auth.verify_google_id_token so tests don't need a real Google token. The fake
+    "id_token" a test sends is just "email|First Last" -- the stub splits it back apart into the
+    profile fields the real endpoint would have gotten from Google.
+    """
+    def _fake_verify(id_token):
+        email, _, name = id_token.partition("|")
+        return {"email": email, "name": name or "Test Player", "email_verified": "true", "aud": "test-aud"}
 
-    def _verify(id_token, request, audience):
-        if state["claims"] is None:
-            raise ValueError("invalid token")
-        return state["claims"]
-
-    monkeypatch.setattr("app.api.routes_player_auth.google_id_token.verify_oauth2_token", _verify)
-
-    def _set(claims):
-        state["claims"] = claims
-
-    return _set
+    monkeypatch.setattr("app.api.routes_player_auth.verify_google_id_token", _fake_verify)
 
 
-def _google_login(client, **claim_overrides):
-    return client.post(f"{API}/auth/player/google", json={"id_token": "fake-token"})
+def _google_token(email: str, first_name: str = "Test", last_name: str = "Player") -> str:
+    return f"{email}|{first_name} {last_name}".strip()
+
+
+def _google_start(client, email="player@example.com", first_name="Test", last_name="Player"):
+    return client.post(f"{API}/auth/player/google", json={"id_token": _google_token(email, first_name, last_name)})
+
+
+def _signup(client, phone="9123456780", first_name="Test", last_name="Player", email="player@example.com"):
+    start = _google_start(client, email, first_name, last_name)
+    assert start.status_code == 200, start.text
+    body = start.json()
+    assert body["account_exists"] is False, "test setup expects a brand-new signup"
+    return client.post(
+        f"{API}/auth/player/google/complete-signup",
+        json={"signup_token": body["signup_token"], "phone": phone},
+    )
+
+
+def _login(client, email="player@example.com"):
+    return _google_start(client, email)
 
 
 def _create_tournament(db_session, status=models.TournamentStatus.DRAFT):
@@ -57,8 +62,8 @@ def _organiser_token(db_session):
     return create_access_token({"sub": organiser.id, "role": organiser.role.value})
 
 
-def test_google_login_fresh_creates_user_and_athlete(client, db_session, mock_google):
-    resp = _google_login(client)
+def test_signup_creates_user_and_athlete(client, db_session, mock_google_verify):
+    resp = _signup(client)
     assert resp.status_code == 200, resp.text
     body = resp.json()
     assert body["claimed_existing_record"] is False
@@ -67,7 +72,9 @@ def test_google_login_fresh_creates_user_and_athlete(client, db_session, mock_go
     user = db_session.query(models.User).filter(models.User.email == "player@example.com").first()
     assert user is not None
     assert user.role == models.UserRole.PLAYER
-    assert user.google_sub == "google-sub-1"
+    assert user.phone == "+919123456780"
+    assert user.first_name == "Test"
+    assert user.last_name == "Player"
     assert user.athlete_id is not None
 
     athlete = db_session.query(models.Athlete).filter(models.Athlete.email == "player@example.com").first()
@@ -75,7 +82,7 @@ def test_google_login_fresh_creates_user_and_athlete(client, db_session, mock_go
     assert athlete.id == user.athlete_id
 
 
-def test_google_login_claims_existing_organiser_added_athlete(client, db_session, mock_google):
+def test_signup_claims_existing_organiser_added_athlete(client, db_session, mock_google_verify):
     tournament = _create_tournament(db_session)
     athlete = models.Athlete(name="Claimed Player", email="claimed@example.com")
     db_session.add(athlete)
@@ -83,8 +90,7 @@ def test_google_login_claims_existing_organiser_added_athlete(client, db_session
     db_session.add(models.Player(tournament_id=tournament.id, athlete_id=athlete.id, name="Claimed Player"))
     db_session.commit()
 
-    mock_google(_google_claims(email="claimed@example.com", sub="google-sub-claimed", name="Claimed Player"))
-    resp = _google_login(client)
+    resp = _signup(client, phone="9000000001", email="claimed@example.com")
     assert resp.status_code == 200, resp.text
     assert resp.json()["claimed_existing_record"] is True
 
@@ -95,29 +101,68 @@ def test_google_login_claims_existing_organiser_added_athlete(client, db_session
     assert user.athlete_id == athlete.id
 
 
-def test_google_login_returning_user_reuses_same_account(client, db_session, mock_google):
-    first = _google_login(client)
+def test_login_returning_user_reuses_same_account(client, db_session, mock_google_verify):
+    first = _signup(client)
     first_user_id = first.json()["user"]["id"]
 
-    second = _google_login(client)
+    second = _login(client)
     assert second.status_code == 200
-    assert second.json()["user"]["id"] == first_user_id
-    assert second.json()["claimed_existing_record"] is False
+    body = second.json()
+    assert body["account_exists"] is True
+    assert body["session"]["user"]["id"] == first_user_id
 
     users = db_session.query(models.User).filter(models.User.email == "player@example.com").all()
     assert len(users) == 1
 
 
-def test_google_login_rejects_unverified_email(client, db_session, mock_google):
-    mock_google(_google_claims(email_verified=False))
-    resp = _google_login(client)
+def test_signup_duplicate_phone_rejected(client, db_session, mock_google_verify):
+    _signup(client, email="first@example.com")
+    resp = _signup(client, email="second@example.com")
+    assert resp.status_code == 409
+
+
+def test_google_auth_new_email_offers_signup_instead_of_logging_in(client, db_session, mock_google_verify):
+    resp = _google_start(client, email="brand-new@example.com")
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["account_exists"] is False
+    assert body["session"] is None
+    assert body["signup_token"]
+    assert body["email"] == "brand-new@example.com"
+
+
+def test_complete_signup_rejects_garbage_token(client, db_session, mock_google_verify):
+    resp = client.post(
+        f"{API}/auth/player/google/complete-signup", json={"signup_token": "not-a-real-token", "phone": "9123456780"}
+    )
     assert resp.status_code == 400
 
 
-def test_google_login_invalid_token_rejected(client, db_session, mock_google):
-    mock_google(None)
-    resp = _google_login(client)
-    assert resp.status_code == 401
+def test_complete_signup_rejects_invalid_phone_format(client, db_session, mock_google_verify):
+    start = _google_start(client, email="player@example.com")
+    signup_token = start.json()["signup_token"]
+
+    resp = client.post(
+        f"{API}/auth/player/google/complete-signup", json={"signup_token": signup_token, "phone": "12345"}
+    )
+    assert resp.status_code == 422
+
+
+def test_complete_signup_rejects_email_already_claimed_in_the_meantime(client, db_session, mock_google_verify):
+    """Guards the race where the same Google identity's signup_token is replayed after an
+    account for that email already exists (e.g. two tabs completing signup concurrently)."""
+    start = _google_start(client, email="player@example.com")
+    signup_token = start.json()["signup_token"]
+
+    first_complete = client.post(
+        f"{API}/auth/player/google/complete-signup", json={"signup_token": signup_token, "phone": "9123456780"}
+    )
+    assert first_complete.status_code == 200, first_complete.text
+
+    replay = client.post(
+        f"{API}/auth/player/google/complete-signup", json={"signup_token": signup_token, "phone": "9000000009"}
+    )
+    assert replay.status_code == 409
 
 
 def test_self_register_requires_player_token(client, db_session):
@@ -134,9 +179,9 @@ def test_self_register_requires_player_token(client, db_session):
     assert organiser_resp.status_code == 403
 
 
-def test_self_register_duplicate_rejected(client, db_session, mock_google):
+def test_self_register_duplicate_rejected(client, db_session, mock_google_verify):
     tournament = _create_tournament(db_session)
-    token = _google_login(client).json()["access_token"]
+    token = _signup(client).json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
 
     first = client.post(f"{API}/tournaments/{tournament.id}/players/self-register", headers=headers)
@@ -146,9 +191,9 @@ def test_self_register_duplicate_rejected(client, db_session, mock_google):
     assert second.status_code == 400
 
 
-def test_self_register_blocked_once_tournament_in_progress(client, db_session, mock_google):
+def test_self_register_blocked_once_tournament_in_progress(client, db_session, mock_google_verify):
     tournament = _create_tournament(db_session, status=models.TournamentStatus.IN_PROGRESS)
-    token = _google_login(client).json()["access_token"]
+    token = _signup(client).json()["access_token"]
 
     resp = client.post(
         f"{API}/tournaments/{tournament.id}/players/self-register",
@@ -157,9 +202,9 @@ def test_self_register_blocked_once_tournament_in_progress(client, db_session, m
     assert resp.status_code == 400
 
 
-def test_my_registrations_reflects_self_registration(client, db_session, mock_google):
+def test_my_registrations_reflects_self_registration(client, db_session, mock_google_verify):
     tournament = _create_tournament(db_session)
-    token = _google_login(client).json()["access_token"]
+    token = _signup(client).json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
 
     client.post(f"{API}/tournaments/{tournament.id}/players/self-register", headers=headers)
@@ -172,15 +217,13 @@ def test_my_registrations_reflects_self_registration(client, db_session, mock_go
     assert registrations[0]["is_withdrawn"] is False
 
 
-def test_ending_tournament_populates_athlete_career_stats(client, db_session, mock_google):
+def test_ending_tournament_populates_athlete_career_stats(client, db_session, mock_google_verify):
     tournament = _create_tournament(db_session, status=models.TournamentStatus.DRAFT)
 
-    mock_google(_google_claims(email="winner@example.com", sub="google-sub-winner", name="Winner"))
-    winner_token = _google_login(client).json()["access_token"]
+    winner_token = _signup(client, phone="9000000001", email="winner@example.com").json()["access_token"]
     winner_user = db_session.query(models.User).filter(models.User.email == "winner@example.com").first()
 
-    mock_google(_google_claims(email="loser@example.com", sub="google-sub-loser", name="Loser"))
-    loser_token = _google_login(client).json()["access_token"]
+    loser_token = _signup(client, phone="9000000002", email="loser@example.com").json()["access_token"]
     loser_user = db_session.query(models.User).filter(models.User.email == "loser@example.com").first()
 
     reg1 = client.post(
@@ -243,9 +286,8 @@ def test_ending_tournament_populates_athlete_career_stats(client, db_session, mo
     assert winner_athlete.matches_played == 1
 
 
-def test_my_athlete_profile_breaks_stats_down_by_category(client, db_session, mock_google):
-    mock_google(_google_claims(email="category_player@example.com", sub="google-sub-category", name="Category Player"))
-    player_token = _google_login(client).json()["access_token"]
+def test_my_athlete_profile_breaks_stats_down_by_category(client, db_session, mock_google_verify):
+    player_token = _signup(client, email="category_player@example.com").json()["access_token"]
     player_user = db_session.query(models.User).filter(models.User.email == "category_player@example.com").first()
     organiser_token = _organiser_token(db_session)
 
@@ -313,8 +355,8 @@ def test_my_athlete_profile_breaks_stats_down_by_category(client, db_session, mo
     assert history_categories["FRIENDLY Open"] == "FRIENDLY"
 
 
-def test_my_athlete_profile_returns_stats_for_signed_in_player(client, db_session, mock_google):
-    token = _google_login(client).json()["access_token"]
+def test_my_athlete_profile_returns_stats_for_signed_in_player(client, db_session, mock_google_verify):
+    token = _signup(client).json()["access_token"]
     resp = client.get(f"{API}/athletes/me", headers={"Authorization": f"Bearer {token}"})
     assert resp.status_code == 200, resp.text
     body = resp.json()
@@ -329,10 +371,11 @@ def test_my_athlete_profile_rejects_non_player_token(client, db_session):
     assert resp.status_code == 403
 
 
-def test_organiser_roster_shows_self_registered_player(client, db_session, mock_google):
+def test_organiser_roster_shows_self_registered_player(client, db_session, mock_google_verify):
     tournament = _create_tournament(db_session)
-    mock_google(_google_claims(email="rostered@example.com", sub="google-sub-rostered", name="Rostered Player"))
-    player_token = _google_login(client).json()["access_token"]
+    player_token = _signup(
+        client, first_name="Rostered", last_name="Player", email="rostered@example.com"
+    ).json()["access_token"]
 
     self_register = client.post(
         f"{API}/tournaments/{tournament.id}/players/self-register",
@@ -348,3 +391,39 @@ def test_organiser_roster_shows_self_registered_player(client, db_session, mock_
     assert roster.status_code == 200
     names = [p["name"] for p in roster.json()]
     assert "Rostered Player" in names
+
+
+# =====================================================================
+# EMAIL CLAIM MIGRATION (existing prod players with a real phone + placeholder email)
+# =====================================================================
+def test_claim_email_updates_placeholder_email(client, db_session):
+    athlete = models.Athlete(name="Legacy Player", phone="+919000000099")
+    db_session.add(athlete)
+    db_session.flush()
+    user = models.User(
+        name="Legacy Player", phone="+919000000099", email="placeholder-1@example.com",
+        role=models.UserRole.PLAYER, athlete_id=athlete.id, is_approved=True,
+    )
+    db_session.add(user)
+    db_session.commit()
+
+    resp = client.post(f"{API}/auth/player/claim-email", json={"phone": "9000000099", "email": "real@example.com"})
+    assert resp.status_code == 200, resp.text
+
+    db_session.refresh(user)
+    assert user.email == "real@example.com"
+
+
+def test_claim_email_rejects_unknown_phone(client, db_session):
+    resp = client.post(f"{API}/auth/player/claim-email", json={"phone": "9111111111", "email": "real@example.com"})
+    assert resp.status_code == 404
+
+
+def test_claim_email_rejects_email_already_taken(client, db_session):
+    other = models.User(name="Other", email="taken@example.com", role=models.UserRole.PLAYER, is_approved=True)
+    legacy = models.User(name="Legacy", phone="+919000000088", email="placeholder-2@example.com", role=models.UserRole.PLAYER, is_approved=True)
+    db_session.add_all([other, legacy])
+    db_session.commit()
+
+    resp = client.post(f"{API}/auth/player/claim-email", json={"phone": "9000000088", "email": "taken@example.com"})
+    assert resp.status_code == 409
