@@ -67,5 +67,14 @@ export const router = createBrowserRouter([
       },
     ],
   },
+  {
+    element: <ProtectedRoute allow="ORGANISER" />,
+    children: [
+      {
+        element: <OperatorShell />,
+        children: [{ path: '/organiser/:id/operate', element: suspended(<OperatorMatchesPage />) }],
+      },
+    ],
+  },
   { path: '*', element: <Navigate to="/" replace /> },
 ])

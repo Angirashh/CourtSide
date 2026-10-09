@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional, List
 from pydantic import BaseModel, Field, ConfigDict
-from app.db.models import MatchStage, MatchStatus
+from app.db.models import MatchStage, MatchStatus, UserRole
 
 
 class GameScore(BaseModel):
@@ -51,5 +51,6 @@ class MatchResponse(MatchBase):
     is_bye: bool
     is_walkover: bool = False
     scores: Optional[List[dict]] = None
+    operator_role: Optional[UserRole] = None
 
     model_config = ConfigDict(from_attributes=True)

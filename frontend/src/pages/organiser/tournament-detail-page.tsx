@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { ArrowLeft, Check, Copy, Trophy } from 'lucide-react'
+import { ArrowLeft, Check, Copy, Play, Trophy } from 'lucide-react'
 import { useTournament } from '@/hooks/use-tournaments'
 import { FullPageSpinner } from '@/components/ui/spinner'
 import { EmptyState } from '@/components/ui/empty-state'
@@ -64,6 +64,10 @@ export function TournamentDetailPage() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2.5">
+          <Link to={`/organiser/${tournament.id}/operate`} className="inline-flex h-10 items-center gap-2 rounded-lg bg-ember-500 px-4 text-sm font-bold text-navy-950 shadow-sm transition-colors hover:bg-ember-400">
+            <Play className="size-4" />
+            Operate tournament
+          </Link>
           {(tournament.status === 'DRAFT' || tournament.status === 'SCHEDULING') && realPlayers.length >= 2 && (
             <ScheduleDialog
               tournamentId={tournament.id}
