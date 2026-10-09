@@ -76,6 +76,7 @@ export interface Match {
   is_bye: boolean
   is_walkover: boolean
   scores: { p1: number; p2: number }[] | null
+  operator_role: UserRole | null
 }
 
 export interface Tournament {

@@ -35,6 +35,11 @@ export function OperatorShell() {
           <LogOut className="size-4" />
         </button>
       </header>
+      {user?.role === 'ORGANISER' && (
+        <div className="border-b border-ember-200 bg-ember-100 px-4 py-2 text-center text-xs font-semibold text-ember-600">
+          Operating as organiser.
+        </div>
+      )}
       <main className="mx-auto max-w-3xl px-4 py-5 pb-10 sm:px-6">
         <Outlet />
       </main>

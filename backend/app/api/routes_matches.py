@@ -75,7 +75,7 @@ def start_match(
     current_user: CurrentUser = Depends(require_operator_or_organiser),
     db: Session = Depends(get_db),
 ):
-    """Court operator endpoint: marks a match as underway on its assigned court."""
+    """Marks a match as underway on its assigned court."""
     match = db.query(models.Match).filter(models.Match.id == match_id).first()
     if not match:
         raise HTTPException(status_code=404, detail="Match not found")
@@ -139,6 +139,11 @@ def submit_match_score(
             status_code=400,
             detail="The scores don't match the selected winner: the winner must win more sets than the opponent."
         )
+
+    # Direct result entry is supported by the shared operator workspace, so record
+    # the scorer when the match was not started through the start endpoint.
+    if match.operator_id is None:
+        match.operator_id = current_user.id
 
     finalize_match_result(
         match,
