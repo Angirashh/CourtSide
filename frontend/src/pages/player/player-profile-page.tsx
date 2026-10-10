@@ -17,8 +17,9 @@ import { usePublicTournaments } from '@/hooks/use-public'
 import { useAuthStore } from '@/stores/auth-store'
 import { extractErrorMessage } from '@/lib/api/client'
 import { categoryMeta } from '@/lib/tournament-category'
+import { formatMeta } from '@/lib/tournament-format'
 import { cn, formatPlainDate } from '@/lib/utils'
-import type { AthleteTournamentHistoryEntry, PublicTournamentSummary } from '@/types/api'
+import type { AthleteTournamentHistoryEntry, PublicTournamentSummary, TournamentFormat } from '@/types/api'
 
 const PHONE_RE = /^[6-9]\d{9}$/
 
@@ -233,6 +234,7 @@ function CareerStatsSection({ stats, history }: { stats: CareerStats; history: A
         </div>
       </Card>
 
+      {history.length > 0 && <FormatBreakdownChart history={history} />}
       {history.length > 0 && <TournamentHistoryChart history={history} />}
     </div>
   )
@@ -321,6 +323,46 @@ function TournamentHistoryChart({ history }: { history: AthleteTournamentHistory
             </div>
           </div>
         ))}
+      </Card>
+    </section>
+  )
+}
+
+function FormatBreakdownChart({ history }: { history: AthleteTournamentHistoryEntry[] }) {
+  const total = history.length
+  const counts = history.reduce<Partial<Record<TournamentFormat, number>>>((acc, h) => {
+    acc[h.format] = (acc[h.format] ?? 0) + 1
+    return acc
+  }, {})
+  const formats = (Object.keys(counts) as TournamentFormat[]).sort((a, b) => (counts[b] ?? 0) - (counts[a] ?? 0))
+
+  return (
+    <section>
+      <h2 className="mb-3 font-display text-lg font-medium text-court-cream">Formats played</h2>
+      <Card className="divide-y divide-white/10 p-0">
+        {formats.map((format) => {
+          const meta = formatMeta[format]
+          const count = counts[format] ?? 0
+          const percentage = Math.round((count / total) * 100)
+          const Icon = meta.icon
+          return (
+            <div key={format} className="flex items-center gap-3 p-4">
+              <div className="flex w-28 shrink-0 items-center gap-2 sm:w-44">
+                <Icon className="size-4 shrink-0 text-court-cream/55" />
+                <p className="line-clamp-2 text-sm font-medium leading-tight text-court-cream">{meta.label}</p>
+              </div>
+              <div className="h-2 flex-1 overflow-hidden rounded-full bg-white/10">
+                <div
+                  className={cn('h-full rounded-full transition-[width] duration-500', meta.barClassName)}
+                  style={{ width: `${percentage}%` }}
+                />
+              </div>
+              <div className="w-20 shrink-0 text-right text-xs font-semibold text-court-cream/70">
+                {percentage}% <span className="text-court-cream/45">({count})</span>
+              </div>
+            </div>
+          )
+        })}
       </Card>
     </section>
   )
