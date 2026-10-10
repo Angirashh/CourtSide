@@ -121,9 +121,10 @@ function LoggedInView() {
     (t) => (t.status === 'DRAFT' || t.status === 'SCHEDULING') && !registeredIds.has(t.id)
   )
   const upcomingRegistrations = (registrations ?? []).filter((r) => r.tournament_status !== 'COMPLETED')
-  const completedHistory = (athleteProfile?.history ?? []).filter(
-    (h) => h.final_placement !== null || h.points_earned > 0
-  )
+  // tournament_status is the source of truth for "did this actually finish" -- final_placement/
+  // points_earned are both legitimately null/0 for formats with no podium (e.g. TEAM_FRIENDLY)
+  // or tournaments completed before points were being tracked, so they can't be used as a proxy.
+  const completedHistory = (athleteProfile?.history ?? []).filter((h) => h.tournament_status === 'COMPLETED')
   const categoriesPresent = (athleteProfile?.stats_by_category ?? []).filter((s) => s.tournaments_played > 0)
 
   return (
