@@ -114,6 +114,27 @@ def ensure_player_role_enum_value(engine: Engine) -> None:
         conn.execute(text("ALTER TYPE userrole ADD VALUE IF NOT EXISTS 'PLAYER'"))
 
 
+def ensure_normalized_phone_numbers(engine: Engine) -> None:
+    """
+    `normalize_indian_phone()` (app/core/phone.py) canonicalizes every phone number written
+    through the API to `+91XXXXXXXXXX`, but that normalizer was added after production already
+    had athletes/users rows seeded with bare, unprefixed 10-digit numbers. Those legacy rows
+    silently fail every `Athlete.phone == normalized_phone` lookup (e.g. in
+    _claim_or_create_athlete, routes_player_auth.py), which should backfill an organiser-seeded
+    athlete's email on their first Google sign-in but instead creates a duplicate Athlete row
+    because the phone comparison never matches. Idempotent: only rows that still look like a
+    bare 10-digit number (`^[6-9]\\d{9}$`) get touched; already-normalized `+91...` rows don't
+    match the pattern and are left alone.
+    """
+    if engine.dialect.name != "postgresql":
+        return
+    with engine.begin() as conn:
+        for table in ("athletes", "users"):
+            conn.execute(text(
+                f"UPDATE {table} SET phone = '+91' || phone WHERE phone ~ '^[6-9][0-9]{{9}}$'"
+            ))
+
+
 def ensure_court_available_from_column(engine: Engine) -> None:
     """Same create_all limitation as above, for `available_from_minutes` on a `courts` table
     that predates per-court staggered availability."""
