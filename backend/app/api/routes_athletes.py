@@ -184,6 +184,7 @@ def _build_athlete_detail(athlete_id: str, db: Session) -> AthleteDetailResponse
             tournament_date=tourn.created_at,
             category=tourn.category,
             format=tourn.format,
+            tournament_status=tourn.status,
             seed=player.seed,
             final_placement=player.final_placement,
             points_earned=player.ranking_points_earned

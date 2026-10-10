@@ -3,7 +3,7 @@ from typing import Optional, List
 from pydantic import BaseModel, ConfigDict, Field, EmailStr, field_validator
 
 from app.core.phone import normalize_indian_phone
-from app.db.models import TournamentCategory, TournamentFormat
+from app.db.models import TournamentCategory, TournamentFormat, TournamentStatus
 
 
 class AthleteBase(BaseModel):
@@ -71,6 +71,7 @@ class AthleteTournamentHistory(BaseModel):
     tournament_date: datetime
     category: Optional[TournamentCategory] = None
     format: TournamentFormat
+    tournament_status: TournamentStatus
     seed: Optional[int] = None
     final_placement: Optional[int] = None
     points_earned: float
