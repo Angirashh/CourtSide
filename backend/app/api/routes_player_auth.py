@@ -2,6 +2,7 @@ from typing import List
 
 import jwt
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 
 from app.api.dependencies import CurrentUser, get_db, require_player
@@ -70,6 +71,21 @@ def _finalize_player_signup(db: Session, name: str, email: str, phone: str) -> t
     return user, claimed_existing
 
 
+def _finalize_player_signup_racesafe(db: Session, name: str, email: str, phone: str) -> tuple[models.User, bool]:
+    """Same as _finalize_player_signup, but tolerates losing a race to a concurrent request that
+    created the same account first (e.g. Google's sign-in callback firing twice, or a double
+    click) by logging in as whichever row won instead of raising a raw 500 on the unique
+    constraint."""
+    try:
+        return _finalize_player_signup(db, name, email, phone)
+    except IntegrityError:
+        db.rollback()
+        user = db.query(models.User).filter(models.User.email == email).first()
+        if not user:
+            raise
+        return user, True
+
+
 @router.post("/google", response_model=PlayerGoogleAuthResponse)
 def player_google_auth(payload: PlayerGoogleAuthRequest, db: Session = Depends(get_db)):
     """
@@ -102,7 +118,7 @@ def player_google_auth(payload: PlayerGoogleAuthRequest, db: Session = Depends(g
     name = profile.get("name", "") or email.split("@")[0]
     athlete = db.query(models.Athlete).filter(models.Athlete.email == email).first()
     if athlete and athlete.phone and not db.query(models.User).filter(models.User.phone == athlete.phone).first():
-        user, _claimed = _finalize_player_signup(db, name, email, athlete.phone)
+        user, _claimed = _finalize_player_signup_racesafe(db, name, email, athlete.phone)
         token = create_access_token({"sub": user.id, "role": user.role.value})
         return PlayerGoogleAuthResponse(
             account_exists=True,
@@ -152,7 +168,7 @@ def player_google_complete_signup(payload: PlayerGoogleSignupCompleteRequest, db
             claimed_existing_record=True,
         )
 
-    user, claimed_existing = _finalize_player_signup(db, name, email, payload.phone)
+    user, claimed_existing = _finalize_player_signup_racesafe(db, name, email, payload.phone)
     token = create_access_token({"sub": user.id, "role": user.role.value})
     return PlayerSignupResponse(
         access_token=token,
