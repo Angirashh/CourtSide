@@ -47,12 +47,37 @@ def _claim_or_create_athlete(db: Session, name: str, email: str, phone: str) -> 
     return athlete, False
 
 
+def _finalize_player_signup(db: Session, name: str, email: str, phone: str) -> tuple[models.User, bool]:
+    """Creates the PLAYER User row for a verified (email, phone) pair, claiming a matching
+    organiser-added Athlete if one exists. Caller must have already checked for conflicting
+    User rows on email/phone."""
+    first_name, _, last_name = name.partition(" ")
+    first_name = first_name or name
+    athlete, claimed_existing = _claim_or_create_athlete(db, name, email, phone)
+    user = models.User(
+        name=name,
+        first_name=first_name,
+        last_name=last_name or None,
+        email=email,
+        phone=phone,
+        role=models.UserRole.PLAYER,
+        athlete_id=athlete.id,
+        is_approved=True,
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user, claimed_existing
+
+
 @router.post("/google", response_model=PlayerGoogleAuthResponse)
 def player_google_auth(payload: PlayerGoogleAuthRequest, db: Session = Depends(get_db)):
     """
     Verifies a Google sign-in. Logs straight in if a PLAYER account already exists for this
-    Google email; otherwise hands back a short-lived signup_token so the client can collect a
-    phone number and finish creating the account via /google/complete-signup.
+    Google email, or if an organiser-added Athlete with this email already has a phone number on
+    file (so a returning player isn't asked to re-type something we already have). Otherwise hands
+    back a short-lived signup_token so the client can collect a phone number and finish creating
+    the account via /google/complete-signup.
     """
     profile = verify_google_id_token(payload.id_token)
     email = profile["email"]
@@ -72,6 +97,16 @@ def player_google_auth(payload: PlayerGoogleAuthRequest, db: Session = Depends(g
         return PlayerGoogleAuthResponse(
             account_exists=True,
             session=TokenResponse(access_token=token, role=existing.role, user=UserResponse.model_validate(existing)),
+        )
+
+    name = profile.get("name", "") or email.split("@")[0]
+    athlete = db.query(models.Athlete).filter(models.Athlete.email == email).first()
+    if athlete and athlete.phone and not db.query(models.User).filter(models.User.phone == athlete.phone).first():
+        user, _claimed = _finalize_player_signup(db, name, email, athlete.phone)
+        token = create_access_token({"sub": user.id, "role": user.role.value})
+        return PlayerGoogleAuthResponse(
+            account_exists=True,
+            session=TokenResponse(access_token=token, role=user.role, user=UserResponse.model_validate(user)),
         )
 
     signup_token = create_access_token(
@@ -99,26 +134,25 @@ def player_google_complete_signup(payload: PlayerGoogleSignupCompleteRequest, db
         raise HTTPException(
             status_code=409, detail="An account with this email already exists. Please sign in with Google instead."
         )
-    if db.query(models.User).filter(models.User.phone == payload.phone).first():
-        raise HTTPException(status_code=409, detail="An account with this phone number already exists.")
 
-    first_name, _, last_name = name.partition(" ")
-    first_name = first_name or name
-    athlete, claimed_existing = _claim_or_create_athlete(db, name, email, payload.phone)
-    user = models.User(
-        name=name,
-        first_name=first_name,
-        last_name=last_name or None,
-        email=email,
-        phone=payload.phone,
-        role=models.UserRole.PLAYER,
-        athlete_id=athlete.id,
-        is_approved=True,
-    )
-    db.add(user)
-    db.commit()
-    db.refresh(user)
+    phone_user = db.query(models.User).filter(models.User.phone == payload.phone).first()
+    if phone_user:
+        if phone_user.role != models.UserRole.PLAYER or phone_user.email:
+            raise HTTPException(status_code=409, detail="An account with this phone number already exists.")
+        # Phone-only PLAYER account (e.g. self-registered without an email) -- attach this
+        # verified Google identity to it instead of rejecting a returning player.
+        phone_user.email = email
+        db.commit()
+        db.refresh(phone_user)
+        token = create_access_token({"sub": phone_user.id, "role": phone_user.role.value})
+        return PlayerSignupResponse(
+            access_token=token,
+            role=phone_user.role,
+            user=UserResponse.model_validate(phone_user),
+            claimed_existing_record=True,
+        )
 
+    user, claimed_existing = _finalize_player_signup(db, name, email, payload.phone)
     token = create_access_token({"sub": user.id, "role": user.role.value})
     return PlayerSignupResponse(
         access_token=token,
