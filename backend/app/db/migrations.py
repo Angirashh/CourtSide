@@ -100,6 +100,20 @@ def ensure_team_friendly_enum_values(engine: Engine) -> None:
         conn.execute(text("ALTER TYPE matchstage ADD VALUE IF NOT EXISTS 'CROSSOVER'"))
 
 
+def ensure_player_role_enum_value(engine: Engine) -> None:
+    """
+    Same class of issue as ensure_team_friendly_enum_values above: PLAYER was added to the
+    UserRole enum after production's `userrole` type already existed (created back when only
+    ORGANISER/OPERATOR logged in), so every attempt to insert a User with role=PLAYER fails at
+    the database level with "invalid input value for enum userrole" -- a 500 on every player
+    Google signup, while organiser/operator accounts keep working fine.
+    """
+    if engine.dialect.name != "postgresql":
+        return
+    with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
+        conn.execute(text("ALTER TYPE userrole ADD VALUE IF NOT EXISTS 'PLAYER'"))
+
+
 def ensure_court_available_from_column(engine: Engine) -> None:
     """Same create_all limitation as above, for `available_from_minutes` on a `courts` table
     that predates per-court staggered availability."""
