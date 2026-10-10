@@ -304,6 +304,7 @@ export interface AthleteTournamentHistoryEntry {
   tournament_name: string
   tournament_date: string
   category: TournamentCategory | null
+  format: TournamentFormat
   seed: number | null
   final_placement: number | null
   points_earned: number
