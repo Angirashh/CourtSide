@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 
 import jwt
 from fastapi import APIRouter, Depends, HTTPException
@@ -46,6 +46,28 @@ def _claim_or_create_athlete(db: Session, name: str, email: str, phone: str) -> 
     db.add(athlete)
     db.flush()
     return athlete, False
+
+
+def _sync_athlete_contact(db: Session, user: models.User, *, email: Optional[str] = None, phone: Optional[str] = None) -> None:
+    """Keeps the linked Athlete row (the career-stats registry, separate from login) in sync
+    whenever a User's email/phone is set after the account already exists -- e.g. linking a
+    Google email onto a phone-only account, or /claim-email. Without this, _claim_or_create_athlete's
+    phone/email lookup on a later signup keeps missing this athlete and creates a duplicate.
+    Only fills in a field the athlete doesn't already have, and skips it if another Athlete
+    already owns that value."""
+    if not user.athlete_id:
+        return
+    athlete = db.query(models.Athlete).filter(models.Athlete.id == user.athlete_id).first()
+    if not athlete:
+        return
+    if email and not athlete.email and not db.query(models.Athlete).filter(
+        models.Athlete.email == email, models.Athlete.id != athlete.id
+    ).first():
+        athlete.email = email
+    if phone and not athlete.phone and not db.query(models.Athlete).filter(
+        models.Athlete.phone == phone, models.Athlete.id != athlete.id
+    ).first():
+        athlete.phone = phone
 
 
 def _finalize_player_signup(db: Session, name: str, email: str, phone: str) -> tuple[models.User, bool]:
@@ -158,6 +180,7 @@ def player_google_complete_signup(payload: PlayerGoogleSignupCompleteRequest, db
         # Phone-only PLAYER account (e.g. self-registered without an email) -- attach this
         # verified Google identity to it instead of rejecting a returning player.
         phone_user.email = email
+        _sync_athlete_contact(db, phone_user, email=email)
         db.commit()
         db.refresh(phone_user)
         token = create_access_token({"sub": phone_user.id, "role": phone_user.role.value})
@@ -197,6 +220,7 @@ def player_claim_email(payload: PlayerClaimEmailRequest, db: Session = Depends(g
         raise HTTPException(status_code=409, detail="This email is already associated with another account.")
 
     user.email = payload.email
+    _sync_athlete_contact(db, user, email=payload.email)
     db.commit()
     return PlayerClaimEmailResponse()
 
