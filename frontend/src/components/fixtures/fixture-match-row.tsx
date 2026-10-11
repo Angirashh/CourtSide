@@ -26,10 +26,8 @@ export function FixtureMatchRow({
   return (
     <div
       className={cn(
-        'rounded-2xl border border-white/[0.06] border-l-[3px] p-3',
-        isLive
-          ? 'border-l-[#ff5722] bg-[linear-gradient(rgba(255,87,34,0.06),rgba(255,87,34,0.06)),#121316]'
-          : 'border-l-white/[0.06] bg-[#121316]'
+        'rounded-2xl border border-white/[0.06] border-l-[3px] bg-[#100C0B] p-3',
+        isLive ? 'border-l-[#ff5722]' : 'border-l-white/[0.06]'
       )}
     >
       <div className="flex items-center justify-between gap-2">
