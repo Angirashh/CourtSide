@@ -560,9 +560,8 @@ function CourtQueuePanel({ queue }: { queue: PublicCourtQueue }) {
     <div
       className={cn(
         'rounded-2xl border border-white/[0.06] border-l-[3px] p-3 shadow-lg shadow-black/40 transition-all hover:-translate-y-0.5',
-        live
-          ? 'border-l-[#ff5722] bg-[linear-gradient(rgba(255,87,34,0.06),rgba(255,87,34,0.06)),#121316]'
-          : 'border-l-white/[0.06] bg-[#121316]'
+        'bg-[#100C0B]',
+        live ? 'border-l-[#ff5722]' : 'border-l-white/[0.06]'
       )}
     >
       <div className="flex items-center justify-between gap-2">
