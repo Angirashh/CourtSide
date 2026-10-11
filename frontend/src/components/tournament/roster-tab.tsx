@@ -212,6 +212,7 @@ function TeamFriendlyControls({ player, tournamentId }: { player: Player; tourna
         <button
           key={t}
           type="button"
+          aria-pressed={player.team === t}
           onClick={() => setTeam(t)}
           className={cn(
             'rounded-full px-2 py-1 text-[11px] font-bold transition-colors',

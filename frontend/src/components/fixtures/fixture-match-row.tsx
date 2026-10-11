@@ -1,46 +1,54 @@
 import { Check, Clock, MapPin, UserX } from 'lucide-react'
+import { MatchStatusBadge } from '@/components/ui/status-badge'
 import { VsBadge } from '@/components/ui/vs-badge'
 import { cn, formatTime, playerLabel } from '@/lib/utils'
-import type { Match, MatchStatus, Player } from '@/types/api'
-
-const matchStatusLabel: Record<MatchStatus, string> = {
-  SCHEDULED: 'Scheduled',
-  IN_PROGRESS: 'Live',
-  COMPLETED: 'Completed',
-}
+import type { Match, Player } from '@/types/api'
 
 export function FixtureMatchRow({
   match,
   playersById,
   courtName,
   index,
+  isNextUp,
 }: {
   match: Match
   playersById: Map<string, Player>
   courtName?: string
   index?: number
+  isNextUp?: boolean
 }) {
   const p1 = match.player1_id ? playersById.get(match.player1_id) : undefined
   const p2 = match.player2_id ? playersById.get(match.player2_id) : undefined
   const hasWinner = match.is_completed && !!match.winner_id
   const hasScores = !!match.scores?.length
+  const isLive = match.status === 'IN_PROGRESS'
 
   return (
     <div
       className={cn(
-        'rounded-2xl border border-l-[3px] bg-ink-card p-3.5',
-        hasWinner ? 'border-ember-300/60' : 'border-white/[0.08]',
-        'border-l-ember-500'
+        'rounded-2xl border border-white/[0.06] border-l-[3px] p-3',
+        isLive
+          ? 'border-l-[#ff5722] bg-[linear-gradient(rgba(255,87,34,0.06),rgba(255,87,34,0.06)),#121316]'
+          : 'border-l-white/[0.06] bg-[#121316]'
       )}
     >
-      <div className="flex items-center justify-between gap-2 font-sans text-[8px] font-bold uppercase tracking-wide text-court-cream/45">
-        {index !== undefined && <span>Match {String(index).padStart(2, '0')}</span>}
-        <span className={cn('ml-auto', match.status === 'IN_PROGRESS' && 'text-ember-500')}>
-          {matchStatusLabel[match.status]}
-        </span>
+      <div className="flex items-center justify-between gap-2">
+        {index !== undefined && (
+          <span className="font-sans text-[8px] font-bold uppercase tracking-wide text-court-cream/45">
+            Match {String(index).padStart(2, '0')}
+          </span>
+        )}
+        {match.status === 'SCHEDULED' && isNextUp ? (
+          <span className="ml-auto flex shrink-0 items-center gap-1.5 rounded-full bg-white/10 px-2 py-0.5 font-sans text-[8px] font-bold uppercase tracking-wide text-court-cream/80">
+            <span className="size-1.5 shrink-0 rounded-full bg-warning" />
+            Next up
+          </span>
+        ) : (
+          <MatchStatusBadge status={match.status} className="ml-auto px-1.5 py-0.5 text-[8px] tracking-wide" />
+        )}
       </div>
 
-      <div className="mt-2 flex items-center gap-1.5">
+      <div className="mt-1.5 flex items-center gap-1.5">
         <Name
           label={playerLabel(match.player1_id, playersById)}
           isWinner={hasWinner && match.winner_id === match.player1_id}
@@ -48,7 +56,7 @@ export function FixtureMatchRow({
           isPlaceholder={!!p1?.is_placeholder}
           team={p1?.team}
         />
-        <VsBadge className="mx-0" size="md" />
+        <VsBadge className="mx-0" size="md" live={isLive} />
         <Name
           label={match.is_bye ? 'Bye' : playerLabel(match.player2_id, playersById)}
           isWinner={hasWinner && !!match.player2_id && match.winner_id === match.player2_id}
@@ -60,7 +68,7 @@ export function FixtureMatchRow({
       </div>
 
       {(hasScores || match.is_walkover || (!match.is_completed && match.scheduled_start_time) || courtName) && (
-        <div className="mt-3 flex flex-wrap items-center justify-center gap-3 border-t border-white/[0.08] pt-2.5">
+        <div className="mt-2 flex flex-wrap items-center justify-center gap-2.5 border-t border-white/[0.05] pt-2">
           {courtName && (
             <span className="inline-flex items-center gap-1 font-sans text-[11px] font-medium text-court-cream/55">
               <MapPin className="size-3" />
@@ -112,12 +120,13 @@ function Name({
     <span className={cn('flex min-w-0 flex-1 flex-col gap-0.5', align === 'right' ? 'items-end text-right' : 'items-start text-left')}>
       <span
         className={cn(
-          'inline-flex min-w-0 items-center gap-1 font-display text-base leading-none',
+          'flex w-full min-w-0 items-center gap-1 font-display text-base leading-none',
+          align === 'right' ? 'justify-end' : 'justify-start',
           isPlaceholder ? 'italic text-court-cream/45' : isWinner ? 'text-ember-600' : 'text-court-cream'
         )}
       >
         {isWinner && align === 'left' && <Check className="size-3.5 shrink-0" strokeWidth={3} />}
-        <span className="truncate">{label}</span>
+        <span className="min-w-0 truncate">{label}</span>
         {isWithdrawn && <UserX className="size-3 shrink-0 text-danger" />}
         {isWinner && align === 'right' && <Check className="size-3.5 shrink-0" strokeWidth={3} />}
       </span>

@@ -57,7 +57,7 @@ function LoggedOutView() {
   return (
     <div className="py-6">
       <div className="mb-8 text-center">
-        <h1 className="font-display text-3xl font-medium text-court-cream">My profile</h1>
+        <h1 className="font-display text-3xl tracking-tight text-court-cream">My profile</h1>
         <p className="mt-1.5 text-sm text-court-cream/55">Sign in with Google to register for tournaments and track your fixtures.</p>
       </div>
 
@@ -65,9 +65,6 @@ function LoggedOutView() {
         {!pendingSignup ? (
           <div className="flex flex-col items-center gap-4">
             <GoogleSignInButton onCredential={handleCredential} disabled={googleAuth.isPending} />
-            <Link to="/players/claim-email" className="text-xs font-medium text-court-cream/45 underline">
-              Already played with us? Set up your email
-            </Link>
           </div>
         ) : (
           <div className="flex flex-col gap-4">
@@ -113,8 +110,8 @@ function LoggedInView() {
   const user = useAuthStore((s) => s.user)
   const clearSession = useAuthStore((s) => s.clearSession)
   const { data: registrations, isLoading } = useMyRegistrations(true)
-  const { data: tournaments } = usePublicTournaments()
-  const { data: athleteProfile } = useMyAthleteProfile(true)
+  const { data: tournaments, isLoading: tournamentsLoading } = usePublicTournaments()
+  const { data: athleteProfile, isLoading: athleteLoading } = useMyAthleteProfile(true)
 
   const registeredIds = new Set((registrations ?? []).map((r) => r.tournament_id))
   const joinable = (tournaments ?? []).filter(
@@ -131,7 +128,7 @@ function LoggedInView() {
     <div className="space-y-8 py-6">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h1 className="font-display text-3xl font-medium text-court-cream">Hey, {user?.name}</h1>
+          <h1 className="font-display text-3xl tracking-tight text-court-cream">Hey, {user?.name}</h1>
           <p className="mt-1 text-sm text-court-cream/55">{user?.email}</p>
         </div>
         <Button variant="outline" onClick={clearSession}>
@@ -139,7 +136,9 @@ function LoggedInView() {
         </Button>
       </div>
 
-      {athleteProfile && athleteProfile.tournaments_played > 0 && (
+      {athleteLoading ? (
+        <div className="h-44 rounded-2xl shimmer-bg" />
+      ) : athleteProfile && athleteProfile.tournaments_played > 0 ? (
         <Tabs defaultValue="ALL">
           <TabsList>
             <TabsTrigger value="ALL">All</TabsTrigger>
@@ -159,11 +158,18 @@ function LoggedInView() {
             </TabsContent>
           ))}
         </Tabs>
+      ) : (
+        <EmptyState icon={Trophy} title="No stats yet" description="Play at least 1 tournament to get your stats." />
       )}
 
       <section>
-        <h2 className="mb-3 font-display text-lg font-medium text-court-cream">My registrations</h2>
-        {!isLoading && upcomingRegistrations.length === 0 ? (
+        <h2 className="mb-3 font-display text-lg text-court-cream">My registrations</h2>
+        {isLoading ? (
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="h-24 rounded-2xl shimmer-bg" />
+            <div className="h-24 rounded-2xl shimmer-bg" />
+          </div>
+        ) : upcomingRegistrations.length === 0 ? (
           <EmptyState icon={Trophy} title="No upcoming registrations" description="Join a tournament below to get started." />
         ) : (
           <div className="grid gap-3 sm:grid-cols-2">
@@ -171,7 +177,7 @@ function LoggedInView() {
               <Link key={r.player_id} to={`/tournaments/${r.tournament_id}`}>
                 <Card className="p-4 transition-shadow hover:shadow-md">
                   <div className="flex items-center justify-between gap-2">
-                    <p className="font-display text-base font-medium text-court-cream">{r.tournament_name}</p>
+                    <p className="font-display text-base text-court-cream">{r.tournament_name}</p>
                     <TournamentStatusBadge status={r.tournament_status} />
                   </div>
                   <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-court-cream/55">
@@ -195,8 +201,13 @@ function LoggedInView() {
       </section>
 
       <section>
-        <h2 className="mb-3 font-display text-lg font-medium text-court-cream">Tournaments you can join</h2>
-        {joinable.length === 0 ? (
+        <h2 className="mb-3 font-display text-lg text-court-cream">Tournaments you can join</h2>
+        {tournamentsLoading ? (
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="h-24 rounded-2xl shimmer-bg" />
+            <div className="h-24 rounded-2xl shimmer-bg" />
+          </div>
+        ) : joinable.length === 0 ? (
           <EmptyState icon={Trophy} title="Nothing open right now" description="Check back once a new tournament opens registration." />
         ) : (
           <div className="grid gap-3 sm:grid-cols-2">
@@ -244,7 +255,7 @@ function CareerStatsSection({ stats, history }: { stats: CareerStats; history: A
 function StatTile({ value, label }: { value: number | string; label: string }) {
   return (
     <Card className="p-3 text-center sm:p-4">
-      <p className="font-display text-2xl font-medium tracking-tight text-court-cream sm:text-3xl">{value}</p>
+      <p className="font-display text-2xl tracking-tight text-court-cream sm:text-3xl">{value}</p>
       <p className="mt-1 text-[11px] font-semibold text-court-cream/55 sm:text-xs">{label}</p>
     </Card>
   )
@@ -258,7 +269,7 @@ function WinRateDonut({ winRate }: { winRate: number }) {
   return (
     <div className="relative flex size-28 shrink-0 items-center justify-center">
       <svg width="112" height="112" viewBox="0 0 112 112" className="-rotate-90">
-        <circle cx="56" cy="56" r={radius} fill="none" stroke="var(--color-navy-100)" strokeWidth="11" />
+        <circle cx="56" cy="56" r={radius} fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="11" />
         <circle
           cx="56"
           cy="56"
@@ -273,7 +284,7 @@ function WinRateDonut({ winRate }: { winRate: number }) {
         />
       </svg>
       <div className="absolute flex flex-col items-center">
-        <span className="font-display text-2xl font-medium text-court-cream">{winRate}%</span>
+        <span className="font-display text-2xl text-court-cream">{winRate}%</span>
         <span className="text-[10px] font-semibold text-court-cream/55">win rate</span>
       </div>
     </div>
@@ -301,29 +312,39 @@ function TournamentHistoryChart({ history }: { history: AthleteTournamentHistory
 
   return (
     <section>
-      <h2 className="mb-3 font-display text-lg font-medium text-court-cream">Tournament history</h2>
+      <h2 className="mb-3 font-display text-lg text-court-cream">Tournament history</h2>
       <Card className="divide-y divide-white/10 p-0">
-        {history.map((h) => (
-          <div key={h.tournament_id} className="flex items-center gap-3 p-4">
-            <div className="w-24 shrink-0 sm:w-40">
-              <p className="line-clamp-2 text-sm font-medium leading-tight text-court-cream">{h.tournament_name}</p>
-              <p className="mt-0.5 text-xs text-court-cream/55">{formatHistoryDate(h.tournament_date)}</p>
-            </div>
-            <div className="h-2 flex-1 overflow-hidden rounded-full bg-white/10">
+        {history.map((h) => {
+          const pct = Math.round((h.points_earned / maxPoints) * 100)
+          return (
+            <div key={h.tournament_id} className="flex items-center gap-3 p-4">
+              <div className="w-24 shrink-0 sm:w-40">
+                <p className="line-clamp-2 text-sm font-medium leading-tight text-court-cream">{h.tournament_name}</p>
+                <p className="mt-0.5 text-xs text-court-cream/55">{formatHistoryDate(h.tournament_date)}</p>
+              </div>
               <div
-                className="h-full rounded-full bg-ember-500 transition-[width] duration-500"
-                style={{ width: `${(h.points_earned / maxPoints) * 100}%` }}
-              />
+                className="h-2 flex-1 overflow-hidden rounded-full bg-white/10"
+                role="progressbar"
+                aria-valuenow={pct}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-label={`${h.tournament_name}: ${h.points_earned} points`}
+              >
+                <div
+                  className="h-full w-full origin-left rounded-full bg-ember-500 transition-transform duration-500"
+                  style={{ transform: `scaleX(${pct / 100})` }}
+                />
+              </div>
+              <div className="flex w-16 shrink-0 items-center justify-end gap-1.5 text-xs font-semibold text-court-cream/70">
+                {h.final_placement === 1 && <Trophy className="size-3.5 text-ember-500" />}
+                {h.final_placement !== null && h.final_placement > 1 && h.final_placement <= 3 && (
+                  <Medal className="size-3.5 text-court-cream/45" />
+                )}
+                {h.points_earned} pts
+              </div>
             </div>
-            <div className="flex w-16 shrink-0 items-center justify-end gap-1.5 text-xs font-semibold text-court-cream/70">
-              {h.final_placement === 1 && <Trophy className="size-3.5 text-ember-500" />}
-              {h.final_placement !== null && h.final_placement > 1 && h.final_placement <= 3 && (
-                <Medal className="size-3.5 text-court-cream/45" />
-              )}
-              {h.points_earned} pts
-            </div>
-          </div>
-        ))}
+          )
+        })}
       </Card>
     </section>
   )
@@ -339,7 +360,7 @@ function FormatBreakdownChart({ history }: { history: AthleteTournamentHistoryEn
 
   return (
     <section>
-      <h2 className="mb-3 font-display text-lg font-medium text-court-cream">Formats played</h2>
+      <h2 className="mb-3 font-display text-lg text-court-cream">Formats played</h2>
       <Card className="divide-y divide-white/10 p-0">
         {formats.map((format) => {
           const meta = formatMeta[format]
@@ -352,10 +373,17 @@ function FormatBreakdownChart({ history }: { history: AthleteTournamentHistoryEn
                 <Icon className="size-4 shrink-0 text-court-cream/55" />
                 <p className="line-clamp-2 text-sm font-medium leading-tight text-court-cream">{meta.label}</p>
               </div>
-              <div className="h-2 flex-1 overflow-hidden rounded-full bg-white/10">
+              <div
+                className="h-2 flex-1 overflow-hidden rounded-full bg-white/10"
+                role="progressbar"
+                aria-valuenow={percentage}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-label={`${meta.label}: ${percentage}%`}
+              >
                 <div
-                  className={cn('h-full rounded-full transition-[width] duration-500', meta.barClassName)}
-                  style={{ width: `${percentage}%` }}
+                  className={cn('h-full w-full origin-left rounded-full transition-transform duration-500', meta.barClassName)}
+                  style={{ transform: `scaleX(${percentage / 100})` }}
                 />
               </div>
               <div className="w-20 shrink-0 text-right text-xs font-semibold text-court-cream/70">
@@ -374,7 +402,7 @@ function JoinableTournamentCard({ tournament }: { tournament: PublicTournamentSu
 
   return (
     <Card className="p-4">
-      <p className="font-display text-base font-medium text-court-cream">{tournament.name}</p>
+      <p className="font-display text-base text-court-cream">{tournament.name}</p>
       <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-court-cream/55">
         <span className="flex items-center gap-1.5">
           <MapPin className="size-3.5" /> {tournament.venue ?? 'Venue TBD'}

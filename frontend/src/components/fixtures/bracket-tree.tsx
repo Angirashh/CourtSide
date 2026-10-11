@@ -155,7 +155,7 @@ export function BracketTree({
           <div className="flex size-9 items-center justify-center rounded-full bg-ember-500 text-ink">
             <Trophy className="size-4" />
           </div>
-          <p className="font-display text-lg font-medium text-court-cream">
+          <p className="font-display text-lg text-court-cream">
             {playerLabel(champion.winner_id, playersById)} <span className="text-court-cream/55 text-sm font-sans">wins the title</span>
           </p>
         </motion.div>

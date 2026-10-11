@@ -42,7 +42,7 @@ export function CourtBookingsSection({
           <CalendarClock className="size-4" />
         </div>
         <div>
-          <h2 className="font-display text-base font-medium leading-none text-court-cream">Court bookings</h2>
+          <h2 className="font-display text-base leading-none text-court-cream">Court bookings</h2>
           <p className="mt-1 text-xs text-court-cream/45">When each court needs to be booked, and what it costs.</p>
         </div>
       </div>

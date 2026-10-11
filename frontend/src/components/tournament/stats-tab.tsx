@@ -97,7 +97,7 @@ function StatTile({
           <Icon className="size-4" />
         </div>
         <div className="min-w-0">
-          <p className={cn('truncate font-display text-xl font-medium leading-none', accent ? 'text-ember-600' : 'text-court-cream')}>{value}</p>
+          <p className={cn('truncate font-display text-xl leading-none', accent ? 'text-ember-600' : 'text-court-cream')}>{value}</p>
           <p className="mt-0.5 text-[11px] font-semibold uppercase tracking-wide text-court-cream/45">{label}</p>
         </div>
       </div>

@@ -15,12 +15,6 @@ export function useCompleteSignup() {
   })
 }
 
-export function useClaimEmail() {
-  return useMutation({
-    mutationFn: ({ phone, email }: { phone: string; email: string }) => playerAuthApi.claimEmail(phone, email),
-  })
-}
-
 export const myRegistrationsKeys = {
   list: ['player', 'registrations'] as const,
 }

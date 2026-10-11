@@ -78,6 +78,15 @@ class User(Base):
     (see OperatorAssignment).
     """
     __tablename__ = "users"
+    __table_args__ = (
+        # Unique per ROLE rather than globally -- lets the same person hold an ORGANISER
+        # account and a separate PLAYER account on the same email/phone (e.g. an organiser who
+        # also wants to play), while still preventing two accounts of the *same* role from
+        # colliding on contact info. See ensure_user_contact_unique_per_role in migrations.py
+        # for the matching index rename on already-deployed databases.
+        Index("ix_users_email_role", "email", "role", unique=True),
+        Index("ix_users_phone_role", "phone", "role", unique=True),
+    )
 
     id = Column(String, primary_key=True, default=lambda: f"USR_{uuid.uuid4().hex[:8]}")
     name = Column(String, nullable=False)
@@ -85,8 +94,8 @@ class User(Base):
     # "{first_name} {last_name}" so ORGANISER/OPERATOR code that only ever reads `name` still works.
     first_name = Column(String, nullable=True)
     last_name = Column(String, nullable=True)
-    email = Column(String, unique=True, index=True, nullable=True)
-    phone = Column(String, unique=True, index=True, nullable=True)
+    email = Column(String, index=True, nullable=True)
+    phone = Column(String, index=True, nullable=True)
     role = Column(Enum(UserRole), nullable=False)
 
     # Only set for ORGANISER accounts; operators log in via OperatorAssignment.pin_hash instead.

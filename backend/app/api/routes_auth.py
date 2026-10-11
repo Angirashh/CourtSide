@@ -25,9 +25,15 @@ from app.schemas.auth import (
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
 
-def _find_user_by_identifier(identifier: str, db: Session) -> models.User:
+def _find_user_by_identifier(identifier: str, role: models.UserRole, db: Session) -> models.User:
+    """
+    Scoped to a single role: email/phone are now unique per role rather than globally (an
+    organiser can also hold a separate PLAYER account on the same email), so an unscoped
+    lookup could non-deterministically return the wrong one of two same-email rows instead of
+    the ORGANISER/OPERATOR row the caller actually wants.
+    """
     return db.query(models.User).filter(
-        or_(models.User.email == identifier, models.User.phone == identifier)
+        or_(models.User.email == identifier, models.User.phone == identifier), models.User.role == role
     ).first()
 
 
@@ -43,11 +49,15 @@ def organiser_signup(payload: OrganiserSignup, db: Session = Depends(get_db)):
     """
     existing = None
     if payload.email:
-        existing = db.query(models.User).filter(models.User.email == payload.email).first()
+        existing = db.query(models.User).filter(
+            models.User.email == payload.email, models.User.role == models.UserRole.ORGANISER
+        ).first()
     if not existing and payload.phone:
-        existing = db.query(models.User).filter(models.User.phone == payload.phone).first()
+        existing = db.query(models.User).filter(
+            models.User.phone == payload.phone, models.User.role == models.UserRole.ORGANISER
+        ).first()
     if existing:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="An account with this email/phone already exists.")
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="An organiser account with this email/phone already exists.")
 
     user = models.User(
         name=payload.name,
@@ -65,8 +75,8 @@ def organiser_signup(payload: OrganiserSignup, db: Session = Depends(get_db)):
 
 @router.post("/organiser/login", response_model=TokenResponse)
 def organiser_login(payload: OrganiserLogin, db: Session = Depends(get_db)):
-    user = _find_user_by_identifier(payload.identifier, db)
-    if not user or user.role != models.UserRole.ORGANISER or not user.pin_hash or not verify_pin(payload.pin, user.pin_hash):
+    user = _find_user_by_identifier(payload.identifier, models.UserRole.ORGANISER, db)
+    if not user or not user.pin_hash or not verify_pin(payload.pin, user.pin_hash):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials.")
     if not user.is_approved:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Your account is pending approval from the tournament admin.")
@@ -153,12 +163,13 @@ def invite_operator(
 
     operator = None
     if payload.email:
-        operator = db.query(models.User).filter(models.User.email == payload.email).first()
+        operator = db.query(models.User).filter(
+            models.User.email == payload.email, models.User.role == models.UserRole.OPERATOR
+        ).first()
     if not operator and payload.phone:
-        operator = db.query(models.User).filter(models.User.phone == payload.phone).first()
-
-    if operator and operator.role != models.UserRole.OPERATOR:
-        raise HTTPException(status_code=400, detail="This identifier already belongs to an organiser account.")
+        operator = db.query(models.User).filter(
+            models.User.phone == payload.phone, models.User.role == models.UserRole.OPERATOR
+        ).first()
 
     if not operator:
         operator = models.User(
@@ -347,8 +358,8 @@ def add_co_organiser(
         raise HTTPException(status_code=404, detail="Tournament not found")
     ensure_tournament_access(tournament, current_user, db)
 
-    target = _find_user_by_identifier(payload.identifier, db)
-    if not target or target.role != models.UserRole.ORGANISER:
+    target = _find_user_by_identifier(payload.identifier, models.UserRole.ORGANISER, db)
+    if not target:
         raise HTTPException(status_code=404, detail="No organiser account found with that email/phone.")
     if not target.is_approved:
         raise HTTPException(status_code=400, detail=f"{target.name}'s organiser account is still pending approval.")
@@ -400,8 +411,8 @@ def remove_co_organiser(
 
 @router.post("/operator/login", response_model=TokenResponse)
 def operator_login(payload: OperatorLogin, db: Session = Depends(get_db)):
-    operator = _find_user_by_identifier(payload.identifier, db)
-    if not operator or operator.role != models.UserRole.OPERATOR:
+    operator = _find_user_by_identifier(payload.identifier, models.UserRole.OPERATOR, db)
+    if not operator:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials.")
 
     assignment = db.query(models.OperatorAssignment).filter(

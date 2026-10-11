@@ -161,7 +161,7 @@ function ScoreStepper({ label, value, onChange }: { label: string; value: number
           value={value}
           onFocus={(e) => e.target.select()}
           onChange={(e) => onChange(Number(e.target.value))}
-          className="h-12 w-full min-w-0 rounded-lg border border-white/20 bg-ink-card text-center font-display text-2xl font-medium text-court-cream focus:border-ember-500 focus:outline-none"
+          className="h-12 w-full min-w-0 rounded-lg border border-white/20 bg-ink-card text-center font-display text-2xl text-court-cream focus:border-ember-500 focus:outline-none"
           aria-label={`${label} score`}
         />
         <button

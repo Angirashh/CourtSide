@@ -161,7 +161,7 @@ function OrganiserSignupForm({ onDone }: { onDone: () => void }) {
           <Clock3 className="size-6" />
         </div>
         <div>
-          <p className="font-display text-lg font-medium text-cream-50">Request sent</p>
+          <p className="font-display text-lg text-cream-50">Request sent</p>
           <p className="mt-1 text-sm text-cream-200/70">
             Your account is pending approval from the tournament admin. You'll be able to log in once it's approved.
           </p>

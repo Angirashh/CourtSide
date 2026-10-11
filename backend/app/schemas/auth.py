@@ -172,27 +172,6 @@ class PlayerSignupResponse(TokenResponse):
     )
 
 
-class PlayerClaimEmailRequest(BaseModel):
-    """
-    Lets an existing PLAYER row that only has a placeholder/test email (true phone numbers were
-    seeded from production rosters before email collection existed) set their real email, by
-    proving they know the phone number already on the account. No OTP: this is a self-service
-    data correction, not an authentication event -- the account still only ever logs in via
-    Google, against whatever email is set here.
-    """
-    phone: str = Field(..., description="10-digit Indian mobile number already on your account.")
-    email: str = Field(..., description="Your real email -- must match the Google account you'll sign in with.")
-
-    @field_validator("phone")
-    @classmethod
-    def _normalize_phone(cls, v: str) -> str:
-        return normalize_indian_phone(v)
-
-
-class PlayerClaimEmailResponse(BaseModel):
-    message: str = "Your email has been saved. You can now sign in with Google using that email."
-
-
 class OperatorStatusResponse(BaseModel):
     """One invited operator's standing access plus their live on-court status."""
     operator_id: str

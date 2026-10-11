@@ -52,7 +52,7 @@ function TeamScoreBlock({
 }) {
   return (
     <div className={cn('flex flex-col gap-1', align === 'right' ? 'items-end text-right' : 'items-start text-left')}>
-      <span className={cn('font-display text-base font-semibold', highlighted ? 'text-ember-500' : 'text-court-cream')}>
+      <span className={cn('font-display text-base ', highlighted ? 'text-ember-500' : 'text-court-cream')}>
         {label}
       </span>
       <span className="text-xs text-court-cream/45">{row.playerCount} players</span>

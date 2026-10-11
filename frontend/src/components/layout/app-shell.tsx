@@ -46,7 +46,7 @@ export function AppShell() {
                   )
                 }
               >
-                <item.icon className="size-[18px]" />
+                <item.icon className="size-6" />
                 {item.label}
               </NavLink>
             ))}

@@ -93,7 +93,7 @@ function Footer() {
   ]
 
   return (
-    <footer className="bg-[#191919] px-4 py-10 text-cream-50 sm:px-6 lg:px-10">
+    <footer className="bg-ink-deep px-4 py-10 text-cream-50 sm:px-6 lg:px-10">
       <div className="flex flex-col justify-between gap-10 lg:flex-row lg:gap-8">
         <div className="max-w-sm">
           <div className="flex items-center gap-2.5">
@@ -150,7 +150,7 @@ function Sidebar() {
               )
             }
           >
-            <item.icon className="size-[18px]" />
+            <item.icon className="size-6" />
             {item.label}
           </NavLink>
         ))}
