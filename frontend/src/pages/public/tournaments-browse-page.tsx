@@ -42,7 +42,7 @@ export function TournamentsBrowsePage() {
     <div className="mx-auto max-w-[1400px] space-y-6">
       <div>
         <p className="font-mono text-[10px] uppercase tracking-[.2em] text-ember-600">Plan the season</p>
-        <h1 className="mt-2 font-display text-3xl font-medium tracking-tight text-court-cream sm:text-4xl">Tournament calendar</h1>
+        <h1 className="mt-2 font-display text-3xl tracking-tight text-court-cream sm:text-4xl">Tournament calendar</h1>
         <p className="mt-2 max-w-xl text-sm leading-6 text-court-cream/55">
           Everything on court, from first serve to final point. Find the one you care about.
         </p>

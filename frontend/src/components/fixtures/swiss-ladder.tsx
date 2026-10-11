@@ -8,10 +8,12 @@ export function SwissLadder({
   matches,
   playersById,
   courtsById,
+  nextUpIds,
 }: {
   matches: Match[]
   playersById: Map<string, Player>
   courtsById: Map<string, string>
+  nextUpIds: Set<string>
 }) {
   const rounds = useMemo(() => Array.from(new Set(matches.map((m) => m.round_num))).sort((a, b) => a - b), [matches])
   const roundComplete = useMemo(
@@ -48,17 +50,21 @@ export function SwissLadder({
         {rounds.map((round) => {
           const roundMatches = matches.filter((m) => m.round_num === round).sort(compareByScheduledTime)
           const priorCount = matches.filter((m) => m.round_num < round).length
+          const matchNumberById = new Map(roundMatches.map((m, i) => [m.id, priorCount + i + 1]))
           return (
-            <div key={round} className="grid gap-2 sm:grid-cols-2">
-              {roundMatches.map((match, mIdx) => (
-                <FixtureMatchRow
-                  key={match.id}
-                  match={match}
-                  playersById={playersById}
-                  courtName={match.court_id ? courtsById.get(match.court_id) : undefined}
-                  index={priorCount + mIdx + 1}
-                />
-              ))}
+            <div key={round} className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {[...roundMatches]
+                .sort((a, b) => Number(a.is_completed) - Number(b.is_completed))
+                .map((match) => (
+                  <FixtureMatchRow
+                    key={match.id}
+                    match={match}
+                    playersById={playersById}
+                    courtName={match.court_id ? courtsById.get(match.court_id) : undefined}
+                    index={matchNumberById.get(match.id)}
+                    isNextUp={nextUpIds.has(match.id)}
+                  />
+                ))}
             </div>
           )
         })}

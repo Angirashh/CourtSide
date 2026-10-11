@@ -45,6 +45,11 @@
      and dark panels on the tournament detail page (banner, standings headers, final panel). */
   --color-ink: #121212;
   --color-ink-card: #292929;
+  /* A touch darker than --color-ink -- used for the handful of dark panel sections (landing
+     page live/up-next strips) that want to read as slightly recessed below the page background
+     itself. Previously three bare `bg-[#161616]` literals; pulled into a token so they move
+     together with the rest of the ink ramp instead of drifting independently. */
+  --color-ink-deep: #161616;
   --color-court-cream: #f7f3eb;
   --color-signal: #ff6538;
 
@@ -288,7 +293,16 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .live-border {
+    .live-border,
+    .shimmer-bg,
+    .animate-fade-up,
+    .animate-fade-in,
+    .animate-scale-in,
+    .animate-pulse-glow,
+    .animate-cta-glow,
+    .animate-nudge,
+    .animate-pulse,
+    .animate-ping {
       animation: none;
     }
   }

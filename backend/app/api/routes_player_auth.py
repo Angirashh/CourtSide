@@ -9,8 +9,6 @@ from app.api.dependencies import CurrentUser, get_db, require_player
 from app.core.security import create_access_token, decode_access_token
 from app.db import models
 from app.schemas.auth import (
-    PlayerClaimEmailRequest,
-    PlayerClaimEmailResponse,
     PlayerGoogleAuthRequest,
     PlayerGoogleAuthResponse,
     PlayerGoogleSignupCompleteRequest,
@@ -51,7 +49,7 @@ def _claim_or_create_athlete(db: Session, name: str, email: str, phone: str) -> 
 def _sync_athlete_contact(db: Session, user: models.User, *, email: Optional[str] = None, phone: Optional[str] = None) -> None:
     """Keeps the linked Athlete row (the career-stats registry, separate from login) in sync
     whenever a User's email/phone is set after the account already exists -- e.g. linking a
-    Google email onto a phone-only account, or /claim-email. Without this, _claim_or_create_athlete's
+    Google email onto a phone-only account. Without this, _claim_or_create_athlete's
     phone/email lookup on a later signup keeps missing this athlete and creates a duplicate.
     Only fills in a field the athlete doesn't already have, and skips it if another Athlete
     already owns that value."""
@@ -102,7 +100,7 @@ def _finalize_player_signup_racesafe(db: Session, name: str, email: str, phone: 
         return _finalize_player_signup(db, name, email, phone)
     except IntegrityError:
         db.rollback()
-        user = db.query(models.User).filter(models.User.email == email).first()
+        user = db.query(models.User).filter(models.User.email == email, models.User.role == models.UserRole.PLAYER).first()
         if not user:
             raise
         return user, True
@@ -120,16 +118,10 @@ def player_google_auth(payload: PlayerGoogleAuthRequest, db: Session = Depends(g
     profile = verify_google_id_token(payload.id_token)
     email = profile["email"]
 
-    # `email` is unique across the whole `users` table, not just within PLAYER -- an
-    # ORGANISER/OPERATOR account on this email blocks a PLAYER account from ever using it too,
-    # so that has to be surfaced as a clear error rather than silently falling through to a
-    # signup that would later fail on the unique constraint.
-    existing = db.query(models.User).filter(models.User.email == email).first()
-    if existing and existing.role != models.UserRole.PLAYER:
-        raise HTTPException(
-            status_code=409,
-            detail=f"{email} is already used by a {existing.role.value.title()} account here. Sign up with a different email.",
-        )
+    # `email` is unique per ROLE, not across the whole `users` table -- an organiser can also
+    # hold a separate PLAYER account on the same email, so only an existing PLAYER row counts
+    # as "already signed up"; an ORGANISER/OPERATOR row on this email is irrelevant here.
+    existing = db.query(models.User).filter(models.User.email == email, models.User.role == models.UserRole.PLAYER).first()
     if existing:
         token = create_access_token({"sub": existing.id, "role": existing.role.value})
         return PlayerGoogleAuthResponse(
@@ -139,7 +131,9 @@ def player_google_auth(payload: PlayerGoogleAuthRequest, db: Session = Depends(g
 
     name = profile.get("name", "") or email.split("@")[0]
     athlete = db.query(models.Athlete).filter(models.Athlete.email == email).first()
-    if athlete and athlete.phone and not db.query(models.User).filter(models.User.phone == athlete.phone).first():
+    if athlete and athlete.phone and not db.query(models.User).filter(
+        models.User.phone == athlete.phone, models.User.role == models.UserRole.PLAYER
+    ).first():
         user, _claimed = _finalize_player_signup_racesafe(db, name, email, athlete.phone)
         token = create_access_token({"sub": user.id, "role": user.role.value})
         return PlayerGoogleAuthResponse(
@@ -168,14 +162,16 @@ def player_google_complete_signup(payload: PlayerGoogleSignupCompleteRequest, db
     email = claims["email"]
     name = claims.get("name") or email.split("@")[0]
 
-    if db.query(models.User).filter(models.User.email == email).first():
+    if db.query(models.User).filter(models.User.email == email, models.User.role == models.UserRole.PLAYER).first():
         raise HTTPException(
             status_code=409, detail="An account with this email already exists. Please sign in with Google instead."
         )
 
-    phone_user = db.query(models.User).filter(models.User.phone == payload.phone).first()
+    phone_user = db.query(models.User).filter(
+        models.User.phone == payload.phone, models.User.role == models.UserRole.PLAYER
+    ).first()
     if phone_user:
-        if phone_user.role != models.UserRole.PLAYER or phone_user.email:
+        if phone_user.email:
             raise HTTPException(status_code=409, detail="An account with this phone number already exists.")
         # Phone-only PLAYER account (e.g. self-registered without an email) -- attach this
         # verified Google identity to it instead of rejecting a returning player.
@@ -199,30 +195,6 @@ def player_google_complete_signup(payload: PlayerGoogleSignupCompleteRequest, db
         user=UserResponse.model_validate(user),
         claimed_existing_record=claimed_existing,
     )
-
-
-@router.post("/claim-email", response_model=PlayerClaimEmailResponse)
-def player_claim_email(payload: PlayerClaimEmailRequest, db: Session = Depends(get_db)):
-    """
-    One-time migration helper for players already in the system with a real phone number but a
-    placeholder test email: lets them set their real email using the phone number alone (see
-    PlayerClaimEmailRequest docstring for why no OTP is needed here). Shared, unauthenticated
-    link by design.
-    """
-    user = db.query(models.User).filter(
-        models.User.phone == payload.phone, models.User.role == models.UserRole.PLAYER
-    ).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="No player account found for this phone number.")
-
-    existing = db.query(models.User).filter(models.User.email == payload.email).first()
-    if existing and existing.id != user.id:
-        raise HTTPException(status_code=409, detail="This email is already associated with another account.")
-
-    user.email = payload.email
-    _sync_athlete_contact(db, user, email=payload.email)
-    db.commit()
-    return PlayerClaimEmailResponse()
 
 
 @router.get("/registrations", response_model=List[MyRegistrationResponse])

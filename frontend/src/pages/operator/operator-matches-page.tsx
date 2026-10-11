@@ -87,7 +87,7 @@ export function OperatorMatchesPage() {
   return (
     <div className="space-y-4 pb-24">
       <div>
-        <h1 className="font-display text-xl font-medium leading-tight text-court-cream sm:text-2xl">{tournament.name}</h1>
+        <h1 className="font-display text-xl leading-tight text-court-cream sm:text-2xl">{tournament.name}</h1>
         <p className="mt-0.5 text-sm text-court-cream/55">
           {live.length} on court · {upcoming.length} up next
         </p>
@@ -352,7 +352,7 @@ function PlayerLine({ label, isWinner, isWithdrawn, score }: { label: string; is
             <span
               key={i}
               className={cn(
-                'flex h-6 min-w-6 items-center justify-center rounded px-1 text-xs font-bold',
+                'flex h-6 min-w-6 items-center justify-center rounded px-1 font-display text-xs',
                 isWinner ? 'bg-ember-500 text-ink' : 'bg-white/10 text-court-cream/55'
               )}
             >

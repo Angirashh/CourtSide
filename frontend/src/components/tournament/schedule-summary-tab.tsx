@@ -107,7 +107,7 @@ function StatCard({
           <Icon className="size-4" />
         </div>
         <div className="min-w-0">
-          <p className={cn('font-display text-base font-medium leading-tight sm:truncate sm:text-lg sm:leading-none', accent ? 'text-ember-600' : 'text-court-cream')}>{value}</p>
+          <p className={cn('font-display text-base leading-tight sm:truncate sm:text-lg sm:leading-none', accent ? 'text-ember-600' : 'text-court-cream')}>{value}</p>
           <p className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-court-cream/45">{label}</p>
         </div>
       </div>
@@ -132,7 +132,7 @@ function CourtScheduleCard({
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 bg-navy-900 px-4 py-3">
         <div className="flex items-center gap-2 text-cream-50">
           <MapPin className="size-4 text-ember-400" />
-          <span className="font-display text-sm font-medium">{court.name}</span>
+          <span className="font-display text-sm ">{court.name}</span>
           <span className="text-[11px] font-medium text-cream-200/50">₹{court.hourly_rate}/hr</span>
         </div>
         {booking && (

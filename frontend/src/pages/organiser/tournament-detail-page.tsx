@@ -42,7 +42,7 @@ export function TournamentDetailPage() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
-            <h1 className="min-w-0 break-words font-display text-2xl font-medium text-court-cream sm:text-3xl">{tournament.name}</h1>
+            <h1 className="min-w-0 break-words font-display text-2xl tracking-tight text-court-cream sm:text-3xl">{tournament.name}</h1>
             <TournamentStatusBadge status={tournament.status} />
             <RegistrationStatusBadge status={tournament.registration_status} />
           </div>

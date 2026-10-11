@@ -35,6 +35,9 @@ export function FixtureVisualizer({
   }, [courts])
   const knockoutMatches = matches.filter((m) => m.stage === 'KNOCKOUT')
   const feederMatches = matches.filter((m) => m.stage !== 'KNOCKOUT')
+  // Computed over the full tournament-wide `matches` (not just the view currently on screen) --
+  // a court's truly-next match might sit in a different round/slide than the one being viewed.
+  const nextUpIds = useMemo(() => computeNextUpMatchIds(matches), [matches])
   // Jumps the page to the current round the moment this tab mounts (Tabs unmounts
   // inactive content, so this fires fresh every time someone opens Fixtures) — without
   // it, a player has to scroll past every earlier round to find today's matches.
@@ -89,6 +92,7 @@ export function FixtureVisualizer({
       const i = slots.findIndex((sm) => sm.some((m) => !m.is_completed))
       return i === -1 ? slots.length - 1 : i
     })()
+    const matchNumberById = new Map(slots.flat().map((m, i) => [m.id, i + 1]))
 
     return (
       <div>
@@ -106,7 +110,7 @@ export function FixtureVisualizer({
               <div className="flex flex-col items-center">
                 <div
                   className={cn(
-                    'flex size-8 shrink-0 items-center justify-center rounded-full border-2 font-display text-sm font-semibold',
+                    'flex size-8 shrink-0 items-center justify-center rounded-full border-2 font-display text-sm ',
                     isActive ? 'border-navy-900 bg-navy-900 text-cream-50' : 'border-white/20 bg-ink text-court-cream/45'
                   )}
                 >
@@ -116,7 +120,7 @@ export function FixtureVisualizer({
               </div>
               <div className="min-w-0 flex-1 pb-6">
                 <div className="mb-2 flex items-center justify-between pt-1">
-                  <h4 className="font-display text-sm font-semibold text-court-cream">
+                  <h4 className="font-display text-sm text-court-cream">
                     {firstTime ? `Round ${idx + 1}` : 'Unscheduled'}
                   </h4>
                   {commonTime && (
@@ -125,16 +129,19 @@ export function FixtureVisualizer({
                     </span>
                   )}
                 </div>
-                <div className="grid gap-2 sm:grid-cols-2">
-                  {slotMatches.map((m, mIdx) => (
-                    <FixtureMatchRow
-                      key={m.id}
-                      match={m}
-                      playersById={playersById}
-                      courtName={m.court_id ? courtsById.get(m.court_id) : undefined}
-                      index={slots.slice(0, idx).reduce((n, s) => n + s.length, 0) + mIdx + 1}
-                    />
-                  ))}
+                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                  {[...slotMatches]
+                    .sort((a, b) => Number(a.is_completed) - Number(b.is_completed))
+                    .map((m) => (
+                      <FixtureMatchRow
+                        key={m.id}
+                        match={m}
+                        playersById={playersById}
+                        courtName={m.court_id ? courtsById.get(m.court_id) : undefined}
+                        index={matchNumberById.get(m.id)}
+                        isNextUp={nextUpIds.has(m.id)}
+                      />
+                    ))}
                 </div>
               </div>
             </div>
@@ -175,11 +182,11 @@ export function FixtureVisualizer({
 
       {format === 'GROUP_KNOCKOUT' ? (
         <TabsContent value="groups">
-          <GroupStageView matches={feederMatches} playersById={playersById} courtsById={courtsById} />
+          <GroupStageView matches={feederMatches} playersById={playersById} courtsById={courtsById} nextUpIds={nextUpIds} />
         </TabsContent>
       ) : (
         <TabsContent value="swiss">
-          <SwissLadder matches={feederMatches} playersById={playersById} courtsById={courtsById} />
+          <SwissLadder matches={feederMatches} playersById={playersById} courtsById={courtsById} nextUpIds={nextUpIds} />
         </TabsContent>
       )}
 
@@ -198,6 +205,23 @@ export function FixtureVisualizer({
   )
 }
 
+// The single chronologically-next SCHEDULED match for each court, across the whole tournament --
+// the "Next up" badge in FixtureMatchRow is only shown for a match whose id is in this set.
+function computeNextUpMatchIds(matches: Match[]): Set<string> {
+  const byCourt = new Map<string, Match[]>()
+  for (const m of matches) {
+    if (!m.court_id || m.status !== 'SCHEDULED') continue
+    if (!byCourt.has(m.court_id)) byCourt.set(m.court_id, [])
+    byCourt.get(m.court_id)!.push(m)
+  }
+  const ids = new Set<string>()
+  for (const courtMatches of byCourt.values()) {
+    const next = [...courtMatches].sort(compareByScheduledTime)[0]
+    if (next) ids.add(next.id)
+  }
+  return ids
+}
+
 // The round a group should open on: the first one that isn't fully played yet, or its last
 // round if the group is done — so picking a group doesn't dump you back at round 1 every time.
 function currentRoundOf(groupMatches: Match[]): number {
@@ -210,10 +234,12 @@ function GroupStageView({
   matches,
   playersById,
   courtsById,
+  nextUpIds,
 }: {
   matches: Match[]
   playersById: Map<string, Player>
   courtsById: Map<string, string>
+  nextUpIds: Set<string>
 }) {
   const groups = useMemo(() => groupMatchesByGroupId(matches), [matches])
   const groupIds = useMemo(() => Array.from(groups.keys()).sort(), [groups])
@@ -273,14 +299,17 @@ function GroupStageView({
             </button>
           ))}
         </div>
-        <div className="grid gap-2 sm:grid-cols-2">
-          {roundMatches.map((m) => (
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          {[...roundMatches]
+            .sort((a, b) => Number(a.is_completed) - Number(b.is_completed))
+            .map((m) => (
             <FixtureMatchRow
               key={m.id}
               match={m}
               playersById={playersById}
               courtName={m.court_id ? courtsById.get(m.court_id) : undefined}
               index={matchNumberById.get(m.id)}
+              isNextUp={nextUpIds.has(m.id)}
             />
           ))}
         </div>

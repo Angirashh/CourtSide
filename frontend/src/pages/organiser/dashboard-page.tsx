@@ -16,7 +16,7 @@ export function DashboardPage() {
     <div className="space-y-7">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="font-display text-2xl font-medium text-court-cream sm:text-3xl">Your tournaments</h1>
+          <h1 className="font-display text-2xl tracking-tight text-court-cream sm:text-3xl">Your tournaments</h1>
           <p className="mt-1 text-sm text-court-cream/55">Every bracket, every route, one place to run it from.</p>
         </div>
         <Button asChild size="lg">
@@ -75,7 +75,7 @@ function TournamentCard({ tournament, index }: { tournament: Tournament; index: 
               <TournamentStatusBadge status={tournament.status} />
             </div>
             <div>
-              <h3 className="font-display text-lg font-medium leading-snug text-court-cream group-hover:text-ember-600 transition-colors">
+              <h3 className="font-display text-lg leading-snug text-court-cream group-hover:text-ember-600 transition-colors">
                 {tournament.name}
               </h3>
               <p className="mt-0.5 text-xs font-semibold uppercase tracking-wide text-court-cream/45">

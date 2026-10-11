@@ -190,3 +190,36 @@ def ensure_tournament_registration_status_column(engine: Engine) -> None:
                 "UPDATE tournaments SET registration_status = CASE WHEN registration_open "
                 "THEN 'OPEN' ELSE 'NOT_OPEN' END"
             ))
+
+
+def ensure_user_contact_unique_per_role(engine: Engine) -> None:
+    """
+    `users.email`/`users.phone` used to be unique across the WHOLE table, so one person could
+    never hold both an ORGANISER account and a PLAYER account on the same email/phone -- the
+    player sign-in flow had to hard-block with a 409 whenever a non-PLAYER row already owned
+    that contact info. Replaces the two single-column unique indexes with composite
+    (email, role) / (phone, role) ones, so uniqueness is now enforced per role instead of
+    globally: an organiser can also sign up as a player under the same email.
+
+    Deliberately an exception to this file's usual "only ever add, never drop" rule -- the old
+    single-column unique indexes have to go, because leaving them in place would keep blocking
+    every cross-role signup at the database level regardless of what the new composite indexes
+    allow. Idempotent either way: checks the new indexes' presence before doing anything.
+    """
+    inspector = inspect(engine)
+    if "users" not in inspector.get_table_names():
+        return
+
+    existing_indexes = {idx["name"] for idx in inspector.get_indexes("users")}
+    if "ix_users_email_role" in existing_indexes and "ix_users_phone_role" in existing_indexes:
+        return
+
+    with engine.begin() as conn:
+        conn.execute(text("DROP INDEX IF EXISTS ix_users_email"))
+        conn.execute(text("DROP INDEX IF EXISTS ix_users_phone"))
+        conn.execute(text(
+            "CREATE UNIQUE INDEX IF NOT EXISTS ix_users_email_role ON users (email, role)"
+        ))
+        conn.execute(text(
+            "CREATE UNIQUE INDEX IF NOT EXISTS ix_users_phone_role ON users (phone, role)"
+        ))

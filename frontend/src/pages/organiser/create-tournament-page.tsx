@@ -99,7 +99,7 @@ export function CreateTournamentPage() {
   return (
     <div className="mx-auto max-w-2xl space-y-7">
       <div>
-        <h1 className="font-display text-2xl font-medium text-court-cream sm:text-3xl">Create a tournament</h1>
+        <h1 className="font-display text-2xl tracking-tight text-court-cream sm:text-3xl">Create a tournament</h1>
         <p className="mt-1 text-sm text-court-cream/55">Three quick steps, then straight to your roster.</p>
       </div>
 

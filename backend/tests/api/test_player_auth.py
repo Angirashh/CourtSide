@@ -131,6 +131,33 @@ def test_google_auth_new_email_offers_signup_instead_of_logging_in(client, db_se
     assert body["email"] == "brand-new@example.com"
 
 
+def test_organiser_can_also_sign_up_as_player_on_same_email(client, db_session, mock_google_verify):
+    """email/phone are unique per role, not globally, so an existing ORGANISER account on this
+    email must not block a separate PLAYER signup on the same email."""
+    organiser = models.User(
+        name="Org", email="shared@example.com", role=models.UserRole.ORGANISER, pin_hash="x", is_approved=True
+    )
+    db_session.add(organiser)
+    db_session.commit()
+
+    resp = _google_start(client, email="shared@example.com")
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["account_exists"] is False
+    assert body["signup_token"]
+
+    complete = client.post(
+        f"{API}/auth/player/google/complete-signup",
+        json={"signup_token": body["signup_token"], "phone": "9123456781"},
+    )
+    assert complete.status_code == 200, complete.text
+    assert complete.json()["role"] == "PLAYER"
+
+    rows = db_session.query(models.User).filter(models.User.email == "shared@example.com").all()
+    assert len(rows) == 2
+    assert {r.role for r in rows} == {models.UserRole.ORGANISER, models.UserRole.PLAYER}
+
+
 def test_complete_signup_rejects_garbage_token(client, db_session, mock_google_verify):
     resp = client.post(
         f"{API}/auth/player/google/complete-signup", json={"signup_token": "not-a-real-token", "phone": "9123456780"}
@@ -391,39 +418,3 @@ def test_organiser_roster_shows_self_registered_player(client, db_session, mock_
     assert roster.status_code == 200
     names = [p["name"] for p in roster.json()]
     assert "Rostered Player" in names
-
-
-# =====================================================================
-# EMAIL CLAIM MIGRATION (existing prod players with a real phone + placeholder email)
-# =====================================================================
-def test_claim_email_updates_placeholder_email(client, db_session):
-    athlete = models.Athlete(name="Legacy Player", phone="+919000000099")
-    db_session.add(athlete)
-    db_session.flush()
-    user = models.User(
-        name="Legacy Player", phone="+919000000099", email="placeholder-1@example.com",
-        role=models.UserRole.PLAYER, athlete_id=athlete.id, is_approved=True,
-    )
-    db_session.add(user)
-    db_session.commit()
-
-    resp = client.post(f"{API}/auth/player/claim-email", json={"phone": "9000000099", "email": "real@example.com"})
-    assert resp.status_code == 200, resp.text
-
-    db_session.refresh(user)
-    assert user.email == "real@example.com"
-
-
-def test_claim_email_rejects_unknown_phone(client, db_session):
-    resp = client.post(f"{API}/auth/player/claim-email", json={"phone": "9111111111", "email": "real@example.com"})
-    assert resp.status_code == 404
-
-
-def test_claim_email_rejects_email_already_taken(client, db_session):
-    other = models.User(name="Other", email="taken@example.com", role=models.UserRole.PLAYER, is_approved=True)
-    legacy = models.User(name="Legacy", phone="+919000000088", email="placeholder-2@example.com", role=models.UserRole.PLAYER, is_approved=True)
-    db_session.add_all([other, legacy])
-    db_session.commit()
-
-    resp = client.post(f"{API}/auth/player/claim-email", json={"phone": "9000000088", "email": "taken@example.com"})
-    assert resp.status_code == 409

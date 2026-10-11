@@ -29,7 +29,7 @@ export function AboutPage() {
           <div className="relative max-w-lg">
             <p className="font-mono text-[10px] uppercase tracking-[.2em] text-ember-500">For the love of badminton</p>
             <BrandWordmark className="mt-1 text-xl text-court-cream" />
-            <h1 className="mt-4 font-display text-[44px] leading-[0.95] text-court-cream sm:text-[56px]">
+            <h1 className="mt-4 font-display text-[44px] leading-[0.95] tracking-tight text-court-cream sm:text-[56px]">
               Every rally.
               <br />
               <span className="text-ember-500">One place.</span>
@@ -65,7 +65,7 @@ export function AboutPage() {
         <div className="flex items-end gap-5">
           <div>
             <p className="mb-1 font-mono text-[10px] uppercase tracking-[.2em] text-ember-500">Your game. Your people.</p>
-            <h2 className="font-display text-3xl leading-tight text-court-cream md:text-4xl">
+            <h2 className="font-display text-3xl leading-tight tracking-tight text-court-cream md:text-4xl">
               There&apos;s a court for you.
             </h2>
           </div>
@@ -104,7 +104,7 @@ export function AboutPage() {
       <section id="how-it-works" className="grid scroll-mt-20 gap-8 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] lg:items-start">
         <div>
           <p className="mb-1 font-mono text-[10px] uppercase tracking-[.2em] text-ember-500">How it works</p>
-          <h2 className="font-display text-3xl leading-tight text-court-cream md:text-4xl">
+          <h2 className="font-display text-3xl leading-tight tracking-tight text-court-cream md:text-4xl">
             From first serve to final whistle
           </h2>
           <p className="mt-4 max-w-sm font-sans text-sm leading-relaxed text-court-cream/55">
@@ -194,7 +194,7 @@ function HowItWorksStep({
 function HeroStat({ value, label }: { value: number; label: string }) {
   return (
     <div className="px-3 first:pl-0 sm:px-4">
-      <p className="font-display text-4xl leading-none text-court-cream sm:text-5xl">{value}</p>
+      <p className="font-display text-4xl leading-none tracking-tight text-court-cream sm:text-5xl">{value}</p>
       <p className="mt-2 font-sans text-[13px] leading-tight text-court-cream/55">{label}</p>
     </div>
   )

@@ -20,8 +20,5 @@ export const playerAuthApi = {
       .post<PlayerSignupResult>('/auth/player/google/complete-signup', { signup_token: signupToken, phone })
       .then((r) => r.data),
 
-  claimEmail: (phone: string, email: string) =>
-    api.post<{ message: string }>('/auth/player/claim-email', { phone, email }).then((r) => r.data),
-
   myRegistrations: () => api.get<MyRegistration[]>('/auth/player/registrations').then((r) => r.data),
 }

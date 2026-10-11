@@ -47,7 +47,7 @@ export function DialogHeader({ className, ...props }: React.HTMLAttributes<HTMLD
 }
 
 export function DialogTitle({ className, ...props }: React.ComponentPropsWithoutRef<typeof DialogPrimitive.Title>) {
-  return <DialogPrimitive.Title className={cn('font-display text-xl font-medium text-court-cream', className)} {...props} />
+  return <DialogPrimitive.Title className={cn('font-display text-xl text-court-cream', className)} {...props} />
 }
 
 export function DialogDescription({
