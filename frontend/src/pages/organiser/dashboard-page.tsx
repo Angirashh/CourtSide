@@ -65,7 +65,7 @@ function TournamentCard({ tournament, index }: { tournament: Tournament; index: 
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, delay: Math.min(index * 0.05, 0.3), ease: [0.16, 1, 0.3, 1] }}
     >
-      <Link to={`/organiser/${tournament.id}`} className="group block h-full">
+      <Link to={`/organiser/${tournament.id}`} className="group block h-full active:scale-[0.98]">
         <Card className="h-full transition-all duration-200 group-hover:-translate-y-1 group-hover:shadow-lg group-hover:shadow-navy-900/10 group-hover:border-ember-300/60">
           <CardContent className="flex h-full flex-col gap-4 pt-5">
             <div className="flex items-start justify-between gap-2">

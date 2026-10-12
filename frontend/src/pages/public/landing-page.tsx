@@ -419,7 +419,7 @@ function OpenRegistrationCard({ tournament }: { tournament: PublicTournamentSumm
       <div className="px-5 pb-5 sm:px-6 sm:pb-6">
         <Link
           to={`/tournaments/${tournament.id}`}
-          className="flex items-center justify-center gap-2 rounded-full border-2 border-ember-500 py-3 font-display text-base font-bold text-ember-500 transition hover:bg-ember-500 hover:text-ink"
+          className="flex items-center justify-center gap-2 rounded-full border-2 border-ember-500 py-3 font-display text-base font-bold text-ember-500 transition hover:bg-ember-500 hover:text-ink active:scale-[0.98]"
         >
           {alreadyRegistered ? (
             <>
@@ -441,7 +441,10 @@ function UpcomingRow({ tournament }: { tournament: PublicTournamentSummary }) {
   const day = tournament.tournament_date ? new Date(tournament.tournament_date) : null
 
   return (
-    <Link to={`/tournaments/${tournament.id}`} className="group flex items-center gap-4 p-4 transition-colors hover:bg-white/5">
+    <Link
+      to={`/tournaments/${tournament.id}`}
+      className="group flex items-center gap-4 p-4 transition-colors hover:bg-white/5 active:bg-white/10"
+    >
       {day && (
         <div className="flex shrink-0 flex-col items-center border-r border-white/10 pr-4 text-center">
           <p className="font-display text-2xl leading-none text-court-cream">{day.getDate()}</p>
@@ -503,7 +506,7 @@ function OnCourtCard({ tournament }: { tournament: PublicTournamentSummary }) {
           </div>
           <Link
             to={`/tournaments/${tournament.id}`}
-            className="inline-flex w-fit shrink-0 animate-cta-glow self-start items-center gap-2 rounded-full bg-gradient-to-r from-warning via-ember-500 to-ember-600 px-3.5 py-2.5 font-display text-sm text-ink transition hover:brightness-110"
+            className="inline-flex w-fit shrink-0 animate-cta-glow self-start items-center gap-2 rounded-full bg-gradient-to-r from-warning via-ember-500 to-ember-600 px-3.5 py-2.5 font-display text-sm text-ink transition hover:brightness-110 active:scale-[0.98]"
           >
             <PlayCircle className="size-4" /> All matches
             <ArrowRight className="size-3.5 animate-nudge" />

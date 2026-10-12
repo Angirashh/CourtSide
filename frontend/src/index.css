@@ -86,7 +86,13 @@
 
   --animate-fade-up: fade-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
   --animate-fade-in: fade-in 0.15s ease-out both;
+  --animate-fade-out: fade-out 0.15s ease-in both;
   --animate-scale-in: scale-in 0.2s cubic-bezier(0.16, 1, 0.3, 1) both;
+  /* Mirrors scale-in's path in reverse (same curve, flipped), so a dialog closes back along
+     the exact path it opened on instead of just vanishing -- see dialog.tsx data-[state=closed]. */
+  --animate-scale-out: scale-out 0.15s cubic-bezier(0.3, 0, 0.84, -0.16) both;
+  /* Mirrors fade-up in reverse, for the bottom-sheet dialog variant's close path. */
+  --animate-fade-down: fade-down 0.2s cubic-bezier(0.3, 0, 0.84, -0.16) both;
   --animate-shimmer: shimmer 2s linear infinite;
   --animate-pulse-glow: pulse-glow 1.8s cubic-bezier(0.4, 0, 0.6, 1) infinite;
   --animate-cta-glow: cta-glow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
@@ -110,6 +116,14 @@
       opacity: 1;
     }
   }
+  @keyframes fade-out {
+    from {
+      opacity: 1;
+    }
+    to {
+      opacity: 0;
+    }
+  }
   @keyframes scale-in {
     from {
       opacity: 0;
@@ -118,6 +132,26 @@
     to {
       opacity: 1;
       transform: scale(1);
+    }
+  }
+  @keyframes scale-out {
+    from {
+      opacity: 1;
+      transform: scale(1);
+    }
+    to {
+      opacity: 0;
+      transform: scale(0.96);
+    }
+  }
+  @keyframes fade-down {
+    from {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    to {
+      opacity: 0;
+      transform: translateY(10px);
     }
   }
   @keyframes shimmer {
@@ -297,7 +331,10 @@
     .shimmer-bg,
     .animate-fade-up,
     .animate-fade-in,
+    .animate-fade-out,
     .animate-scale-in,
+    .animate-scale-out,
+    .animate-fade-down,
     .animate-pulse-glow,
     .animate-cta-glow,
     .animate-nudge,
@@ -331,4 +368,13 @@
 
 .pe_signin_button button svg path {
   fill: var(--color-navy-950) !important;
+}
+
+/* three.js's OrbitControls.connect() imperatively sets canvas.style.touchAction = 'none' on
+   mount to claim all touch gestures for itself -- this blocks native page scroll on touch
+   devices wherever the 3D canvas sits in the layout. Only a stylesheet !important reliably
+   wins over that inline style regardless of effect/mount timing. 'pan-y' lets vertical swipes
+   still scroll the page natively while horizontal drags are left to OrbitControls to rotate. */
+.badminton-court-canvas canvas {
+  touch-action: pan-y !important;
 }

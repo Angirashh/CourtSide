@@ -18,16 +18,16 @@ export function DialogContent({
 }) {
   return (
     <DialogPrimitive.Portal>
-      <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-navy-950/70 backdrop-blur-sm data-[state=open]:animate-fade-in" />
+      <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-navy-950/70 backdrop-blur-sm data-[state=open]:animate-fade-in data-[state=closed]:animate-fade-out" />
       <DialogPrimitive.Content
         className={cn(
           'fixed z-50 border border-white/10 bg-ink-card shadow-2xl shadow-navy-950/20',
           sheet
             ? [
-                'inset-x-0 bottom-0 w-full rounded-t-2xl px-5 pt-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] animate-fade-up max-h-[92svh]',
-                'sm:inset-x-auto sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:w-[calc(100%-2rem)] sm:max-w-md sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-2xl sm:p-6 sm:animate-scale-in sm:max-h-[85svh]',
+                'inset-x-0 bottom-0 w-full rounded-t-2xl px-5 pt-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] max-h-[92svh] data-[state=open]:animate-fade-up data-[state=closed]:animate-fade-down',
+                'sm:inset-x-auto sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:w-[calc(100%-2rem)] sm:max-w-md sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-2xl sm:p-6 sm:max-h-[85svh] sm:data-[state=open]:animate-scale-in sm:data-[state=closed]:animate-scale-out',
               ]
-            : 'left-1/2 top-1/2 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-2xl p-6 animate-scale-in max-h-[85svh]',
+            : 'left-1/2 top-1/2 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-2xl p-6 max-h-[85svh] data-[state=open]:animate-scale-in data-[state=closed]:animate-scale-out',
           'overflow-y-auto',
           className
         )}

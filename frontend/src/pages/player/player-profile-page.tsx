@@ -174,7 +174,7 @@ function LoggedInView() {
         ) : (
           <div className="grid gap-3 sm:grid-cols-2">
             {upcomingRegistrations.map((r) => (
-              <Link key={r.player_id} to={`/tournaments/${r.tournament_id}`}>
+              <Link key={r.player_id} to={`/tournaments/${r.tournament_id}`} className="block active:scale-[0.98]">
                 <Card className="p-4 transition-shadow hover:shadow-md">
                   <div className="flex items-center justify-between gap-2">
                     <p className="font-display text-base text-court-cream">{r.tournament_name}</p>

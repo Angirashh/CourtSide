@@ -1,9 +1,11 @@
+import { lazy, Suspense } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowRight, Award, Briefcase, CalendarSearch, GraduationCap, Handshake, Swords, Trophy } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { usePublicHubStats, usePublicTournaments } from '@/hooks/use-public'
 import { Card } from '@/components/ui/card'
-import { BrandWordmark } from '@/components/brand/logo'
+
+const BadmintonCourt3D = lazy(() => import('@/components/three/badminton-court-3d'))
 
 export function AboutPage() {
   const { data: tournaments } = usePublicTournaments()
@@ -19,36 +21,40 @@ export function AboutPage() {
   return (
     <div className="mx-auto max-w-[1400px] space-y-10">
       <section className="-mx-4 -mt-7 overflow-hidden bg-ink sm:-mx-6 lg:-mx-10 lg:-mt-9">
-        <div className="relative overflow-hidden px-4 pb-10 pt-8 sm:px-6 sm:pb-12 sm:pt-10 lg:px-10 lg:pb-14 lg:pt-12">
-          <div className="pointer-events-none absolute -bottom-10 -right-10 h-[220px] w-[220px] sm:h-[280px] sm:w-[280px]">
-            <div className="absolute inset-0 skew-x-[-18deg] border border-ember-500/25" />
-            <div className="absolute inset-[28px] skew-x-[-18deg] border border-ember-500/25" />
-            <div className="absolute left-0 right-0 top-1/2 h-px skew-x-[-18deg] bg-ember-500/25" />
+        <div className="relative min-h-[380px] overflow-hidden px-4 pb-10 pt-8 sm:min-h-[480px] sm:px-6 sm:pb-12 sm:pt-10 lg:min-h-[580px] lg:px-10 lg:pb-14 lg:pt-12">
+          <div className="absolute inset-0 sm:touch-none">
+            <Suspense fallback={<div className="size-full bg-ink-card" />}>
+              <BadmintonCourt3D />
+            </Suspense>
           </div>
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-ink via-ink/40 to-transparent" />
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-ink/80 via-transparent to-transparent" />
 
-          <div className="relative max-w-lg">
-            <p className="font-mono text-[10px] uppercase tracking-[.2em] text-ember-500">For the love of badminton</p>
-            <BrandWordmark className="mt-1 text-xl text-court-cream" />
-            <h1 className="mt-4 font-display text-[44px] leading-[0.95] tracking-tight text-court-cream sm:text-[56px]">
-              Every rally.
+          <div className="relative max-w-lg pointer-events-none">
+            <h1 className="font-display text-[44px] leading-[0.95] tracking-tight text-white sm:text-[56px]">
+              Your court.
               <br />
-              <span className="text-ember-500">One place.</span>
+              <span className="text-ember-500">Your game.</span>
             </h1>
-            <p className="mt-4 max-w-md font-sans text-sm leading-relaxed text-court-cream/60">
-              For the early starters. The last-point fighters. The ones who always want one more game. This is your
-              side of the court.
+            <p className="mt-4 font-mono text-xs uppercase tracking-[.14em] text-white/50">
+              Play more. Track everything.
             </p>
             <Link
               to="/tournaments"
-              className="mt-6 inline-flex items-center gap-2 rounded-full bg-ember-500 px-5 py-3.5 font-display text-sm text-ink transition hover:bg-ember-600"
+              className="pointer-events-auto mt-6 inline-flex items-center gap-2 rounded-full bg-ember-500 px-5 py-3.5 font-display text-sm text-ink transition hover:bg-ember-600"
             >
               Find your next tournament <ArrowRight className="size-4" />
             </Link>
           </div>
+
+          <p className="pointer-events-none absolute bottom-4 right-4 text-[11px] text-court-cream/40 sm:bottom-6 sm:right-6">
+            <span className="sm:hidden">Auto-rotating</span>
+            <span className="hidden sm:inline">Drag to rotate · scroll to zoom</span>
+          </p>
         </div>
 
         {stats && (
-          <div className="relative border-t border-white/10 bg-ink-card px-4 py-7 sm:px-6 sm:py-8 lg:px-10">
+          <div className="relative mx-4 mb-4 rounded-lg border border-ember-500/40 bg-ink-card px-4 py-7 sm:mx-6 sm:mb-6 sm:px-6 sm:py-8 lg:mx-10 lg:mb-8 lg:px-10">
             <p className="mb-5 font-mono text-[10px] uppercase tracking-[.2em] text-ember-600">
               One community. Countless rallies.
             </p>
@@ -149,7 +155,7 @@ function CompetitorTrackCard({
   count: number
 }) {
   return (
-    <div className="relative flex min-h-[230px] flex-col overflow-hidden border-b-4 border-b-ember-500 bg-ink p-5 text-court-cream sm:p-6">
+    <div className="relative flex min-h-[230px] flex-col overflow-hidden rounded-lg border-b-4 border-b-ember-500 bg-[#100C0B] p-5 text-court-cream sm:p-6">
       <div className="pointer-events-none absolute -bottom-10 -right-8 h-40 w-px skew-x-[-20deg] bg-ember-500/20" />
 
       <div className="relative flex size-11 shrink-0 items-center justify-center bg-ember-500 text-ink">
@@ -177,7 +183,7 @@ function HowItWorksStep({
 }) {
   return (
     <Card className="flex items-start gap-4 p-6">
-      <div className="flex size-11 shrink-0 items-center justify-center bg-ink text-ember-500">
+      <div className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-ink text-ember-500">
         <Icon className="size-5" />
       </div>
       <div>

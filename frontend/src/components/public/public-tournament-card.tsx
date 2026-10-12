@@ -29,7 +29,11 @@ export function PublicTournamentCard({ tournament, delayMs = 0 }: { tournament: 
   const category = tournament.category ? categoryMeta[tournament.category] : null
   const result = resultLine(tournament)
   return (
-    <Link to={`/tournaments/${tournament.id}`} className="group block h-full animate-fade-up" style={{ animationDelay: `${delayMs}ms` }}>
+    <Link
+      to={`/tournaments/${tournament.id}`}
+      className="group block h-full animate-fade-up active:scale-[0.98]"
+      style={{ animationDelay: `${delayMs}ms` }}
+    >
       <Card className="relative flex h-full flex-col overflow-hidden bg-[#100C0B] p-0 transition-all duration-300 group-hover:-translate-y-1 group-hover:border-ember-300/60 group-hover:shadow-lg group-hover:shadow-navy-900/10">
         <div className="relative min-h-32 shrink-0 bg-[url('/images/hero-rackets.jpg')] bg-cover bg-center">
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_65%_55%_at_50%_-10%,rgba(255,101,56,0.18),transparent_65%)]" />
@@ -64,7 +68,7 @@ export function PublicTournamentCard({ tournament, delayMs = 0 }: { tournament: 
             </div>
           </div>
           {result && (
-            <div className="mt-3 flex items-center gap-1.5 rounded-lg border border-ember-500/20 bg-ember-500/10 px-2.5 py-1.5 text-xs font-semibold text-court-cream">
+            <div className="mt-3 inline-flex w-fit max-w-full items-center gap-1.5 self-start rounded border border-ember-500/20 bg-ember-500/10 px-2.5 py-1.5 text-xs font-semibold text-court-cream">
               <Medal className="size-3.5 shrink-0 text-ember-500" />
               <span className="truncate">{result.headline}</span>
               {result.sub && <span className="truncate font-normal text-court-cream/45">· {result.sub}</span>}
