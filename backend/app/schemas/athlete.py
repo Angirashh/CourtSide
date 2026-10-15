@@ -1,9 +1,13 @@
 from datetime import datetime
-from typing import Optional, List
+from typing import Optional, List, Literal
 from pydantic import BaseModel, ConfigDict, Field, EmailStr, field_validator
 
 from app.core.phone import normalize_indian_phone
 from app.db.models import TournamentCategory, TournamentFormat, TournamentStatus
+
+Gender = Literal["MALE", "FEMALE", "PREFER_NOT_TO_SAY"]
+DominantHand = Literal["LEFT", "RIGHT"]
+PreferredFormat = Literal["SINGLES", "DOUBLES", "MIXED_DOUBLES"]
 
 
 class AthleteBase(BaseModel):
@@ -40,6 +44,10 @@ class AthleteUpdate(BaseModel):
 
 class AthleteResponse(AthleteBase):
     id: str
+    gender: Optional[Gender] = None
+    dominant_hand: Optional[DominantHand] = None
+    preferred_formats: List[PreferredFormat] = []
+    bio: Optional[str] = None
     ranking_points: float
     tournaments_played: int
     matches_played: int
@@ -49,6 +57,16 @@ class AthleteResponse(AthleteBase):
     updated_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class AthleteProfileUpdate(BaseModel):
+    """Self-service profile fields a signed-in player can edit on their own `Athlete` row
+    via `PATCH /athletes/me`. Deliberately excludes name/email/phone/club_or_city -- those
+    already go through the pre-existing (if unauthenticated) `PATCH /athletes/{athlete_id}`."""
+    gender: Optional[Gender] = None
+    dominant_hand: Optional[DominantHand] = None
+    preferred_formats: Optional[List[PreferredFormat]] = None
+    bio: Optional[str] = Field(None, max_length=300)
 
 
 class AthleteLeaderboardEntry(BaseModel):

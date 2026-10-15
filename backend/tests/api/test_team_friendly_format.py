@@ -73,6 +73,86 @@ def _generate(client, tournament_id, headers, matches_per_player=None):
     return client.post(f"{API}/tournaments/{tournament_id}/generate-schedule", json=payload, headers=headers)
 
 
+def _bulk_assign(client, tournament_id, headers, assignments):
+    return client.patch(
+        f"{API}/tournaments/{tournament_id}/players/team-assignments",
+        json={"assignments": assignments},
+        headers=headers,
+    )
+
+
+def test_bulk_team_assignment_sets_team_and_captain(client, db_session):
+    tournament = _create_team_friendly_tournament(db_session)
+    headers = {"Authorization": f"Bearer {_organiser_token(db_session)}"}
+    a1 = _add_player(client, headers, tournament.id, "A1")
+    a2 = _add_player(client, headers, tournament.id, "A2")
+    b1 = _add_player(client, headers, tournament.id, "B1")
+
+    resp = _bulk_assign(
+        client, tournament.id, headers,
+        [
+            {"player_id": a1["id"], "team": "A", "is_captain": True},
+            {"player_id": a2["id"], "team": "A", "is_captain": False},
+            {"player_id": b1["id"], "team": "B", "is_captain": True},
+        ],
+    )
+    assert resp.status_code == 200, resp.text
+    by_id = {p["id"]: p for p in resp.json()}
+    assert by_id[a1["id"]]["team"] == "A" and by_id[a1["id"]]["is_captain"] is True
+    assert by_id[a2["id"]]["team"] == "A" and by_id[a2["id"]]["is_captain"] is False
+    assert by_id[b1["id"]]["team"] == "B" and by_id[b1["id"]]["is_captain"] is True
+
+
+def test_bulk_team_assignment_rejects_two_captains_same_team(client, db_session):
+    tournament = _create_team_friendly_tournament(db_session)
+    headers = {"Authorization": f"Bearer {_organiser_token(db_session)}"}
+    a1 = _add_player(client, headers, tournament.id, "A1")
+    a2 = _add_player(client, headers, tournament.id, "A2")
+
+    resp = _bulk_assign(
+        client, tournament.id, headers,
+        [
+            {"player_id": a1["id"], "team": "A", "is_captain": True},
+            {"player_id": a2["id"], "team": "A", "is_captain": True},
+        ],
+    )
+    assert resp.status_code == 400
+    assert "one captain" in resp.json()["detail"].lower()
+
+
+def test_bulk_team_assignment_rejects_captain_without_team(client, db_session):
+    tournament = _create_team_friendly_tournament(db_session)
+    headers = {"Authorization": f"Bearer {_organiser_token(db_session)}"}
+    a1 = _add_player(client, headers, tournament.id, "A1")
+
+    resp = _bulk_assign(
+        client, tournament.id, headers,
+        [{"player_id": a1["id"], "team": None, "is_captain": True}],
+    )
+    assert resp.status_code == 400
+    assert "team" in resp.json()["detail"].lower()
+
+
+def test_bulk_team_assignment_blocked_once_tournament_in_progress(client, db_session):
+    tournament = _create_team_friendly_tournament(db_session)
+    headers = {"Authorization": f"Bearer {_organiser_token(db_session)}"}
+    a1 = _add_player(client, headers, tournament.id, "A1", team="A")
+    _add_player(client, headers, tournament.id, "A2", team="A")
+    b1 = _add_player(client, headers, tournament.id, "B1", team="B")
+    _add_player(client, headers, tournament.id, "B2", team="B")
+
+    gen = _generate(client, tournament.id, headers, matches_per_player=2)
+    assert gen.status_code == 200, gen.text
+    start = client.post(f"{API}/tournaments/{tournament.id}/start", headers=headers)
+    assert start.status_code == 200, start.text
+
+    resp = _bulk_assign(
+        client, tournament.id, headers,
+        [{"player_id": a1["id"], "team": "B", "is_captain": False}],
+    )
+    assert resp.status_code == 400
+
+
 def test_update_player_rejects_invalid_team_value(client, db_session):
     tournament = _create_team_friendly_tournament(db_session)
     headers = {"Authorization": f"Bearer {_organiser_token(db_session)}"}

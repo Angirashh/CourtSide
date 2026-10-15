@@ -51,6 +51,7 @@ export interface Court {
 export interface Player {
   id: string
   tournament_id: string
+  athlete_id: string | null
   name: string
   seed: number | null
   is_placeholder: boolean
@@ -58,6 +59,7 @@ export interface Player {
   withdrawn_at: string | null
   withdrawal_reason: string | null
   team: 'A' | 'B' | null
+  is_captain: boolean
 }
 
 export interface Match {
@@ -299,6 +301,16 @@ export interface MyRegistration {
   is_withdrawn: boolean
 }
 
+export interface NextMatch {
+  match_id: string
+  round_label: string
+  court_name: string | null
+  status: 'SCHEDULED' | 'IN_PROGRESS'
+  scheduled_start_time: string | null
+  opponent_name: string
+  opponent_is_placeholder: boolean
+}
+
 export interface AthleteTournamentHistoryEntry {
   tournament_id: string
   tournament_name: string
@@ -320,7 +332,20 @@ export interface AthleteCategoryStats {
   win_rate_percentage: number
 }
 
+export type Gender = 'MALE' | 'FEMALE' | 'PREFER_NOT_TO_SAY'
+export type DominantHand = 'LEFT' | 'RIGHT'
+export type PreferredFormat = 'SINGLES' | 'DOUBLES' | 'MIXED_DOUBLES'
+
+/** Shape returned by both `GET /athletes/me` and `GET /athletes/{id}` -- identical whether
+    you're looking at your own profile or someone else's. */
 export interface MyAthleteProfile {
+  id: string
+  name: string
+  club_or_city: string | null
+  gender: Gender | null
+  dominant_hand: DominantHand | null
+  preferred_formats: PreferredFormat[]
+  bio: string | null
   tournaments_played: number
   matches_played: number
   matches_won: number

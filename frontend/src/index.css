@@ -51,7 +51,12 @@
      together with the rest of the ink ramp instead of drifting independently. */
   --color-ink-deep: #161616;
   --color-court-cream: #f7f3eb;
-  --color-signal: #ff6538;
+  /* Dedicated "this is live right now" green -- deliberately NOT the ember brand accent, so a
+     genuinely live tournament/match/court reads as a distinct, unmistakable state rather than
+     just another ember-colored UI element. Used by every "Live"/"On court" badge and live
+     indicator app-wide (TournamentStatusBadge, MatchStatusBadge, the home page's live section,
+     the tournament hero's status pill, the operator match list's LIVE badge). */
+  --color-signal: #22c55e;
 
   --color-success: #4ade80;
   --color-success-bg: #16301f;

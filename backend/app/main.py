@@ -18,6 +18,8 @@ from app.db.migrations import (
     ensure_tournament_registration_columns,
     ensure_tournament_registration_status_column,
     ensure_user_contact_unique_per_role,
+    ensure_athlete_profile_columns,
+    ensure_player_captain_column,
 )
 from app.db.session import engine
 from app.api import routes_auth, routes_player_auth, routes_tournaments, routes_players, routes_matches, routes_athletes, routes_public, routes_courts
@@ -40,6 +42,8 @@ async def lifespan(app: FastAPI):
     ensure_tournament_registration_columns(engine)
     ensure_tournament_registration_status_column(engine)
     ensure_user_contact_unique_per_role(engine)
+    ensure_athlete_profile_columns(engine)
+    ensure_player_captain_column(engine)
     yield
     # Shutdown: Clean up resources if needed
 

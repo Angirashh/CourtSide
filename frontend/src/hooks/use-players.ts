@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { playersApi } from '@/lib/api/players'
 import { tournamentKeys } from './use-tournaments'
-import { publicKeys } from './use-public'
+import { LIVE_POLL_MS, publicKeys } from './use-public'
 import { myRegistrationsKeys } from './use-player-auth'
 
 export function usePlayers(tournamentId: string | undefined, includePlaceholders = true) {
@@ -62,6 +62,15 @@ export function useUpdatePlayer(tournamentId: string) {
   })
 }
 
+export function useUpdateTeamAssignments(tournamentId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (assignments: { player_id: string; team: 'A' | 'B' | null; is_captain: boolean }[]) =>
+      playersApi.updateTeamAssignments(tournamentId, assignments),
+    onSuccess: () => qc.invalidateQueries({ queryKey: tournamentKeys.detail(tournamentId) }),
+  })
+}
+
 export function useSelfRegister(tournamentId: string) {
   const qc = useQueryClient()
   return useMutation({
@@ -71,5 +80,16 @@ export function useSelfRegister(tournamentId: string) {
       qc.invalidateQueries({ queryKey: myRegistrationsKeys.list })
       qc.invalidateQueries({ queryKey: publicKeys.tournament(tournamentId) })
     },
+  })
+}
+
+// Same poll cadence as the rest of the live tournament page (use-public.ts) -- this widget
+// lives on that same page, so it should never feel more or less fresh than its neighbors.
+export function useMyNextMatch(tournamentId: string | undefined, enabled: boolean) {
+  return useQuery({
+    queryKey: ['players', tournamentId, 'me', 'next-match'],
+    queryFn: () => playersApi.myNextMatch(tournamentId!),
+    enabled: enabled && !!tournamentId,
+    refetchInterval: LIVE_POLL_MS,
   })
 }

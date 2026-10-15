@@ -9,6 +9,7 @@ import { Carousel } from '@/components/ui/carousel'
 import { Countdown } from '@/components/ui/countdown'
 import { EmptyState } from '@/components/ui/empty-state'
 import { VsBadge } from '@/components/ui/vs-badge'
+import { NextMatchBar } from '@/components/public/sticky-next-match-bar'
 import { PublicTournamentCard } from '@/components/public/public-tournament-card'
 import { MedalPodium } from '@/components/public/medal-podium'
 import { CourtLines } from '@/components/public/court-lines'
@@ -60,7 +61,7 @@ export function LandingPage() {
   return (
     <div className="mx-auto max-w-[1400px] space-y-10">
       {live.length > 0 && (
-        <section className="relative -mx-4 -mt-7 overflow-hidden bg-ink-deep bg-[radial-gradient(circle_at_18%_15%,rgba(255,101,56,0.22),transparent_38%)] px-4 pb-8 pt-7 sm:-mx-6 sm:px-6 lg:-mx-10 lg:-mt-9 lg:px-10 lg:pt-9">
+        <section className="relative -mx-4 -mt-7 overflow-hidden bg-ink-deep bg-[radial-gradient(circle_at_18%_15%,rgba(255,101,56,0.22),transparent_38%)] px-4 pb-3 pt-7 sm:-mx-6 sm:px-6 lg:-mx-10 lg:-mt-9 lg:px-10 lg:pt-9">
           <div className="relative z-10">
             <LiveSectionHeading count={live.length} />
             <div className="divide-y divide-white/10">
@@ -73,7 +74,7 @@ export function LandingPage() {
           </div>
           {/* Fades the section's grey floor out into the page's black background instead of
               cutting off on a hard edge. */}
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[5] h-20 bg-gradient-to-b from-transparent to-ink" />
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[5] h-10 bg-gradient-to-b from-transparent to-ink" />
         </section>
       )}
 
@@ -85,9 +86,9 @@ export function LandingPage() {
       {/* Live matches ARE happening: that section above is already the page's "hero" slot, so
           the spotlight gets its own section instead, matching its bg-ink-deep like it always has. */}
       {live.length > 0 && heroSpotlight && (
-        <section className="relative overflow-hidden -mx-4 bg-ink-deep px-4 pb-8 pt-7 sm:-mx-6 sm:px-6 lg:-mx-10 lg:px-10 lg:pt-9">
+        <section className="relative overflow-hidden -mx-4 bg-ink-deep px-4 pb-3 pt-7 sm:-mx-6 sm:px-6 lg:-mx-10 lg:px-10 lg:pt-9">
           <UpNextCard tournament={heroSpotlight} />
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[5] h-20 bg-gradient-to-b from-transparent to-ink" />
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[5] h-10 bg-gradient-to-b from-transparent to-ink" />
         </section>
       )}
 
@@ -491,7 +492,7 @@ function OnCourtCard({ tournament }: { tournament: PublicTournamentSummary }) {
             <p className="font-display text-3xl leading-none text-court-cream">{tournament.name}</p>
             <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 font-sans text-xs text-court-cream/50">
               {category && (
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-signal/14 px-2.5 py-1 text-[11px] font-bold leading-none text-signal">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-ember-500/14 px-2.5 py-1 text-[11px] font-bold leading-none text-ember-500">
                   <category.icon className="size-3" />
                   {category.label}
                 </span>
@@ -543,8 +544,10 @@ function OnCourtCard({ tournament }: { tournament: PublicTournamentSummary }) {
         </div>
       )}
 
+      <NextMatchBar tournamentId={tournament.id} className="mt-6" />
+
       {courtQueues.length > 0 && (
-        <div className="mt-4 grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <div className="mt-6 grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {courtQueues.map((q) => (
             <CourtQueuePanel key={q.court_id} queue={q} />
           ))}
@@ -562,16 +565,12 @@ function CourtQueuePanel({ queue }: { queue: PublicCourtQueue }) {
   return (
     <div
       className={cn(
-        'rounded-2xl border border-white/[0.06] border-l-[3px] p-3 shadow-lg shadow-black/40 transition-all hover:-translate-y-0.5',
+        'rounded-2xl border border-white/15 border-l-[3px] p-3 shadow-lg shadow-black/40 transition-all hover:-translate-y-0.5',
         'bg-[#100C0B]',
-        live ? 'border-l-[#ff5722]' : 'border-l-white/[0.06]'
+        live ? 'border-l-[#ff5722]' : 'border-l-white/15'
       )}
     >
-      <div className="flex items-center justify-between gap-2">
-        <span className="flex min-w-0 items-center gap-1 font-sans text-[11px] font-bold uppercase tracking-wide text-white">
-          <MapPin className="size-3 shrink-0" />
-          <span className="truncate">{queue.court_name}</span>
-        </span>
+      <div className="flex flex-wrap items-center gap-2">
         {live ? (
           <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-signal/15 px-2 py-0.5 font-sans text-[8px] font-bold uppercase tracking-wide text-signal">
             <span className="relative flex size-1.5">
@@ -586,14 +585,19 @@ function CourtQueuePanel({ queue }: { queue: PublicCourtQueue }) {
             Next up
           </span>
         )}
-      </div>
-      <div className="mt-1 flex items-center justify-between gap-2">
-        <p className="min-w-0 truncate font-sans text-[11px] font-medium text-court-cream/45">{match.round_label}</p>
+
+        <p className="min-w-0 flex-1 truncate font-sans text-[11px] font-medium text-court-cream/45">{match.round_label}</p>
+
         {!live && (
           <span className="shrink-0 whitespace-nowrap font-sans text-[10px] font-semibold uppercase tracking-wide text-court-cream/70">
             {formatTime(match.scheduled_start_time)}
           </span>
         )}
+
+        <span className="ml-auto inline-flex min-w-0 shrink-0 items-center gap-1 font-sans text-[11px] font-medium text-court-cream/55">
+          <MapPin className="size-3" />
+          <span className="max-w-[90px] truncate">{queue.court_name}</span>
+        </span>
       </div>
 
       <div className="mt-2 flex items-center gap-1.5">

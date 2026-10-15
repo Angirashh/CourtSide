@@ -14,6 +14,7 @@ import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Countdown, COUNTDOWN_WINDOW_MS } from '@/components/ui/countdown'
 import { FixtureVisualizer } from '@/components/fixtures/fixture-visualizer'
+import { MyMatchesList } from '@/components/public/my-matches-list'
 import { GroupStandingsTable } from '@/components/fixtures/group-standings-table'
 import { TeamStandingsCard, leadingTeam } from '@/components/fixtures/team-standings-card'
 import { PublicStandingsTable } from '@/components/public/public-standings-table'
@@ -34,7 +35,7 @@ const statusWord: Record<TournamentStatus, string> = {
   COMPLETED: 'Completed',
 }
 
-const TAB_VALUES = ['overview', 'fixtures', 'standings'] as const
+const TAB_VALUES = ['overview', 'fixtures', 'standings', 'mine'] as const
 type TabValue = (typeof TAB_VALUES)[number]
 
 const tabTriggerClass =
@@ -46,9 +47,18 @@ export function TournamentLivePage() {
   const { data: standings } = usePublicStandings(id)
   useCourtChangeAlerts(tournament?.courts ?? [], tournament?.matches ?? [])
 
+  // Same registrations query HeroRegistrationBlock uses below -- React Query dedupes the
+  // identical key, so this costs nothing extra. Keyed off the route param rather than
+  // `tournament.id` so it's available before the tournament itself has loaded.
+  const isPlayer = useAuthStore((s) => s.user?.role === 'PLAYER')
+  const { data: myRegistrations } = useMyRegistrations(isPlayer)
+  const myPlayerId = myRegistrations?.find((r) => r.tournament_id === id)?.player_id
+  const showMyMatchesTab = !!myPlayerId
+
   const [searchParams, setSearchParams] = useSearchParams()
   const requestedTab = searchParams.get('tab')
-  const tab: TabValue = (TAB_VALUES as readonly string[]).includes(requestedTab ?? '') ? (requestedTab as TabValue) : 'overview'
+  const rawTab: TabValue = (TAB_VALUES as readonly string[]).includes(requestedTab ?? '') ? (requestedTab as TabValue) : 'overview'
+  const tab: TabValue = rawTab === 'mine' && !showMyMatchesTab ? 'overview' : rawTab
   function setTab(value: string) {
     setSearchParams(
       (prev) => {
@@ -114,7 +124,7 @@ export function TournamentLivePage() {
             <span
               className={cn(
                 'flex items-center gap-1.5 font-sans text-[11px] font-bold uppercase tracking-wide',
-                tournament.status === 'IN_PROGRESS' ? 'text-ember-500' : 'text-court-cream/55'
+                tournament.status === 'IN_PROGRESS' ? 'text-signal' : 'text-court-cream/55'
               )}
             >
               <span className="relative flex size-1.5">
@@ -155,7 +165,12 @@ export function TournamentLivePage() {
       <div className="mx-auto max-w-[680px] space-y-5">
         {hasSchedule ? (
           <Tabs value={tab} onValueChange={setTab}>
-            <TabsList className="grid w-full grid-cols-3 gap-0 rounded-none border-b border-white/14 bg-transparent p-0">
+            <TabsList
+              className={cn(
+                'grid w-full gap-0 rounded-none border-b border-white/14 bg-transparent p-0',
+                showMyMatchesTab ? 'grid-cols-4' : 'grid-cols-3'
+              )}
+            >
               <TabsTrigger value="overview" className={tabTriggerClass}>
                 Overview
               </TabsTrigger>
@@ -165,6 +180,11 @@ export function TournamentLivePage() {
               <TabsTrigger value="standings" className={tabTriggerClass}>
                 Standings
               </TabsTrigger>
+              {showMyMatchesTab && (
+                <TabsTrigger value="mine" className={tabTriggerClass}>
+                  My matches
+                </TabsTrigger>
+              )}
             </TabsList>
 
             <TabsContent value="overview" className="space-y-6">
@@ -250,6 +270,16 @@ export function TournamentLivePage() {
                 </div>
               )}
             </TabsContent>
+
+            {showMyMatchesTab && myPlayerId && (
+              <TabsContent value="mine" className="space-y-5">
+                <div>
+                  <Eyebrow>Your schedule</Eyebrow>
+                  <h2 className="font-display text-2xl leading-none text-court-cream">My matches</h2>
+                </div>
+                <MyMatchesList matches={tournament.matches} playersById={playersById} courts={tournament.courts} myPlayerId={myPlayerId} />
+              </TabsContent>
+            )}
           </Tabs>
         ) : (
           <div className="space-y-6">

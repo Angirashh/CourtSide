@@ -9,6 +9,7 @@ from app.db import models
 from app.schemas.athlete import (
     AthleteCreate,
     AthleteUpdate,
+    AthleteProfileUpdate,
     AthleteResponse,
     AthleteLeaderboardEntry,
     AthleteDetailResponse,
@@ -204,6 +205,10 @@ def _build_athlete_detail(athlete_id: str, db: Session) -> AthleteDetailResponse
         email=athlete.email,
         phone=athlete.phone,
         club_or_city=athlete.club_or_city,
+        gender=athlete.gender,
+        dominant_hand=athlete.dominant_hand,
+        preferred_formats=athlete.preferred_formats,
+        bio=athlete.bio,
         ranking_points=athlete.ranking_points,
         tournaments_played=athlete.tournaments_played,
         matches_played=athlete.matches_played,
@@ -227,6 +232,35 @@ def get_my_athlete_profile(
     if not user or not user.athlete_id:
         raise HTTPException(status_code=404, detail="No athlete record linked to this account.")
     return _build_athlete_detail(user.athlete_id, db)
+
+
+@router.patch("/me", response_model=AthleteDetailResponse)
+def update_my_athlete_profile(
+    payload: AthleteProfileUpdate,
+    current_user: CurrentUser = Depends(require_player),
+    db: Session = Depends(get_db),
+):
+    """Lets the signed-in player edit their own public profile fields (gender, dominant
+    hand, preferred format, bio). Deliberately a separate, authenticated endpoint from
+    `PATCH /{athlete_id}` below, which has no ownership check."""
+    user = db.query(models.User).filter(models.User.id == current_user.id).first()
+    if not user or not user.athlete_id:
+        raise HTTPException(status_code=404, detail="No athlete record linked to this account.")
+
+    athlete = db.query(models.Athlete).filter(models.Athlete.id == user.athlete_id).first()
+    if not athlete:
+        raise HTTPException(status_code=404, detail="Athlete not found")
+
+    update_data = payload.model_dump(exclude_unset=True)
+    if "preferred_formats" in update_data:
+        formats = update_data.pop("preferred_formats")
+        athlete.preferred_format = ",".join(formats) if formats else None
+    for field, val in update_data.items():
+        setattr(athlete, field, val)
+
+    db.commit()
+    db.refresh(athlete)
+    return _build_athlete_detail(athlete.id, db)
 
 
 @router.get("/{athlete_id}", response_model=AthleteDetailResponse)

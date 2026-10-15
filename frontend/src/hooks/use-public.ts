@@ -13,7 +13,7 @@ export const publicKeys = {
 // (see use-operators.ts). Intervals are matched to the backend's response cache TTLs
 // (routes_public.py) so most polls are served from cache, not a fresh DB query.
 // React Query already pauses this automatically while the tab is in the background.
-const LIVE_POLL_MS = 5_000
+export const LIVE_POLL_MS = 5_000
 const STANDINGS_POLL_MS = 8_000
 const STATS_POLL_MS = 10_000
 

@@ -10,6 +10,9 @@ const badgeVariants = cva(
         neutral: 'bg-white/10 text-court-cream/70',
         dark: 'bg-navy-900 text-cream-100',
         ember: 'bg-ember-500/15 text-ember-400',
+        /** Genuinely live/in-progress states (tournament "Live", match "On court", etc.) --
+            shares the --color-signal token with every other live indicator app-wide. */
+        live: 'bg-signal/15 text-signal',
         success: 'bg-success-bg text-success',
         danger: 'bg-danger-bg text-danger',
         warning: 'bg-warning-bg text-warning',

@@ -4,6 +4,7 @@ import { Info, LayoutGrid, Trophy, UserRound, Users } from 'lucide-react'
 import { usePublicTournaments } from '@/hooks/use-public'
 import { useScrollToTop } from '@/hooks/use-scroll-to-top'
 import { BrandMark, BrandWordmark } from '@/components/brand/logo'
+import { StickyNextMatchBar } from '@/components/public/sticky-next-match-bar'
 import { cn } from '@/lib/utils'
 
 const publicNav = [
@@ -30,6 +31,7 @@ export function PublicShell() {
         style={{ WebkitOverflowScrolling: 'touch' }}
       >
         <Topbar />
+        <StickyNextMatchBar />
         <main className="px-4 py-7 sm:px-6 lg:px-10 lg:py-9">
           <Outlet />
         </main>

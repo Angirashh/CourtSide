@@ -16,8 +16,11 @@ from app.schemas.player import (
     PlayerUpdate,
     PlayerWithdrawRequest,
     PlayerWithdrawResponse,
+    NextMatchResponse,
+    TeamAssignmentBulkUpdate,
 )
 from app.services.match_progression import resolve_pending_walkovers
+from app.services.round_labels import build_round_label_fn
 
 router = APIRouter(prefix="/tournaments/{tournament_id}/players", tags=["Players"])
 
@@ -158,6 +161,71 @@ def self_register_player(
     return player
 
 
+@router.get("/me/next-match", response_model=Optional[NextMatchResponse])
+def get_my_next_match(
+    tournament_id: str,
+    current_user: CurrentUser = Depends(require_player),
+    db: Session = Depends(get_db),
+):
+    """
+    The logged-in player's own next (or currently live) match in this tournament, for the
+    public tournament page's "up next" widget. Returns null -- not a 404 -- whenever there's
+    nothing to show: not registered here, no athlete link yet, or every one of their matches is
+    already decided (eliminated, bye'd through, or the schedule hasn't been generated yet).
+    An in-progress match always outranks a merely-scheduled one; ties break on the earliest
+    scheduled time, then round number, so an unscheduled match still resolves deterministically.
+    """
+    user = db.query(models.User).filter(models.User.id == current_user.id).first()
+    if not user.athlete_id:
+        return None
+
+    my_player = db.query(models.Player).filter(
+        models.Player.tournament_id == tournament_id,
+        models.Player.athlete_id == user.athlete_id,
+    ).first()
+    if not my_player:
+        return None
+
+    tournament = db.query(models.Tournament).filter(models.Tournament.id == tournament_id).first()
+    if not tournament:
+        raise HTTPException(status_code=404, detail="Tournament not found")
+
+    matches = tournament.matches
+    my_matches = [
+        m for m in matches
+        if m.status != models.MatchStatus.COMPLETED
+        and my_player.id in (m.player1_id, m.player2_id)
+    ]
+    if not my_matches:
+        return None
+
+    my_matches.sort(
+        key=lambda m: (
+            m.status != models.MatchStatus.IN_PROGRESS,
+            m.scheduled_start_time is None,
+            m.scheduled_start_time or datetime.max,
+            m.round_num,
+        )
+    )
+    match = my_matches[0]
+
+    players_by_id = {p.id: p for p in tournament.players}
+    courts_by_id = {c.id: c.name for c in tournament.courts}
+    opponent_id = match.player2_id if match.player1_id == my_player.id else match.player1_id
+    opponent = players_by_id.get(opponent_id)
+    round_label = build_round_label_fn(matches)
+
+    return NextMatchResponse(
+        match_id=match.id,
+        round_label=round_label(match.stage, match.round_num, match.group_id),
+        court_name=courts_by_id.get(match.court_id),
+        status=match.status,
+        scheduled_start_time=match.scheduled_start_time,
+        opponent_name=opponent.name if opponent else "TBD",
+        opponent_is_placeholder=opponent.is_placeholder if opponent else True,
+    )
+
+
 @router.post("/batch", response_model=List[PlayerResponse], status_code=status.HTTP_201_CREATED)
 def register_players_batch(
     tournament_id: str,
@@ -217,6 +285,64 @@ def list_tournament_players(
         query = query.filter(models.Player.is_placeholder == False)
 
     return query.order_by(models.Player.seed.asc().nullslast()).all()
+
+
+@router.patch("/team-assignments", response_model=List[PlayerResponse])
+def update_team_assignments(
+    tournament_id: str,
+    payload: TeamAssignmentBulkUpdate,
+    current_user: CurrentUser = Depends(require_organiser),
+    db: Session = Depends(get_db),
+):
+    """
+    Saves every player's TEAM_FRIENDLY team/captain assignment in one transaction, replacing the
+    old one-PATCH-per-click flow. The frontend always sends the full roster's current draft (not
+    a diff), so this is a plain overwrite of `team`/`is_captain` for the given player ids -- no
+    merge logic needed, and the captain-uniqueness check only has to scan this one list.
+    """
+    tournament = db.query(models.Tournament).filter(models.Tournament.id == tournament_id).first()
+    if not tournament:
+        raise HTTPException(status_code=404, detail="Tournament not found")
+    ensure_tournament_access(tournament, current_user, db)
+
+    if tournament.format != models.TournamentFormat.TEAM_FRIENDLY:
+        raise HTTPException(status_code=400, detail="Team assignments only apply to TEAM_FRIENDLY tournaments.")
+
+    if tournament.status not in (models.TournamentStatus.DRAFT, models.TournamentStatus.SCHEDULING):
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot edit players once the tournament is in progress or completed."
+        )
+
+    captain_teams_seen = set()
+    for item in payload.assignments:
+        if item.is_captain:
+            if item.team is None:
+                raise HTTPException(status_code=400, detail="A captain must be assigned to a team.")
+            if item.team in captain_teams_seen:
+                raise HTTPException(status_code=400, detail=f"Team {item.team} can only have one captain.")
+            captain_teams_seen.add(item.team)
+
+    players_by_id = {
+        p.id: p for p in db.query(models.Player).filter(
+            models.Player.tournament_id == tournament_id,
+            models.Player.id.in_([item.player_id for item in payload.assignments]),
+        ).all()
+    }
+
+    updated_players = []
+    for item in payload.assignments:
+        player = players_by_id.get(item.player_id)
+        if not player:
+            raise HTTPException(status_code=404, detail=f"Player {item.player_id} not found in this tournament.")
+        player.team = item.team
+        player.is_captain = item.is_captain
+        updated_players.append(player)
+
+    db.commit()
+    for p in updated_players:
+        db.refresh(p)
+    return updated_players
 
 
 @router.patch("/{player_id}", response_model=PlayerResponse)
