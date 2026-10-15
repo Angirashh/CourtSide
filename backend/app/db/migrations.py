@@ -223,3 +223,36 @@ def ensure_user_contact_unique_per_role(engine: Engine) -> None:
         conn.execute(text(
             "CREATE UNIQUE INDEX IF NOT EXISTS ix_users_phone_role ON users (phone, role)"
         ))
+
+
+def ensure_athlete_profile_columns(engine: Engine) -> None:
+    """Same create_all limitation as above, for the self-service profile fields
+    (gender, dominant_hand, preferred_format, bio) added to an `athletes` table that predates
+    the editable public profile feature."""
+    inspector = inspect(engine)
+    if "athletes" not in inspector.get_table_names():
+        return
+
+    existing = {col["name"] for col in inspector.get_columns("athletes")}
+    with engine.begin() as conn:
+        if "gender" not in existing:
+            conn.execute(text("ALTER TABLE athletes ADD COLUMN gender VARCHAR"))
+        if "dominant_hand" not in existing:
+            conn.execute(text("ALTER TABLE athletes ADD COLUMN dominant_hand VARCHAR"))
+        if "preferred_format" not in existing:
+            conn.execute(text("ALTER TABLE athletes ADD COLUMN preferred_format VARCHAR"))
+        if "bio" not in existing:
+            conn.execute(text("ALTER TABLE athletes ADD COLUMN bio VARCHAR"))
+
+
+def ensure_player_captain_column(engine: Engine) -> None:
+    """Same create_all limitation as above, for the `is_captain` column added to a `players`
+    table that predates the team-captain feature (TEAM_FRIENDLY format only)."""
+    inspector = inspect(engine)
+    if "players" not in inspector.get_table_names():
+        return
+
+    existing = {col["name"] for col in inspector.get_columns("players")}
+    if "is_captain" not in existing:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE players ADD COLUMN is_captain BOOLEAN NOT NULL DEFAULT FALSE"))

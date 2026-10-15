@@ -2,10 +2,10 @@ import { Badge } from './badge'
 import { cn } from '@/lib/utils'
 import type { MatchStatus, RegistrationStatus, TournamentStatus } from '@/types/api'
 
-const tournamentStatusMap: Record<TournamentStatus, { label: string; variant: 'neutral' | 'warning' | 'success' | 'ember' }> = {
+const tournamentStatusMap: Record<TournamentStatus, { label: string; variant: 'neutral' | 'warning' | 'success' | 'live' }> = {
   DRAFT: { label: 'Upcoming', variant: 'neutral' },
   SCHEDULING: { label: 'Upcoming', variant: 'warning' },
-  IN_PROGRESS: { label: 'Live', variant: 'ember' },
+  IN_PROGRESS: { label: 'Live', variant: 'live' },
   COMPLETED: { label: 'Completed', variant: 'success' },
 }
 
@@ -18,9 +18,9 @@ export function TournamentStatusBadge({ status }: { status: TournamentStatus }) 
   )
 }
 
-const matchStatusMap: Record<MatchStatus, { label: string; variant: 'neutral' | 'ember' | 'success' }> = {
+const matchStatusMap: Record<MatchStatus, { label: string; variant: 'neutral' | 'live' | 'success' }> = {
   SCHEDULED: { label: 'Scheduled', variant: 'neutral' },
-  IN_PROGRESS: { label: 'On court', variant: 'ember' },
+  IN_PROGRESS: { label: 'On court', variant: 'live' },
   COMPLETED: { label: 'Completed', variant: 'success' },
 }
 

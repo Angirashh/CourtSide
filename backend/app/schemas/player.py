@@ -1,7 +1,7 @@
 from datetime import date, datetime
-from typing import Optional, List
+from typing import Optional, List, Literal
 from pydantic import BaseModel, Field, ConfigDict
-from app.db.models import TournamentFormat, TournamentStatus
+from app.db.models import MatchStatus, TournamentFormat, TournamentStatus
 from app.schemas.match import MatchResponse
 
 
@@ -10,6 +10,7 @@ class PlayerBase(BaseModel):
     seed: Optional[int] = Field(None, ge=1, examples=[1])
     is_placeholder: bool = Field(default=False, description="True for TBD slots")
     team: Optional[str] = Field(None, description="TEAM_FRIENDLY format only: 'A' or 'B'")
+    is_captain: bool = Field(default=False, description="TEAM_FRIENDLY format only: team captain")
 
 
 class PlayerCreate(PlayerBase):
@@ -28,6 +29,7 @@ class PlayerUpdate(BaseModel):
 class PlayerResponse(PlayerBase):
     id: str
     tournament_id: str
+    athlete_id: Optional[str] = None
     is_withdrawn: bool = False
     withdrawn_at: Optional[datetime] = None
     withdrawal_reason: Optional[str] = None
@@ -37,6 +39,16 @@ class PlayerResponse(PlayerBase):
 
 class PlayerBatchCreate(BaseModel):
     players: List[PlayerCreate]
+
+
+class TeamAssignmentItem(BaseModel):
+    player_id: str
+    team: Optional[Literal["A", "B"]] = None
+    is_captain: bool = False
+
+
+class TeamAssignmentBulkUpdate(BaseModel):
+    assignments: List[TeamAssignmentItem]
 
 
 class PlayerWithdrawRequest(BaseModel):
@@ -64,3 +76,16 @@ class MyRegistrationResponse(BaseModel):
     player_id: str
     seed: Optional[int] = None
     is_withdrawn: bool = False
+
+
+class NextMatchResponse(BaseModel):
+    """The logged-in player's own next (or currently live) match in one tournament, for the
+    public tournament page's "up next" widget. Flattened the same way MyRegistrationResponse
+    is -- built manually in the route from Match + Player + Court, not a single ORM row."""
+    match_id: str
+    round_label: str
+    court_name: Optional[str] = None
+    status: MatchStatus
+    scheduled_start_time: Optional[datetime] = None
+    opponent_name: str
+    opponent_is_placeholder: bool = False

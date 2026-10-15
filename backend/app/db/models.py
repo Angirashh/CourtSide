@@ -179,6 +179,10 @@ class Athlete(Base):
     email = Column(String, unique=True, index=True, nullable=True)
     phone = Column(String, unique=True, index=True, nullable=True)
     club_or_city = Column(String, nullable=True)
+    gender = Column(String, nullable=True)
+    dominant_hand = Column(String, nullable=True)
+    preferred_format = Column(String, nullable=True)  # comma-separated; read via preferred_formats below
+    bio = Column(String, nullable=True)
 
     # Global Career Statistics
     ranking_points = Column(Float, default=0.0, index=True)
@@ -192,6 +196,13 @@ class Athlete(Base):
 
     # Relationships
     tournament_entries = relationship("Player", back_populates="athlete")
+
+    @property
+    def preferred_formats(self) -> list:
+        """Read-side view of the comma-separated `preferred_format` column as a list, so every
+        response path (including plain `from_attributes` serialization in list/create routes)
+        gets the multi-select shape for free without duplicating the split logic."""
+        return self.preferred_format.split(",") if self.preferred_format else []
 
 
 # =====================================================================
@@ -297,6 +308,8 @@ class Player(Base):
     # How many matches each player plays is a single tournament-wide number set at schedule
     # generation time (ScheduleGenerationRequest.matches_per_player), not stored per player.
     team = Column(String, nullable=True)
+    # TEAM_FRIENDLY format only: at most one captain per team, enforced at the API layer.
+    is_captain = Column(Boolean, nullable=False, default=False)
 
     # Tournament-specific awards
     ranking_points_earned = Column(Float, default=0.0)

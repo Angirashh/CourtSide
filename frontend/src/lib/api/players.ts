@@ -1,5 +1,5 @@
 import { api } from './client'
-import type { Player, WithdrawResponse } from '@/types/api'
+import type { NextMatch, Player, WithdrawResponse } from '@/types/api'
 
 export const playersApi = {
   list: (tournamentId: string, includePlaceholders = true) =>
@@ -40,6 +40,17 @@ export const playersApi = {
   update: (tournamentId: string, playerId: string, payload: { team?: 'A' | 'B' }) =>
     api.patch<Player>(`/tournaments/${tournamentId}/players/${playerId}`, payload).then((r) => r.data),
 
+  updateTeamAssignments: (
+    tournamentId: string,
+    assignments: { player_id: string; team: 'A' | 'B' | null; is_captain: boolean }[]
+  ) =>
+    api
+      .patch<Player[]>(`/tournaments/${tournamentId}/players/team-assignments`, { assignments })
+      .then((r) => r.data),
+
   selfRegister: (tournamentId: string) =>
     api.post<Player>(`/tournaments/${tournamentId}/players/self-register`).then((r) => r.data),
+
+  myNextMatch: (tournamentId: string) =>
+    api.get<NextMatch | null>(`/tournaments/${tournamentId}/players/me/next-match`).then((r) => r.data),
 }

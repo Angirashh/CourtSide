@@ -28,6 +28,9 @@ const TournamentLivePage = lazy(() =>
 const PlayerProfilePage = lazy(() =>
   import('@/pages/player/player-profile-page').then((m) => ({ default: m.PlayerProfilePage }))
 )
+const PublicPlayerProfilePage = lazy(() =>
+  import('@/pages/player/public-player-profile-page').then((m) => ({ default: m.PublicPlayerProfilePage }))
+)
 function suspended(element: React.ReactNode) {
   return <Suspense fallback={<FullPageSpinner />}>{element}</Suspense>
 }
@@ -42,6 +45,7 @@ export const router = createBrowserRouter([
       { path: '/tournaments', element: suspended(<TournamentsBrowsePage />) },
       { path: '/tournaments/:id', element: suspended(<TournamentLivePage />) },
       { path: '/players', element: suspended(<PlayerProfilePage />) },
+      { path: '/players/:id', element: suspended(<PublicPlayerProfilePage />) },
     ],
   },
   {

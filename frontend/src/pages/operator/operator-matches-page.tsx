@@ -281,7 +281,7 @@ function OperatorMatchCard({
         </div>
         <div className="flex items-center gap-2">
           {isLive ? (
-            <Badge variant="ember" pulse>
+            <Badge variant="live" pulse>
               LIVE
             </Badge>
           ) : nextUp ? (

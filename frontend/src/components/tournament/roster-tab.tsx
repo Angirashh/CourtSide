@@ -1,19 +1,28 @@
 import { useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { toast } from 'sonner'
-import { FileUp, Info, Plus, Shuffle, Trash2, Upload, UserX, Users } from 'lucide-react'
+import { Crown, FileUp, Info, Pencil, Plus, Shuffle, Trash2, Upload, UserX, Users } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog'
 import { FieldError, Input, Label } from '@/components/ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { EmptyState } from '@/components/ui/empty-state'
-import { useDeleteAllPlayers, useRegisterPlayer, useUpdatePlayer, useUploadRoster, useWithdrawPlayer } from '@/hooks/use-players'
+import { InitialsAvatar } from '@/components/ui/avatar'
+import {
+  useDeleteAllPlayers,
+  useRegisterPlayer,
+  useUpdateTeamAssignments,
+  useUploadRoster,
+  useWithdrawPlayer,
+} from '@/hooks/use-players'
 import { useFinalizeSeeding } from '@/hooks/use-tournaments'
 import { extractErrorMessage } from '@/lib/api/client'
-import { cn, initials } from '@/lib/utils'
+import { cn } from '@/lib/utils'
 import type { Player, TournamentFormat, TournamentStatus } from '@/types/api'
 
 export function RosterTab({
@@ -68,11 +77,12 @@ export function RosterTab({
             )}
           </>
         )}
-        {format === 'TEAM_FRIENDLY' && <TeamSizeReadout players={realPlayers} />}
-        <span className={cn('text-xs font-semibold text-court-cream/45', format !== 'TEAM_FRIENDLY' && 'ml-auto')}>
-          {realPlayers.length} registered
-        </span>
+        <span className="ml-auto text-xs font-semibold text-court-cream/45">{realPlayers.length} registered</span>
       </div>
+
+      {format === 'TEAM_FRIENDLY' && realPlayers.length > 0 && (
+        <TeamFriendlyPanel tournamentId={tournamentId} players={realPlayers} canEdit={canEditRoster} />
+      )}
 
       {realPlayers.length === 0 ? (
         <EmptyState
@@ -89,7 +99,6 @@ export function RosterTab({
                 player={player}
                 tournamentId={tournamentId}
                 canWithdraw={status !== 'DRAFT' && status !== 'COMPLETED' && !player.is_withdrawn}
-                showTeamFriendlyControls={format === 'TEAM_FRIENDLY' && canEditRoster && !player.is_withdrawn}
               />
             ))}
           </ul>
@@ -99,18 +108,226 @@ export function RosterTab({
   )
 }
 
-function TeamSizeReadout({ players }: { players: Player[] }) {
-  const teamA = players.filter((p) => p.team === 'A').length
-  const teamB = players.filter((p) => p.team === 'B').length
-  const unassigned = players.length - teamA - teamB
-  const balanced = teamA === teamB && teamA > 0
+type TeamDraft = Record<string, { team: 'A' | 'B' | null; isCaptain: boolean }>
+
+function TeamFriendlyPanel({
+  tournamentId,
+  players,
+  canEdit,
+}: {
+  tournamentId: string
+  players: Player[]
+  canEdit: boolean
+}) {
+  const teamEligible = players.filter((p) => !p.is_withdrawn)
+  const [isEditing, setIsEditing] = useState(false)
+  const [draft, setDraft] = useState<TeamDraft>({})
+  const updateTeamAssignments = useUpdateTeamAssignments(tournamentId)
+
+  function enterEditMode() {
+    const seeded: TeamDraft = {}
+    for (const p of teamEligible) seeded[p.id] = { team: p.team, isCaptain: p.is_captain }
+    setDraft(seeded)
+    setIsEditing(true)
+  }
+
+  function cancelEdit() {
+    setIsEditing(false)
+    setDraft({})
+  }
+
+  function setDraftTeam(playerId: string, team: 'A' | 'B') {
+    setDraft((prev) => {
+      const current = prev[playerId]
+      if (!current || current.team === team) return prev
+      return { ...prev, [playerId]: { team, isCaptain: false } }
+    })
+  }
+
+  function setCaptain(team: 'A' | 'B', playerId: string) {
+    setDraft((prev) => {
+      const next = { ...prev }
+      for (const id of Object.keys(next)) {
+        if (next[id].team === team) next[id] = { ...next[id], isCaptain: id === playerId }
+      }
+      return next
+    })
+  }
+
+  function clearCaptain(team: 'A' | 'B') {
+    setDraft((prev) => {
+      const next = { ...prev }
+      for (const id of Object.keys(next)) {
+        if (next[id].team === team) next[id] = { ...next[id], isCaptain: false }
+      }
+      return next
+    })
+  }
+
+  function save() {
+    const assignments = Object.entries(draft).map(([player_id, v]) => ({
+      player_id,
+      team: v.team,
+      is_captain: v.isCaptain,
+    }))
+    updateTeamAssignments.mutate(assignments, {
+      onSuccess: () => {
+        toast.success('Team assignments saved.')
+        setIsEditing(false)
+        setDraft({})
+      },
+      onError: (err) => toast.error(extractErrorMessage(err)),
+    })
+  }
+
+  if (!isEditing) {
+    const teamA = teamEligible.filter((p) => p.team === 'A')
+    const teamB = teamEligible.filter((p) => p.team === 'B')
+    const unassigned = teamEligible.filter((p) => !p.team)
+    const balanced = teamA.length === teamB.length && teamA.length > 0
+
+    return (
+      <Card className="space-y-4 p-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h3 className="text-sm font-bold text-court-cream">Team assignments</h3>
+          {canEdit && (
+            <Button size="sm" variant="outline" onClick={enterEditMode}>
+              <Pencil className="size-3.5" />
+              Edit teams
+            </Button>
+          )}
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <TeamGroup label="Team A" players={teamA} />
+          <TeamGroup label="Team B" players={teamB} />
+        </div>
+        {unassigned.length > 0 && (
+          <p className="text-xs font-medium text-ember-600">{unassigned.length} player(s) not yet assigned to a team.</p>
+        )}
+        {!balanced && (teamA.length > 0 || teamB.length > 0) && (
+          <p className="text-xs font-medium text-ember-600">Teams must match in size to generate the schedule.</p>
+        )}
+      </Card>
+    )
+  }
+
+  const draftTeamA = teamEligible.filter((p) => draft[p.id]?.team === 'A')
+  const draftTeamB = teamEligible.filter((p) => draft[p.id]?.team === 'B')
+  const balanced = draftTeamA.length === draftTeamB.length && draftTeamA.length > 0
 
   return (
-    <span className={cn('ml-auto text-xs font-semibold', balanced ? 'text-court-cream/45' : 'text-ember-600')}>
-      Team A: {teamA} · Team B: {teamB}
-      {unassigned > 0 && ` · ${unassigned} unassigned`}
-      {!balanced && ' — teams must match to generate'}
-    </span>
+    <Card className="space-y-4 p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h3 className="text-sm font-bold text-court-cream">Edit team assignments</h3>
+        <span className={cn('text-xs font-semibold', balanced ? 'text-court-cream/45' : 'text-ember-600')}>
+          Team A: {draftTeamA.length} · Team B: {draftTeamB.length}
+          {!balanced && ' — teams must match to generate'}
+        </span>
+      </div>
+
+      <ul className="divide-y divide-white/10 rounded-lg border border-white/10">
+        {teamEligible.map((p) => (
+          <li key={p.id} className="flex items-center gap-3 px-3 py-2">
+            <InitialsAvatar name={p.name} seed={p.athlete_id ?? p.id} size="sm" />
+            <p className="min-w-0 flex-1 truncate text-sm font-semibold text-court-cream">{p.name}</p>
+            <div className="flex shrink-0 rounded-full border border-white/20 p-0.5">
+              {(['A', 'B'] as const).map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  aria-pressed={draft[p.id]?.team === t}
+                  onClick={() => setDraftTeam(p.id, t)}
+                  className={cn(
+                    'rounded-full px-2 py-1 text-[11px] font-bold transition-colors',
+                    draft[p.id]?.team === t ? 'bg-navy-900 text-cream-50' : 'text-court-cream/45 hover:text-court-cream/70'
+                  )}
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
+          </li>
+        ))}
+      </ul>
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <CaptainSelect label="Team A captain" team="A" players={draftTeamA} draft={draft} onSelect={setCaptain} onClear={clearCaptain} />
+        <CaptainSelect label="Team B captain" team="B" players={draftTeamB} draft={draft} onSelect={setCaptain} onClear={clearCaptain} />
+      </div>
+
+      <div className="flex justify-end gap-2">
+        <Button variant="ghost" onClick={cancelEdit}>
+          Cancel
+        </Button>
+        <Button loading={updateTeamAssignments.isPending} onClick={save}>
+          Save teams
+        </Button>
+      </div>
+    </Card>
+  )
+}
+
+function TeamGroup({ label, players }: { label: string; players: Player[] }) {
+  return (
+    <div className="rounded-lg border border-white/10 p-3">
+      <p className="mb-2 text-xs font-bold uppercase tracking-wide text-court-cream/45">
+        {label} · {players.length}
+      </p>
+      {players.length === 0 ? (
+        <p className="text-xs text-court-cream/45">No players yet.</p>
+      ) : (
+        <ul className="space-y-1.5">
+          {players.map((p) => (
+            <li key={p.id} className="flex items-center gap-1.5 text-sm text-court-cream/85">
+              {p.is_captain && <Crown className="size-3.5 shrink-0 text-ember-500" />}
+              <span className="truncate">{p.name}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
+
+function CaptainSelect({
+  label,
+  team,
+  players,
+  draft,
+  onSelect,
+  onClear,
+}: {
+  label: string
+  team: 'A' | 'B'
+  players: Player[]
+  draft: TeamDraft
+  onSelect: (team: 'A' | 'B', playerId: string) => void
+  onClear: (team: 'A' | 'B') => void
+}) {
+  const currentCaptain = players.find((p) => draft[p.id]?.isCaptain)
+  const hasPlayers = players.length > 0
+
+  return (
+    <div className="space-y-1.5">
+      <Label>{label}</Label>
+      <Select
+        value={hasPlayers ? currentCaptain?.id ?? '__none__' : undefined}
+        onValueChange={(value) => (value === '__none__' ? onClear(team) : onSelect(team, value))}
+        disabled={!hasPlayers}
+      >
+        <SelectTrigger>
+          <SelectValue placeholder={hasPlayers ? 'No captain' : 'No players on this team yet'} />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="__none__">No captain</SelectItem>
+          {players.map((p) => (
+            <SelectItem key={p.id} value={p.id}>
+              {p.name}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
   )
 }
 
@@ -118,12 +335,10 @@ function PlayerRow({
   player,
   tournamentId,
   canWithdraw,
-  showTeamFriendlyControls,
 }: {
   player: Player
   tournamentId: string
   canWithdraw: boolean
-  showTeamFriendlyControls?: boolean
 }) {
   const withdraw = useWithdrawPlayer(tournamentId)
   const [open, setOpen] = useState(false)
@@ -134,16 +349,19 @@ function PlayerRow({
       <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-white/10 text-xs font-bold text-court-cream/60">
         {player.seed ?? '–'}
       </div>
-      <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-navy-900 text-[11px] font-bold text-cream-50">
-        {initials(player.name)}
-      </div>
+      <InitialsAvatar name={player.name} seed={player.athlete_id ?? player.id} size="sm" />
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-semibold text-court-cream">{player.name}</p>
+        {player.athlete_id && !player.is_placeholder ? (
+          <Link to={`/players/${player.athlete_id}`} className="block truncate text-sm font-semibold text-court-cream hover:underline">
+            {player.name}
+          </Link>
+        ) : (
+          <p className="truncate text-sm font-semibold text-court-cream">{player.name}</p>
+        )}
         {player.is_withdrawn && (
           <p className="truncate text-xs text-danger">Withdrawn{player.withdrawal_reason ? ` · ${player.withdrawal_reason}` : ''}</p>
         )}
       </div>
-      {showTeamFriendlyControls && <TeamFriendlyControls player={player} tournamentId={tournamentId} />}
       {player.is_withdrawn ? (
         <Badge variant="danger">
           <UserX className="size-3" />
@@ -195,34 +413,6 @@ function PlayerRow({
         </Dialog>
       ) : null}
     </li>
-  )
-}
-
-function TeamFriendlyControls({ player, tournamentId }: { player: Player; tournamentId: string }) {
-  const update = useUpdatePlayer(tournamentId)
-
-  function setTeam(team: 'A' | 'B') {
-    if (player.team === team || update.isPending) return
-    update.mutate({ playerId: player.id, team }, { onError: (err) => toast.error(extractErrorMessage(err)) })
-  }
-
-  return (
-    <div className="flex shrink-0 rounded-full border border-white/20 p-0.5">
-      {(['A', 'B'] as const).map((t) => (
-        <button
-          key={t}
-          type="button"
-          aria-pressed={player.team === t}
-          onClick={() => setTeam(t)}
-          className={cn(
-            'rounded-full px-2 py-1 text-[11px] font-bold transition-colors',
-            player.team === t ? 'bg-navy-900 text-cream-50' : 'text-court-cream/45 hover:text-court-cream/70'
-          )}
-        >
-          {t}
-        </button>
-      ))}
-    </div>
   )
 }
 
