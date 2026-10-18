@@ -257,3 +257,30 @@ def ensure_player_captain_column(engine: Engine) -> None:
     if "is_captain" not in existing:
         with engine.begin() as conn:
             conn.execute(text("ALTER TABLE players ADD COLUMN is_captain BOOLEAN NOT NULL DEFAULT FALSE"))
+
+
+def ensure_competition_setup_columns(engine: Engine) -> None:
+    """Same create_all limitation as above, for the TEAM tournament-type columns
+    (`tournament_type`, `event_formats`, `team_config` on `tournaments`; `team_id` on
+    `players`) added to tables that predate the TEAM competition-setup feature.
+    `tournament_type` defaults to 'INDIVIDUAL' so every tournament that already exists
+    keeps behaving exactly as it did before the TEAM type existed."""
+    inspector = inspect(engine)
+
+    if "tournaments" in inspector.get_table_names():
+        existing = {col["name"] for col in inspector.get_columns("tournaments")}
+        with engine.begin() as conn:
+            if "tournament_type" not in existing:
+                conn.execute(text(
+                    "ALTER TABLE tournaments ADD COLUMN tournament_type VARCHAR NOT NULL DEFAULT 'INDIVIDUAL'"
+                ))
+            if "event_formats" not in existing:
+                conn.execute(text("ALTER TABLE tournaments ADD COLUMN event_formats JSON"))
+            if "team_config" not in existing:
+                conn.execute(text("ALTER TABLE tournaments ADD COLUMN team_config JSON"))
+
+    if "players" in inspector.get_table_names():
+        existing = {col["name"] for col in inspector.get_columns("players")}
+        if "team_id" not in existing:
+            with engine.begin() as conn:
+                conn.execute(text("ALTER TABLE players ADD COLUMN team_id VARCHAR"))

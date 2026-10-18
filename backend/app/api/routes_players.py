@@ -359,6 +359,63 @@ def update_team_assignments(
     return updated_players
 
 
+@router.patch("/team-id-assignments", response_model=List[PlayerResponse])
+def update_player_team_id_assignments(
+    tournament_id: str,
+    payload: PlayerTeamAssignmentsUpdate,
+    current_user: CurrentUser = Depends(require_organiser),
+    db: Session = Depends(get_db),
+):
+    """
+    Quick single/multi-row team reassignment from the main roster list: for a TEAM tournament,
+    moves players between `TournamentTeam`s by `team_id`; for TEAM_FRIENDLY, moves players
+    between sides A/B by `team` (captain status untouched -- that still only changes through
+    `update_team_assignments` above, TeamFriendlyPanel's dedicated draft/captain editor).
+    Same "frontend sends only the changed rows" contract either way: a plain per-row
+    overwrite, not a diff against existing assignments.
+    """
+    tournament = db.query(models.Tournament).filter(models.Tournament.id == tournament_id).first()
+    if not tournament:
+        raise HTTPException(status_code=404, detail="Tournament not found")
+    ensure_tournament_access(tournament, current_user, db)
+
+    if tournament.status not in (models.TournamentStatus.DRAFT, models.TournamentStatus.SCHEDULING):
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot edit players once the tournament is in progress or completed."
+        )
+
+    is_team_type = tournament.tournament_type == models.TournamentType.TEAM
+    valid_team_ids = {t.id for t in tournament.teams} if is_team_type else set()
+
+    players_by_id = {
+        p.id: p for p in db.query(models.Player).filter(
+            models.Player.tournament_id == tournament_id,
+            models.Player.id.in_([item.player_id for item in payload.assignments]),
+        ).all()
+    }
+
+    updated_players = []
+    for item in payload.assignments:
+        player = players_by_id.get(item.player_id)
+        if not player:
+            raise HTTPException(status_code=404, detail=f"Player {item.player_id} not found in this tournament.")
+        if is_team_type:
+            if item.team_id is not None and item.team_id not in valid_team_ids:
+                raise HTTPException(status_code=400, detail=f"Team {item.team_id} does not belong to this tournament.")
+            player.team_id = item.team_id
+        else:
+            if item.team not in (None, "A", "B"):
+                raise HTTPException(status_code=400, detail="team must be 'A', 'B', or omitted.")
+            player.team = item.team
+        updated_players.append(player)
+
+    db.commit()
+    for p in updated_players:
+        db.refresh(p)
+    return updated_players
+
+
 @router.patch("/{player_id}", response_model=PlayerResponse)
 def update_player(
     tournament_id: str,

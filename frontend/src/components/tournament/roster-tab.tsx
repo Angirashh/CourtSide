@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
@@ -16,14 +16,15 @@ import { InitialsAvatar } from '@/components/ui/avatar'
 import {
   useDeleteAllPlayers,
   useRegisterPlayer,
+  useUpdatePlayerTeamAssignments,
   useUpdateTeamAssignments,
   useUploadRoster,
   useWithdrawPlayer,
 } from '@/hooks/use-players'
-import { useFinalizeSeeding } from '@/hooks/use-tournaments'
+import { useAddTournamentTeam, useFinalizeSeeding, useUpdateTournamentTeam } from '@/hooks/use-tournaments'
 import { extractErrorMessage } from '@/lib/api/client'
 import { cn } from '@/lib/utils'
-import type { Player, TournamentFormat, TournamentStatus } from '@/types/api'
+import type { Player, TeamTieConfig, TournamentFormat, TournamentStatus, TournamentTeam, TournamentType } from '@/types/api'
 
 export function RosterTab({
   tournamentId,
@@ -43,25 +44,18 @@ export function RosterTab({
   teamConfig: TeamTieConfig | null
 }) {
   const [teamAssignmentDraft, setTeamAssignmentDraft] = useState<Record<string, string | null>>({})
-  const [friendlyTeamDraft, setFriendlyTeamDraft] = useState<Record<string, 'A' | 'B'>>({})
   const realPlayers = players.filter((p) => !p.is_placeholder).sort((a, b) => (a.seed ?? 999) - (b.seed ?? 999))
   const finalizeSeeding = useFinalizeSeeding(tournamentId)
   const saveTeamAssignments = useUpdatePlayerTeamAssignments(tournamentId)
+  // Quick inline reassignment only applies to the TEAM format (TEAM_FRIENDLY's side/captain
+  // assignment is edited as a full draft via TeamFriendlyPanel below, not per-row here).
   const pendingTeamAssignments = tournamentType === 'TEAM'
     ? realPlayers.flatMap((player) =>
       Object.prototype.hasOwnProperty.call(teamAssignmentDraft, player.id) && teamAssignmentDraft[player.id] !== player.team_id
         ? [{ player_id: player.id, team_id: teamAssignmentDraft[player.id] ?? null }]
         : []
     )
-    : realPlayers.flatMap((player) =>
-      Object.prototype.hasOwnProperty.call(friendlyTeamDraft, player.id) && friendlyTeamDraft[player.id] !== player.team
-        ? [{ player_id: player.id, team: friendlyTeamDraft[player.id] }]
-        : []
-    )
-  const playersWithDraftSides = realPlayers.map((player) => ({
-    ...player,
-    team: friendlyTeamDraft[player.id] ?? player.team,
-  }))
+    : []
   // A schedule already exists once SCHEDULING, but nothing's played yet, so roster edits
   // (add / upload / withdraw) are still safe — the organiser just needs to regenerate after.
   const canEditRoster = status === 'DRAFT' || status === 'SCHEDULING'
@@ -110,7 +104,6 @@ export function RosterTab({
                 onClick={() => saveTeamAssignments.mutate(pendingTeamAssignments, {
                   onSuccess: () => {
                     setTeamAssignmentDraft({})
-                    setFriendlyTeamDraft({})
                     toast.success('Team assignments saved.')
                   },
                   onError: (err) => toast.error(extractErrorMessage(err)),
@@ -153,13 +146,6 @@ export function RosterTab({
                   const next = { ...current }
                   if (teamId === player.team_id) delete next[player.id]
                   else next[player.id] = teamId
-                  return next
-                })}
-                assignedFriendlyTeam={Object.prototype.hasOwnProperty.call(friendlyTeamDraft, player.id) ? friendlyTeamDraft[player.id] : player.team}
-                onFriendlyTeamChange={(team) => setFriendlyTeamDraft((current) => {
-                  const next = { ...current }
-                  if (team === player.team) delete next[player.id]
-                  else next[player.id] = team
                   return next
                 })}
                 canWithdraw={status !== 'DRAFT' && status !== 'COMPLETED' && !player.is_withdrawn}
@@ -403,8 +389,6 @@ function PlayerRow({
   assignedTeamId,
   savingTeamAssignments,
   onTeamAssignmentChange,
-  assignedFriendlyTeam,
-  onFriendlyTeamChange,
   canWithdraw,
 }: {
   player: Player
@@ -414,8 +398,6 @@ function PlayerRow({
   assignedTeamId: string | null | undefined
   savingTeamAssignments: boolean
   onTeamAssignmentChange: (teamId: string | null) => void
-  assignedFriendlyTeam: 'A' | 'B' | null
-  onFriendlyTeamChange: (team: 'A' | 'B') => void
   canWithdraw: boolean
 }) {
   const withdraw = useWithdrawPlayer(tournamentId)

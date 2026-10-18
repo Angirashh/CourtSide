@@ -11,6 +11,7 @@ class PlayerBase(BaseModel):
     is_placeholder: bool = Field(default=False, description="True for TBD slots")
     team: Optional[str] = Field(None, description="TEAM_FRIENDLY format only: 'A' or 'B'")
     is_captain: bool = Field(default=False, description="TEAM_FRIENDLY format only: team captain")
+    team_id: Optional[str] = Field(None, description="TEAM format only: the TournamentTeam this player belongs to")
 
 
 class PlayerCreate(PlayerBase):

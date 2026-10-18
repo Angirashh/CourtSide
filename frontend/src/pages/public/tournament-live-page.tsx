@@ -55,7 +55,6 @@ export function TournamentLivePage() {
   // Same registrations query HeroRegistrationBlock uses below -- React Query dedupes the
   // identical key, so this costs nothing extra. Keyed off the route param rather than
   // `tournament.id` so it's available before the tournament itself has loaded.
-  const isPlayer = useAuthStore((s) => s.user?.role === 'PLAYER')
   const { data: myRegistrations } = useMyRegistrations(isPlayer)
   const myPlayerId = myRegistrations?.find((r) => r.tournament_id === id)?.player_id
   const showMyMatchesTab = !!myPlayerId

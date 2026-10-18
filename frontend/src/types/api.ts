@@ -64,6 +64,7 @@ export interface Player {
   withdrawal_reason: string | null
   team: 'A' | 'B' | null
   is_captain: boolean
+  team_id: string | null
 }
 
 export interface Match {

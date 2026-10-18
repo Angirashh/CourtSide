@@ -71,6 +71,14 @@ export function useUpdateTeamAssignments(tournamentId: string) {
   })
 }
 
+export function useUpdatePlayerTeamAssignments(tournamentId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (assignments: PlayerTeamAssignment[]) => playersApi.updatePlayerTeamAssignments(tournamentId, assignments),
+    onSuccess: () => qc.invalidateQueries({ queryKey: tournamentKeys.detail(tournamentId) }),
+  })
+}
+
 export function useSelfRegister(tournamentId: string) {
   const qc = useQueryClient()
   return useMutation({
