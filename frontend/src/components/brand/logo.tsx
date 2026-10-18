@@ -1,44 +1,43 @@
-import { LayoutGrid } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-/**
- * The one mark used everywhere -- sharp square, no radius, per the Match Point brand
- * (see frontend_design_philosophy: sharp corners everywhere, no rounded chrome).
- */
+/** The leaping jump-smash player icon (no lettering -- pairs with BrandWordmark's text). `size`
+ * sets the rendered height; width follows the artwork's own (non-square) aspect ratio. */
 export function BrandMark({ size = 36, className }: { size?: number; className?: string }) {
   return (
-    <div
-      className={cn('flex shrink-0 items-center justify-center bg-ember-500 text-ink shadow-sm', className)}
-      style={{ width: size, height: size }}
-    >
-      <LayoutGrid size={Math.round(size * 0.5)} strokeWidth={2.5} />
-    </div>
+    <img
+      src="/images/brand/cs-figure.svg"
+      alt=""
+      className={cn('shrink-0 object-contain', className)}
+      style={{ height: size, width: 'auto' }}
+    />
   )
 }
 
-/** The two-tone "Court" + ember "side" wordmark, text size/color left to the caller. */
-export function BrandWordmark({ className }: { className?: string }) {
+/** The two-tone "COURT" + ember "SIDE" wordmark, as artwork (not live text) so it always
+ * matches the figure logo's exact lettering. `size` sets the rendered height; width follows
+ * the artwork's own (non-square) aspect ratio. */
+export function BrandWordmark({ size = 20, className }: { size?: number; className?: string }) {
   return (
-    <span className={cn('font-display uppercase leading-none tracking-wide', className)}>
-      Court<span className="text-ember-500">side</span>
-    </span>
+    <img
+      src="/images/brand/courtside-wordmark-text.svg"
+      alt="Courtside"
+      className={cn('shrink-0 object-contain', className)}
+      style={{ height: size, width: 'auto' }}
+    />
   )
 }
 
-/** Full logo lockup: mark + wordmark, side by side. */
-export function Logo({
-  size = 36,
-  textClassName,
-  className,
-}: {
-  size?: number
-  textClassName?: string
-  className?: string
-}) {
+/** A large, faint copy of the figure icon meant to sit behind a BrandWordmark as a subtle
+ * background texture -- decorative only. The caller must give its parent `position: relative`
+ * (or `relative` class) so this absolute layer positions against it, not the page. */
+export function BrandWatermark({ size = 120, className }: { size?: number; className?: string }) {
   return (
-    <div className={cn('flex items-center gap-2.5', className)}>
-      <BrandMark size={size} />
-      <BrandWordmark className={cn('text-xl', textClassName)} />
-    </div>
+    <img
+      src="/images/brand/cs-figure.svg"
+      alt=""
+      aria-hidden="true"
+      className={cn('pointer-events-none absolute -z-10 opacity-[0.14]', className)}
+      style={{ height: size, width: 'auto' }}
+    />
   )
 }

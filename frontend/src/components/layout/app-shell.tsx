@@ -103,12 +103,12 @@ export function AppShell() {
 
 function Brand({ compact }: { compact?: boolean }) {
   return (
-    <div className="flex items-center gap-2.5">
-      <BrandMark size={compact ? 32 : 36} />
-      <div>
-        <BrandWordmark className={cn('text-lg', compact ? 'text-court-cream' : 'text-cream-50')} />
-        {!compact && <p className="mt-1 text-[11px] tracking-wide text-cream-200/60">Tournament Organiser</p>}
+    <div>
+      <div className="flex items-end">
+        <BrandMark size={compact ? 32 : 36} />
+        <BrandWordmark size={compact ? 23 : 26} className="-ml-2.5" />
       </div>
+      {!compact && <p className="mt-1 text-[11px] tracking-wide text-cream-200/60">Tournament Organiser</p>}
     </div>
   )
 }

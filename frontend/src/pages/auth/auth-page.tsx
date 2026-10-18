@@ -8,7 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { FieldError, Input, Label, PhoneInput } from '@/components/ui/input'
-import { BrandMark, BrandWordmark } from '@/components/brand/logo'
+import { BrandWatermark, BrandWordmark } from '@/components/brand/logo'
 import { useOrganiserLogin, useOrganiserSignup, useOperatorLogin } from '@/hooks/use-auth'
 import { extractErrorMessage } from '@/lib/api/client'
 import { cn } from '@/lib/utils'
@@ -28,12 +28,10 @@ export function AuthPage() {
       <div className="pointer-events-none absolute inset-0 opacity-[0.04] [background-image:radial-gradient(circle,white_1px,transparent_1px)] [background-size:22px_22px]" />
 
       <div className="relative w-full max-w-md animate-fade-up">
-        <div className="mb-8 flex flex-col items-center gap-3 text-center">
-          <BrandMark size={56} className="text-2xl shadow-lg shadow-ember-500/20" />
-          <div>
-            <BrandWordmark className="text-3xl text-cream-50" />
-            <p className="mt-1 text-sm text-cream-200/60">Every route tells a story. Run yours, swiftly.</p>
-          </div>
+        <div className="relative mb-8 flex flex-col items-center text-center">
+          <BrandWatermark size={150} className="left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2" />
+          <BrandWordmark size={40} />
+          <p className="mt-1 text-sm text-cream-200/60">Every route tells a story. Run yours, swiftly.</p>
         </div>
 
         <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-1.5 shadow-2xl shadow-navy-950/40 backdrop-blur-sm">

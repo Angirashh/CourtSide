@@ -3,7 +3,7 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { Info, LayoutGrid, Trophy, UserRound, Users } from 'lucide-react'
 import { usePublicTournaments } from '@/hooks/use-public'
 import { useScrollToTop } from '@/hooks/use-scroll-to-top'
-import { BrandMark, BrandWordmark } from '@/components/brand/logo'
+import { BrandMark, BrandWatermark, BrandWordmark } from '@/components/brand/logo'
 import { StickyNextMatchBar } from '@/components/public/sticky-next-match-bar'
 import { cn } from '@/lib/utils'
 
@@ -97,11 +97,9 @@ function Footer() {
   return (
     <footer className="bg-ink-deep px-4 py-10 text-cream-50 sm:px-6 lg:px-10">
       <div className="flex flex-col justify-between gap-10 lg:flex-row lg:gap-8">
-        <div className="max-w-sm">
-          <div className="flex items-center gap-2.5">
-            <BrandMark />
-            <BrandWordmark className="text-xl text-cream-50" />
-          </div>
+        <div className="relative max-w-sm">
+          <BrandWatermark size={140} className="-left-6 -top-10" />
+          <BrandWordmark size={30} className="-ml-1.5" />
           <p className="mt-4 text-sm leading-relaxed text-court-cream/35">
             The home for tournaments across corporates, colleges and juniors. Every bracket, every route, one place
             to run it from.
@@ -168,11 +166,14 @@ function Topbar() {
 
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-white/10 bg-ink/96 px-4 backdrop-blur-sm sm:px-6 lg:h-[72px] lg:px-10">
-      <NavLink to="/" className="flex items-center gap-2.5 lg:hidden" aria-label="Courtside home">
+      <NavLink to="/" className="flex items-end lg:hidden" aria-label="Courtside home">
         <BrandMark />
-        <BrandWordmark className="text-xl text-court-cream" />
+        <BrandWordmark size={26} className="-ml-2.5" />
       </NavLink>
-      <BrandWordmark className="hidden text-xl text-court-cream lg:block" />
+      <div className="hidden items-end lg:flex">
+        <BrandMark />
+        <BrandWordmark size={26} className="-ml-2.5" />
+      </div>
 
       <div className="flex items-center gap-3">
         {liveCount > 0 && (
@@ -200,9 +201,9 @@ function Topbar() {
 
 function Brand() {
   return (
-    <NavLink to="/" className="flex items-center gap-2.5">
+    <NavLink to="/" className="flex items-end">
       <BrandMark />
-      <BrandWordmark className="text-xl text-cream-50" />
+      <BrandWordmark size={26} className="-ml-2.5" />
     </NavLink>
   )
 }

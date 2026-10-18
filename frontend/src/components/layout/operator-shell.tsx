@@ -16,12 +16,12 @@ export function OperatorShell() {
         className="sticky top-0 z-30 flex items-center justify-between border-b border-white/10 bg-atmosphere px-4 py-3.5 shadow-sm"
         style={{ paddingTop: 'max(0.875rem, env(safe-area-inset-top))' }}
       >
-        <div className="flex items-center gap-2.5">
-          <BrandMark size={32} />
-          <div>
-            <BrandWordmark className="text-sm text-cream-50" />
-            <p className="mt-0.5 text-[11px] text-cream-200/50">{user?.name}</p>
+        <div>
+          <div className="flex items-end">
+            <BrandMark size={32} />
+            <BrandWordmark size={23} className="-ml-2.5" />
           </div>
+          <p className="mt-0.5 text-[11px] text-cream-200/50">{user?.name}</p>
         </div>
         <button
           onClick={() => {
