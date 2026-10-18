@@ -2,17 +2,24 @@ import { api } from './client'
 import type {
   Court,
   CourtRescheduleResponse,
+  EventFormat,
   RegistrationStatus,
   ScheduleGenerationResponse,
   Tournament,
   TournamentCategory,
   TournamentDetail,
   TournamentFormat,
+  TournamentType,
+  TeamTieConfig,
+  TournamentTeam,
 } from '@/types/api'
 
 export interface CreateTournamentPayload {
   name: string
   format: TournamentFormat
+  tournament_type: TournamentType
+  event_formats?: Partial<Record<'singles' | 'doubles', EventFormat>>
+  team_config?: TeamTieConfig
   category: TournamentCategory
   match_duration_minutes: number
   rest_time_minutes: number
@@ -22,6 +29,12 @@ export interface CreateTournamentPayload {
   venue_link?: string
   tournament_date: string
   courts: { name: string; hourly_rate: number; available_from_minutes?: number }[]
+}
+
+export interface TournamentTeamPayload {
+  name?: string
+  captain_player_id?: string | null
+  seed?: number | null
 }
 
 export interface GenerateSchedulePayload {
@@ -62,6 +75,12 @@ export const tournamentsApi = {
 
   create: (payload: CreateTournamentPayload) =>
     api.post<TournamentDetail>('/tournaments', payload).then((r) => r.data),
+
+  addTeam: (tournamentId: string, name: string) =>
+    api.post<TournamentTeam>('/tournaments/' + tournamentId + '/teams', { name }).then((r) => r.data),
+
+  updateTeam: (tournamentId: string, teamId: string, payload: TournamentTeamPayload) =>
+    api.patch<TournamentTeam>('/tournaments/' + tournamentId + '/teams/' + teamId, payload).then((r) => r.data),
 
   finalizeSeeding: (id: string) =>
     api.post(`/tournaments/${id}/finalize-seeding`).then((r) => r.data),

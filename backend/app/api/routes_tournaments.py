@@ -25,6 +25,8 @@ from app.services.fixture_engine.datatypes import (
 from app.services.fixture_engine.fixture_engine import FixtureEngine
 from app.services.fixture_engine.generators.team_friendly import TeamFriendlyGenerator, InfeasibleQuotaError
 from app.services.match_progression import finalize_athlete_career_stats
+from app.services.team_competition import complete_team_tie
+from app.services.team_progression import finalize_team_tie
 from app.services.scheduling_engine.cp_sat_solver import CourtScheduler
 
 router = APIRouter(prefix="/tournaments", tags=["Tournaments"])
@@ -127,7 +129,10 @@ def create_tournament(
     tournament = models.Tournament(
         id=f"TOURN_{uuid.uuid4().hex[:8]}",
         name=payload.name,
+        tournament_type=payload.tournament_type,
         format=payload.format,
+        event_formats={key: value.value for key, value in (payload.event_formats or {}).items()} or None,
+        team_config=payload.team_config.model_dump(mode="json") if payload.team_config else None,
         category=payload.category,
         match_duration_minutes=payload.match_duration_minutes,
         rest_time_minutes=payload.rest_time_minutes,
@@ -195,10 +200,21 @@ def get_tournament(
     court_ids = {c.id for c in tournament.courts}
     is_stale = stored_bookings and not (set(stored_bookings) & court_ids)
     if tournament.schedule_summary is None or is_stale:
-        derived = _derive_schedule_summary(tournament.matches, tournament.courts)
+        scheduled_rows = tournament.matches or [game for tie in tournament.team_ties for game in tie.games]
+        derived = _derive_schedule_summary(scheduled_rows, tournament.courts)
         if derived:
             tournament.schedule_summary = derived
 
+    if current_user.role == models.UserRole.OPERATOR:
+        response = TournamentDetailResponse.model_validate(tournament).model_dump()
+        for tie in response["team_ties"]:
+            stored_tie = next((row for row in tournament.team_ties if row.id == tie["id"]), None)
+            tie_started = any(game.actual_start_time for game in stored_tie.games) if stored_tie else False
+            if not tie_started:
+                for game in tie["games"]:
+                    game["team1_player_ids"] = None
+                    game["team2_player_ids"] = None
+        return response
     return tournament
 
 
@@ -299,6 +315,7 @@ def _build_swiss_template_matches(
     engine_players: List[EnginePlayer],
     engine: FixtureEngine,
     num_swiss_rounds: Optional[int] = None,
+    num_qualifiers: int = 4,
 ) -> List[EngineMatch]:
     """Generates Swiss rounds with real R1 and TBD subsequent rounds + Top 4 Knockouts."""
     template_matches: List[EngineMatch] = []
@@ -331,14 +348,232 @@ def _build_swiss_template_matches(
                 player2_id=None
             ))
 
-    # Knockout Semifinals & Finals (Top 4)
-    template_matches.extend([
-        EngineMatch(id="KO_R1_M1", round_num=1, stage=EngineMatchStage.KNOCKOUT, player1_id="TBD_Seed1", player2_id="TBD_Seed4"),
-        EngineMatch(id="KO_R1_M2", round_num=1, stage=EngineMatchStage.KNOCKOUT, player1_id="TBD_Seed2", player2_id="TBD_Seed3"),
-        EngineMatch(id="KO_R2_M1", round_num=2, stage=EngineMatchStage.KNOCKOUT, player1_id="TBD_SF1_Win", player2_id="TBD_SF2_Win"),
-    ])
+    # Build a normal seeded bracket, capped at the available team count.
+    qualified = [
+        EnginePlayer(id=f"TBD_Seed{i}", name=f"TBD Seed {i}", seed=i)
+        for i in range(1, min(num_qualifiers, num_players) + 1)
+    ]
+    template_matches.extend(_build_knockout_template_matches(qualified, engine))
 
     return template_matches
+
+
+def _build_knockout_template_matches(
+    entrants: List[EnginePlayer], engine: FixtureEngine,
+) -> List[EngineMatch]:
+    """Builds every knockout round using the shared bracket generator."""
+    template: List[EngineMatch] = []
+    current = entrants
+    round_num = 1
+    while len(current) > 1:
+        generated = engine.generate_knockout_stage(current)
+        next_round = []
+        for match_index, match in enumerate(generated, start=1):
+            match.round_num = round_num
+            match.id = f"KO_R{round_num}_M{match_index}"
+            if match.is_bye:
+                next_round.append(EnginePlayer(
+                    id=match.player1_id, name=match.player1_id, seed=len(next_round) + 1,
+                ))
+                continue
+            template.append(match)
+            winner_slot = f"TBD_R{round_num}_M{match_index}_Win"
+            next_round.append(EnginePlayer(id=winner_slot, name=winner_slot, seed=len(next_round) + 1))
+        current = next_round
+        round_num += 1
+    return template
+
+
+def _build_team_template_matches(
+    tournament: models.Tournament,
+    teams: List[models.TournamentTeam],
+    num_groups: int,
+    num_swiss_rounds: Optional[int],
+) -> List[EngineMatch]:
+    if len(teams) < 2:
+        raise HTTPException(status_code=400, detail="At least 2 teams are required to schedule a team tournament.")
+    if any(team.seed is None for team in teams):
+        raise HTTPException(status_code=400, detail="Assign a seed to every team before generating fixtures.")
+    if len({team.seed for team in teams}) != len(teams):
+        raise HTTPException(status_code=400, detail="Team seeds must be unique.")
+    engine_teams = [EnginePlayer(id=team.id, name=team.name, seed=team.seed or 999) for team in teams]
+    engine = FixtureEngine()
+
+    if tournament.format == models.TournamentFormat.GROUP_KNOCKOUT:
+        if num_groups < 1 or num_groups * 2 > len(teams):
+            raise HTTPException(status_code=400, detail="Each group needs at least 2 teams.")
+        return _build_group_template_matches(engine_teams, num_groups, engine)
+    if tournament.format == models.TournamentFormat.SWISS_KNOCKOUT:
+        rounds = num_swiss_rounds or default_swiss_rounds(len(teams))
+        if rounds > len(teams) - 1:
+            raise HTTPException(status_code=400, detail="Teams can play at most team_count - 1 Swiss rounds.")
+        return _build_swiss_template_matches(
+            engine_teams, engine, num_swiss_rounds=rounds, num_qualifiers=min(4, len(teams)),
+        )
+    if tournament.format == models.TournamentFormat.KNOCKOUT:
+        return _build_knockout_template_matches(engine_teams, engine)
+    raise HTTPException(status_code=400, detail="Unsupported team tournament format.")
+
+
+def _generate_team_schedule(
+    tournament: models.Tournament,
+    payload: ScheduleGenerationRequest,
+    courts: List[models.Court],
+    db: Session,
+) -> ScheduleGenerationResponse:
+    teams = db.query(models.TournamentTeam).filter(
+        models.TournamentTeam.tournament_id == tournament.id,
+    ).order_by(models.TournamentTeam.seed.asc().nullslast()).all()
+    config = tournament.team_config or {}
+    order = config.get("match_order", [])
+    if not order:
+        raise HTTPException(status_code=400, detail="Configure the game order for each team tie first.")
+    for team in teams:
+        active_players = [p for p in team.players if not p.is_placeholder and not p.is_withdrawn]
+        if not team.captain_player_id or team.captain_player_id not in {p.id for p in active_players}:
+            raise HTTPException(status_code=400, detail=f"Assign an active captain to {team.name}.")
+        required_singles = (config.get("singles_matches", 0) + config.get("max_singles_per_player", 0) - 1) // max(config.get("max_singles_per_player", 0), 1)
+        required_doubles = (config.get("doubles_matches", 0) * 2 + config.get("max_doubles_per_player", 0) - 1) // max(config.get("max_doubles_per_player", 0), 1)
+        if len(active_players) < max(required_singles, required_doubles):
+            raise HTTPException(status_code=400, detail=f"{team.name} needs at least {max(required_singles, required_doubles)} active players for its tie settings.")
+
+    fixtures = _build_team_template_matches(
+        tournament, teams, payload.num_groups or 2, payload.num_swiss_rounds,
+    )
+    if not fixtures:
+        raise HTTPException(status_code=400, detail="No team fixtures could be generated.")
+
+    db.query(models.TeamTieGame).filter(
+        models.TeamTieGame.tie_id.in_(
+            db.query(models.TeamTie.id).filter(models.TeamTie.tournament_id == tournament.id)
+        )
+    ).delete(synchronize_session=False)
+    db.query(models.TeamTie).filter(models.TeamTie.tournament_id == tournament.id).delete(synchronize_session=False)
+    db.query(models.Match).filter(models.Match.tournament_id == tournament.id).delete(synchronize_session=False)
+    db.flush()
+
+    start_time = _round_datetime_down_to_grid(payload.start_time)
+    avg_court_rate = sum(c.hourly_rate for c in courts) / len(courts)
+    court_available_from = {
+        idx + 1: court.available_from_minutes
+        for idx, court in enumerate(courts) if court.available_from_minutes
+    }
+    tie_by_fixture = {}
+    schedule_games = []
+    precedence = []
+    parallel_match_pairs = []
+    play_all = config.get("completion_mode", "MAJORITY") == "PLAY_ALL"
+    for fixture in fixtures:
+        tie_id = f"{tournament.id}_{fixture.id}"
+        team1_id = fixture.player1_id
+        team2_id = fixture.player2_id
+        tie = models.TeamTie(
+            id=tie_id, tournament_id=tournament.id,
+            stage=models.MatchStage(fixture.stage.value), round_num=fixture.round_num,
+            group_id=fixture.group_id,
+            team1_id=team1_id, team2_id=team2_id,
+            winner_team_id=team1_id if fixture.is_bye else None,
+            is_completed=fixture.is_bye,
+        )
+        tie_by_fixture[fixture.id] = tie
+        db.add(tie)
+        if fixture.is_bye:
+            continue
+        previous_game_id = None
+        tie_game_ids = []
+        for order_num, match_type in enumerate(order, start=1):
+            game_id = f"{tie_id}_G{order_num}"
+            schedule_games.append(EngineMatch(
+                id=game_id, round_num=fixture.round_num,
+                stage=EngineMatchStage(fixture.stage.value),
+                group_id=fixture.group_id, player1_id=team1_id, player2_id=team2_id,
+            ))
+            if play_all:
+                parallel_match_pairs.extend((previous_id, game_id) for previous_id in tie_game_ids)
+            elif previous_game_id:
+                precedence.append((previous_game_id, game_id))
+            previous_game_id = game_id
+            tie_game_ids.append(game_id)
+
+    solver_result = CourtScheduler.schedule_matches(
+        matches=schedule_games,
+        num_courts=len(courts),
+        match_duration=tournament.match_duration_minutes,
+        rest_time=tournament.rest_time_minutes,
+        court_hourly_cost=avg_court_rate,
+        time_grid_minutes=TIME_GRID_MINUTES,
+        court_available_from=court_available_from,
+        match_precedence=precedence,
+        allow_overlap_pairs=parallel_match_pairs,
+    )
+    if solver_result["status"] not in ("OPTIMAL", "FEASIBLE"):
+        raise HTTPException(status_code=422, detail=f"Court scheduler could not find a feasible schedule: {solver_result['status']}")
+
+    schedule_lookup = {item["match_id"]: item for item in solver_result["schedule"]}
+    court_index_map = {f"Court_{idx + 1}": court.id for idx, court in enumerate(courts)}
+    for fixture in fixtures:
+        tie = tie_by_fixture[fixture.id]
+        db.add(tie)
+        if fixture.is_bye:
+            continue
+        tie_id = tie.id
+        for order_num, match_type in enumerate(order, start=1):
+            game_id = f"{tie_id}_G{order_num}"
+            scheduled = schedule_lookup.get(game_id)
+            game = models.TeamTieGame(
+                id=game_id, tie=tie, order_num=order_num, match_type=match_type,
+            )
+            if scheduled:
+                game.court_id = court_index_map[scheduled["court_id"]]
+                game.scheduled_start_time = start_time + timedelta(minutes=scheduled["start_minute"])
+                game.scheduled_end_time = start_time + timedelta(minutes=scheduled["end_minute"])
+            db.add(game)
+
+    for tie in tie_by_fixture.values():
+        if tie.is_completed and tie.stage == models.MatchStage.KNOCKOUT:
+            finalize_team_tie(tie, db)
+    tournament.schedule_summary = {
+        "generated_at": datetime.utcnow().isoformat(),
+        "makespan_minutes": solver_result["makespan_minutes"],
+        "total_billable_hours": solver_result["total_billable_hours"],
+        "total_estimated_cost": solver_result["total_cost"],
+        "flat_booking_cost": math.ceil(solver_result["makespan_minutes"] / TIME_GRID_MINUTES) * (TIME_GRID_MINUTES / 60) * len(courts) * avg_court_rate,
+        "savings": max(
+            math.ceil(solver_result["makespan_minutes"] / TIME_GRID_MINUTES) * (TIME_GRID_MINUTES / 60) * len(courts) * avg_court_rate - solver_result["total_cost"],
+            0.0,
+        ),
+        "court_bookings": {
+            court_index_map[name]: {
+                "booked_from": (start_time + timedelta(minutes=window["booked_from_minute"])).isoformat(),
+                "booked_until": (start_time + timedelta(minutes=window["booked_until_minute"])).isoformat(),
+                "duration_minutes": window["duration_minutes"],
+                "billed_hours": window["billed_hours"],
+                "court_cost": window["court_cost"],
+            }
+            for name, window in solver_result["court_bookings"].items()
+        },
+    }
+    tournament.status = models.TournamentStatus.SCHEDULING
+    db.commit()
+    response_bookings = {
+        court_id: CourtBookingWindow(
+            booked_from=datetime.fromisoformat(item["booked_from"]),
+            booked_until=datetime.fromisoformat(item["booked_until"]),
+            duration_minutes=item["duration_minutes"], billed_hours=item["billed_hours"],
+            court_cost=item["court_cost"],
+        )
+        for court_id, item in tournament.schedule_summary["court_bookings"].items()
+    }
+    return ScheduleGenerationResponse(
+        tournament_id=tournament.id, status=solver_result["status"],
+        makespan_minutes=solver_result["makespan_minutes"],
+        total_billable_hours=solver_result["total_billable_hours"],
+        total_estimated_cost=solver_result["total_cost"],
+        flat_booking_cost=tournament.schedule_summary["flat_booking_cost"],
+        savings=tournament.schedule_summary["savings"],
+        court_bookings=response_bookings,
+        scheduled_matches_count=len(solver_result["schedule"]),
+    )
 
 
 def _build_team_friendly_template_matches(
@@ -414,6 +649,12 @@ def generate_tournament_schedule(
         raise HTTPException(status_code=404, detail="Tournament not found")
     ensure_tournament_access(tournament, current_user, db)
 
+    if tournament.event_formats:
+        raise HTTPException(
+            status_code=400,
+            detail="Combined singles and doubles event fixture generation is not available yet.",
+        )
+
     # Regeneration wipes every match below, so it's only safe before real play has begun.
     # DRAFT = first-ever generation; SCHEDULING = a schedule already exists but nothing's
     # started, so re-running it (after a withdrawal / roster change) just rebuilds from scratch.
@@ -433,7 +674,12 @@ def generate_tournament_schedule(
         models.Match.is_bye == False,
         models.Match.is_walkover == False,
     ).first()
-    if has_recorded_result:
+    has_recorded_team_game = db.query(models.TeamTieGame).join(models.TeamTie).filter(
+        models.TeamTie.tournament_id == tournament_id,
+        models.TeamTieGame.is_completed == True,
+        models.TeamTieGame.is_skipped == False,
+    ).first()
+    if has_recorded_result or has_recorded_team_game:
         raise HTTPException(
             status_code=400,
             detail="Cannot regenerate — at least one match already has a recorded result, which would be lost."
@@ -451,6 +697,9 @@ def generate_tournament_schedule(
     courts = db.query(models.Court).filter(models.Court.tournament_id == tournament_id).all()
     if not courts:
         raise HTTPException(status_code=400, detail="At least 1 court must be configured for this tournament.")
+
+    if tournament.tournament_type == models.TournamentType.TEAM:
+        return _generate_team_schedule(tournament, payload, courts, db)
 
     # Convert DB players to Engine dataclass format
     engine_players = [
@@ -482,6 +731,8 @@ def generate_tournament_schedule(
             engine=engine,
             num_swiss_rounds=payload.num_swiss_rounds
         )
+    elif tournament.format == models.TournamentFormat.KNOCKOUT:
+        template_matches = _build_knockout_template_matches(engine_players, engine)
     elif tournament.format == models.TournamentFormat.TEAM_FRIENDLY:
         # No seed is threaded through from the payload — leaving it unset lets the generator's
         # RNG draw fresh randomness each call, so "Regenerate schedule" naturally produces a
@@ -720,14 +971,19 @@ def end_tournament(
         models.Match.tournament_id == tournament_id,
         models.Match.is_completed == False,
     ).first()
-    if incomplete_match:
+    incomplete_team_tie = db.query(models.TeamTie).filter(
+        models.TeamTie.tournament_id == tournament_id,
+        models.TeamTie.is_completed == False,
+    ).first()
+    if incomplete_match or incomplete_team_tie:
         raise HTTPException(
             status_code=400,
-            detail="Cannot end the tournament — some matches haven't been completed yet."
+            detail="Cannot end the tournament — some matches or team ties haven't been completed yet."
         )
 
     tournament.status = models.TournamentStatus.COMPLETED
-    finalize_athlete_career_stats(tournament_id, db)
+    if tournament.tournament_type == models.TournamentType.INDIVIDUAL:
+        finalize_athlete_career_stats(tournament_id, db)
     db.commit()
     db.refresh(tournament)
     return tournament

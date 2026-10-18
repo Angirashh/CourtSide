@@ -17,6 +17,7 @@ class PlayerCreate(PlayerBase):
     # Optional — when given, links this roster slot to the global athlete registry (matched or
     # created by email), the same as a CSV roster upload does.
     email: Optional[str] = Field(None, max_length=150, examples=["viktor@example.com"])
+    team_id: Optional[str] = None
 
 
 class PlayerUpdate(BaseModel):
@@ -24,6 +25,17 @@ class PlayerUpdate(BaseModel):
     seed: Optional[int] = Field(None, ge=1)
     is_placeholder: Optional[bool] = None
     team: Optional[str] = Field(None, description="TEAM_FRIENDLY format only: 'A' or 'B'")
+    team_id: Optional[str] = None
+
+
+class PlayerTeamAssignment(BaseModel):
+    player_id: str
+    team_id: Optional[str] = None
+    team: Optional[Literal["A", "B"]] = None
+
+
+class PlayerTeamAssignmentsUpdate(BaseModel):
+    assignments: List[PlayerTeamAssignment] = Field(..., min_length=1)
 
 
 class PlayerResponse(PlayerBase):

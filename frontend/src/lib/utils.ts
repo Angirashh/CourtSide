@@ -81,6 +81,7 @@ export function isPlaceholderId(id: string | null | undefined): boolean {
 }
 
 export function formatLabel(format: TournamentFormat): string {
+  if (format === 'KNOCKOUT') return 'Knockout'
   if (format === 'GROUP_KNOCKOUT') return 'Group + Knockout'
   if (format === 'SWISS_KNOCKOUT') return 'Swiss + Knockout'
   return 'Team Friendly'

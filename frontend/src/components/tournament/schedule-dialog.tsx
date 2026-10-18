@@ -14,12 +14,14 @@ export function ScheduleDialog({
   format,
   tournamentDate,
   playerCount,
+  participantLabel = 'players',
   isRegenerate = false,
 }: {
   tournamentId: string
   format: TournamentFormat
   tournamentDate: string | null
   playerCount: number
+  participantLabel?: string
   isRegenerate?: boolean
 }) {
   const [open, setOpen] = useState(false)
@@ -110,8 +112,7 @@ export function ScheduleDialog({
                 onChange={(e) => setSwissRounds(e.target.value === '' ? '' : Number(e.target.value))}
               />
               <p className="text-xs text-court-cream/45">
-                Recommended {recommendedRounds} for {playerCount} players (max {maxRounds}). Each round pairs players on
-                similar records and never repeats an opponent. The top 4 then go to the knockout.
+                Recommended {recommendedRounds} for {playerCount} {participantLabel} (max {maxRounds}). Each round pairs similar records without repeating an opponent, then qualifiers enter the knockout.
               </p>
             </div>
           )}

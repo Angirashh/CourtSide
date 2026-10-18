@@ -6,7 +6,7 @@ import { z } from 'zod'
 import { toast } from 'sonner'
 import { Crown, FileUp, Info, Pencil, Plus, Shuffle, Trash2, Upload, UserX, Users } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog'
 import { FieldError, Input, Label } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -29,26 +29,56 @@ export function RosterTab({
   tournamentId,
   status,
   format,
+  tournamentType,
   players,
+  teams,
+  teamConfig,
 }: {
   tournamentId: string
   status: TournamentStatus
   format: TournamentFormat
+  tournamentType: TournamentType
   players: Player[]
+  teams: TournamentTeam[]
+  teamConfig: TeamTieConfig | null
 }) {
+  const [teamAssignmentDraft, setTeamAssignmentDraft] = useState<Record<string, string | null>>({})
+  const [friendlyTeamDraft, setFriendlyTeamDraft] = useState<Record<string, 'A' | 'B'>>({})
   const realPlayers = players.filter((p) => !p.is_placeholder).sort((a, b) => (a.seed ?? 999) - (b.seed ?? 999))
   const finalizeSeeding = useFinalizeSeeding(tournamentId)
+  const saveTeamAssignments = useUpdatePlayerTeamAssignments(tournamentId)
+  const pendingTeamAssignments = tournamentType === 'TEAM'
+    ? realPlayers.flatMap((player) =>
+      Object.prototype.hasOwnProperty.call(teamAssignmentDraft, player.id) && teamAssignmentDraft[player.id] !== player.team_id
+        ? [{ player_id: player.id, team_id: teamAssignmentDraft[player.id] ?? null }]
+        : []
+    )
+    : realPlayers.flatMap((player) =>
+      Object.prototype.hasOwnProperty.call(friendlyTeamDraft, player.id) && friendlyTeamDraft[player.id] !== player.team
+        ? [{ player_id: player.id, team: friendlyTeamDraft[player.id] }]
+        : []
+    )
+  const playersWithDraftSides = realPlayers.map((player) => ({
+    ...player,
+    team: friendlyTeamDraft[player.id] ?? player.team,
+  }))
   // A schedule already exists once SCHEDULING, but nothing's played yet, so roster edits
   // (add / upload / withdraw) are still safe — the organiser just needs to regenerate after.
   const canEditRoster = status === 'DRAFT' || status === 'SCHEDULING'
 
   return (
     <div className="space-y-5">
-      {status === 'SCHEDULING' && (
+      {tournamentType === 'TEAM' && (
+        <TeamSetup tournamentId={tournamentId} players={realPlayers} teams={teams} teamConfig={teamConfig} canEdit={canEditRoster} />
+      )}
+      {(status === 'SCHEDULING' || pendingTeamAssignments.length > 0) && (
         <div className="flex items-start gap-2 rounded-lg border border-ember-300/60 bg-ember-500/10 px-3.5 py-2.5 text-xs font-medium text-court-cream/70">
           <Info className="mt-0.5 size-3.5 shrink-0 text-ember-600" />
-          Changed the roster? Use "Regenerate schedule" at the top of this page so fixtures reflect withdrawals and
-          new players.
+          {pendingTeamAssignments.length > 0
+            ? status === 'SCHEDULING'
+              ? 'Save team assignments, then regenerate the schedule so fixtures use the updated roster.'
+              : 'Save team assignments before generating the schedule.'
+            : 'Changed the roster? Use "Regenerate schedule" at the top of this page so fixtures reflect withdrawals and new players.'}
         </div>
       )}
 
@@ -72,6 +102,23 @@ export function RosterTab({
               <Shuffle className="size-3.5" />
               Finalize seeding
             </Button>
+            {pendingTeamAssignments.length > 0 && (
+              <Button
+                variant="primary"
+                size="sm"
+                loading={saveTeamAssignments.isPending}
+                onClick={() => saveTeamAssignments.mutate(pendingTeamAssignments, {
+                  onSuccess: () => {
+                    setTeamAssignmentDraft({})
+                    setFriendlyTeamDraft({})
+                    toast.success('Team assignments saved.')
+                  },
+                  onError: (err) => toast.error(extractErrorMessage(err)),
+                })}
+              >
+                Save assignments ({pendingTeamAssignments.length})
+              </Button>
+            )}
             {status === 'DRAFT' && realPlayers.length > 0 && (
               <DeleteAllPlayersDialog tournamentId={tournamentId} count={realPlayers.length} />
             )}
@@ -98,6 +145,23 @@ export function RosterTab({
                 key={player.id}
                 player={player}
                 tournamentId={tournamentId}
+                teams={teams}
+                allowTeamAssignment={tournamentType === 'TEAM' && canEditRoster}
+                assignedTeamId={Object.prototype.hasOwnProperty.call(teamAssignmentDraft, player.id) ? teamAssignmentDraft[player.id] : player.team_id}
+                savingTeamAssignments={saveTeamAssignments.isPending}
+                onTeamAssignmentChange={(teamId) => setTeamAssignmentDraft((current) => {
+                  const next = { ...current }
+                  if (teamId === player.team_id) delete next[player.id]
+                  else next[player.id] = teamId
+                  return next
+                })}
+                assignedFriendlyTeam={Object.prototype.hasOwnProperty.call(friendlyTeamDraft, player.id) ? friendlyTeamDraft[player.id] : player.team}
+                onFriendlyTeamChange={(team) => setFriendlyTeamDraft((current) => {
+                  const next = { ...current }
+                  if (team === player.team) delete next[player.id]
+                  else next[player.id] = team
+                  return next
+                })}
                 canWithdraw={status !== 'DRAFT' && status !== 'COMPLETED' && !player.is_withdrawn}
               />
             ))}
@@ -334,10 +398,24 @@ function CaptainSelect({
 function PlayerRow({
   player,
   tournamentId,
+  teams,
+  allowTeamAssignment,
+  assignedTeamId,
+  savingTeamAssignments,
+  onTeamAssignmentChange,
+  assignedFriendlyTeam,
+  onFriendlyTeamChange,
   canWithdraw,
 }: {
   player: Player
   tournamentId: string
+  teams: TournamentTeam[]
+  allowTeamAssignment: boolean
+  assignedTeamId: string | null | undefined
+  savingTeamAssignments: boolean
+  onTeamAssignmentChange: (teamId: string | null) => void
+  assignedFriendlyTeam: 'A' | 'B' | null
+  onFriendlyTeamChange: (team: 'A' | 'B') => void
   canWithdraw: boolean
 }) {
   const withdraw = useWithdrawPlayer(tournamentId)
@@ -345,7 +423,7 @@ function PlayerRow({
   const [reason, setReason] = useState('')
 
   return (
-    <li className={cn('flex items-center gap-3 px-4 py-3', player.is_withdrawn && 'bg-danger-bg/30')}>
+    <li className={cn('flex items-center gap-3 px-4 py-3', allowTeamAssignment && 'flex-wrap sm:flex-nowrap', player.is_withdrawn && 'bg-danger-bg/30')}>
       <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-white/10 text-xs font-bold text-court-cream/60">
         {player.seed ?? '–'}
       </div>
@@ -360,6 +438,15 @@ function PlayerRow({
         )}
         {player.is_withdrawn && (
           <p className="truncate text-xs text-danger">Withdrawn{player.withdrawal_reason ? ` · ${player.withdrawal_reason}` : ''}</p>
+        )}
+        {allowTeamAssignment && (
+          <TeamAssignment
+            player={player}
+            teams={teams}
+            teamId={assignedTeamId ?? null}
+            disabled={savingTeamAssignments}
+            onChange={onTeamAssignmentChange}
+          />
         )}
       </div>
       {player.is_withdrawn ? (
@@ -428,7 +515,7 @@ const addPlayerSchema = z.object({
   ),
 })
 
-function AddPlayerDialog({ tournamentId }: { tournamentId: string }) {
+function AddPlayerDialog({ tournamentId, teamId, teamName }: { tournamentId: string; teamId?: string; teamName?: string }) {
   const [open, setOpen] = useState(false)
   const register = useRegisterPlayer(tournamentId)
   const { register: bind, handleSubmit, reset, formState: { errors } } = useForm<
@@ -440,9 +527,9 @@ function AddPlayerDialog({ tournamentId }: { tournamentId: string }) {
   })
 
   const onSubmit = handleSubmit((values) => {
-    register.mutate(values, {
+    register.mutate({ ...values, ...(teamId ? { team_id: teamId } : {}) }, {
       onSuccess: () => {
-        toast.success(`${values.name} added to the roster.`)
+        toast.success(teamName ? `${values.name} added to ${teamName}.` : `${values.name} added to the roster.`)
         reset()
         setOpen(false)
       },
@@ -453,14 +540,15 @@ function AddPlayerDialog({ tournamentId }: { tournamentId: string }) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button size="sm">
+        <Button size="sm" variant={teamId ? 'outline' : undefined}>
           <Plus className="size-3.5" />
           Add player
         </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Add a player</DialogTitle>
+          <DialogTitle>{teamName ? `Add a player to ${teamName}` : 'Add a player'}</DialogTitle>
+          {teamName && <DialogDescription>This player will also be added to the tournament roster.</DialogDescription>}
         </DialogHeader>
         <form onSubmit={onSubmit} className="space-y-3.5">
           <div className="space-y-1.5">
@@ -595,5 +683,182 @@ function UploadRosterDialog({ tournamentId }: { tournamentId: string }) {
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  )
+}
+
+function TeamSetup({
+  tournamentId,
+  players,
+  teams,
+  teamConfig,
+  canEdit,
+}: {
+  tournamentId: string
+  players: Player[]
+  teams: TournamentTeam[]
+  teamConfig: TeamTieConfig | null
+  canEdit: boolean
+}) {
+  const [name, setName] = useState('')
+  const addTeam = useAddTournamentTeam(tournamentId)
+  const updateTeam = useUpdateTournamentTeam(tournamentId)
+
+  function createTeam() {
+    const trimmed = name.trim()
+    if (!trimmed || addTeam.isPending) return
+    addTeam.mutate(trimmed, {
+      onSuccess: () => {
+        setName('')
+        toast.success(`${trimmed} created.`)
+      },
+      onError: (err) => toast.error(extractErrorMessage(err)),
+    })
+  }
+
+  return (
+    <Card className="overflow-hidden">
+      <CardHeader className="gap-3 pb-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <CardTitle>Teams</CardTitle>
+            <CardDescription className="mt-1">Create teams, assign roster players, and choose a captain for each.</CardDescription>
+          </div>
+          <Badge variant="outline">{teams.length} {teams.length === 1 ? 'team' : 'teams'}</Badge>
+        </div>
+        {teamConfig && (
+          <div className="space-y-2 border-t border-white/10 pt-3">
+            <p className="text-xs font-semibold text-court-cream/55">Tie rules</p>
+            <div className="flex flex-wrap gap-1.5">
+              <Badge variant="neutral">{teamConfig.singles_matches} singles</Badge>
+              <Badge variant="neutral">{teamConfig.doubles_matches} doubles</Badge>
+              <Badge variant="neutral">Max {teamConfig.max_singles_per_player} singles / {teamConfig.max_doubles_per_player} doubles per player</Badge>
+              <Badge variant="neutral">{teamConfig.completion_mode === 'MAJORITY' ? 'Finish at majority' : 'Play all games'}</Badge>
+            </div>
+            <div className="flex flex-wrap gap-1.5" aria-label="Configured match order">
+              {teamConfig.match_order.map((slot, index) => (
+                <Badge key={`${slot}-${index}`} variant="outline">
+                  {index + 1}. {slot === 'SINGLES' ? 'Singles' : 'Doubles'}
+                </Badge>
+              ))}
+            </div>
+          </div>
+        )}
+        {canEdit && (
+          <form
+            className="flex flex-col gap-2 border-t border-white/10 pt-3 sm:flex-row"
+            onSubmit={(event) => { event.preventDefault(); createTeam() }}
+          >
+            <Input value={name} onChange={(event) => setName(event.target.value)} placeholder="Enter a team name" maxLength={80} />
+            <Button type="submit" size="sm" loading={addTeam.isPending} disabled={!name.trim()} className="sm:shrink-0">
+              <Plus className="size-3.5" />
+              Add team
+            </Button>
+          </form>
+        )}
+      </CardHeader>
+      {teams.length > 0 ? (
+        <CardContent className="pt-0">
+          <ul className="divide-y divide-white/10 border-t border-white/10">
+            {teams.map((team) => {
+              const members = players.filter((player) => player.team_id === team.id && !player.is_withdrawn)
+              return (
+                <li key={team.id} className="flex flex-col gap-3 py-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="truncate text-sm font-semibold text-court-cream">{team.name}</p>
+                      {canEdit && (
+                        <TeamSeedField team={team} updateTeam={updateTeam} />
+                      )}
+                      {!canEdit && <Badge variant="outline">Seed {team.seed ?? '—'}</Badge>}
+                    </div>
+                    <p className="mt-0.5 text-xs text-court-cream/45">{members.length} roster {members.length === 1 ? 'player' : 'players'}</p>
+                    {canEdit && <div className="mt-2"><AddPlayerDialog tournamentId={tournamentId} teamId={team.id} teamName={team.name} /></div>}
+                  </div>
+                  <div className="flex min-w-0 items-center gap-2 sm:w-64 sm:shrink-0">
+                    <Label htmlFor={`captain-${team.id}`} className="shrink-0 text-xs font-normal text-court-cream/55">Captain</Label>
+                    <Select
+                      value={team.captain_player_id ?? 'none'}
+                      disabled={!canEdit || updateTeam.isPending || members.length === 0}
+                      onValueChange={(value) => updateTeam.mutate(
+                        { teamId: team.id, payload: { captain_player_id: value === 'none' ? null : value } },
+                        { onError: (err) => toast.error(extractErrorMessage(err)) }
+                      )}
+                    >
+                      <SelectTrigger id={`captain-${team.id}`} className="h-9 min-w-0 flex-1 text-xs">
+                        <SelectValue placeholder="Choose a captain" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">No captain selected</SelectItem>
+                        {members.map((player) => <SelectItem key={player.id} value={player.id}>{player.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </li>
+              )
+            })}
+          </ul>
+        </CardContent>
+      ) : (
+        <CardContent className="pt-0">
+          <p className="border-t border-white/10 pt-3 text-sm text-court-cream/50">
+            No teams yet. Add a team here, then assign players from the roster below.
+          </p>
+        </CardContent>
+      )}
+    </Card>
+  )
+}
+
+function TeamSeedField({ team, updateTeam }: { team: TournamentTeam; updateTeam: ReturnType<typeof useUpdateTournamentTeam> }) {
+  const [value, setValue] = useState(String(team.seed ?? ''))
+  useEffect(() => setValue(String(team.seed ?? '')), [team.seed])
+  return (
+    <Input
+      aria-label={`${team.name} seed`}
+      type="number"
+      min={1}
+      className="h-8 w-20"
+      value={value}
+      onChange={(event) => setValue(event.target.value)}
+      onBlur={() => {
+        const seed = Number(value)
+        if (Number.isInteger(seed) && seed > 0 && seed !== team.seed) {
+          updateTeam.mutate({ teamId: team.id, payload: { seed } }, { onError: (err) => toast.error(extractErrorMessage(err)) })
+        }
+      }}
+    />
+  )
+}
+
+function TeamAssignment({
+  player,
+  teams,
+  teamId,
+  disabled,
+  onChange,
+}: {
+  player: Player
+  teams: TournamentTeam[]
+  teamId: string | null
+  disabled: boolean
+  onChange: (teamId: string | null) => void
+}) {
+  return (
+    <div className="mt-1.5 flex flex-col items-start gap-1 sm:flex-row sm:items-center sm:gap-2">
+      <span className="shrink-0 text-[11px] text-court-cream/45">Team</span>
+      <Select
+        value={teamId ?? 'unassigned'}
+        disabled={disabled || teams.length === 0}
+        onValueChange={(value) => onChange(value === 'unassigned' ? null : value)}
+      >
+        <SelectTrigger aria-label={`Team for ${player.name}`} className="h-8 w-40 max-w-full px-2.5 text-xs">
+          <SelectValue placeholder="Unassigned" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="unassigned">Unassigned</SelectItem>
+          {teams.map((team) => <SelectItem key={team.id} value={team.id}>{team.name}</SelectItem>)}
+        </SelectContent>
+      </Select>
+    </div>
   )
 }

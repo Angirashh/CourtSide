@@ -9,7 +9,7 @@ export const playersApi = {
       })
       .then((r) => r.data),
 
-  register: (tournamentId: string, payload: { name: string; seed?: number; email?: string }) =>
+  register: (tournamentId: string, payload: { name: string; seed?: number; email?: string; team_id?: string }) =>
     api.post<Player>(`/tournaments/${tournamentId}/players`, payload).then((r) => r.data),
 
   registerBatch: (tournamentId: string, players: { name: string }[]) =>
@@ -37,7 +37,7 @@ export const playersApi = {
       .post<WithdrawResponse>(`/tournaments/${tournamentId}/players/${playerId}/withdraw`, { reason })
       .then((r) => r.data),
 
-  update: (tournamentId: string, playerId: string, payload: { team?: 'A' | 'B' }) =>
+  update: (tournamentId: string, playerId: string, payload: { team?: 'A' | 'B'; team_id?: string | null }) =>
     api.patch<Player>(`/tournaments/${tournamentId}/players/${playerId}`, payload).then((r) => r.data),
 
   updateTeamAssignments: (

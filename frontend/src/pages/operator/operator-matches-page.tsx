@@ -12,6 +12,8 @@ import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { ScoreDialog } from '@/components/tournament/score-dialog'
+import { TeamFixtureVisualizer } from '@/components/fixtures/team-fixture-visualizer'
+import { useStartTeamGame } from '@/hooks/use-team-ties'
 import { extractErrorMessage } from '@/lib/api/client'
 import { cn, formatTime, isPlaceholderId, parseUtcTimestamp, playerLabel } from '@/lib/utils'
 import type { Court, Match, Player } from '@/types/api'
@@ -35,6 +37,10 @@ export function OperatorMatchesPage() {
   if (isLoading) return <FullPageSpinner />
   if (!tournament) {
     return <EmptyState icon={Swords} title="No tournament found" description="Check that you have access to this tournament." />
+  }
+
+  if (tournament.tournament_type === 'TEAM') {
+    return <OperatorTeamMatches tournament={tournament} />
   }
 
   const courtsById = new Map(tournament.courts.map((c) => [c.id, c]))
@@ -160,6 +166,112 @@ export function OperatorMatchesPage() {
           open={!!scoringMatch}
           onOpenChange={(open) => !open && setScoringMatch(null)}
           onSubmitted={() => handleScored(scoringMatch)}
+        />
+      )}
+    </div>
+  )
+}
+
+function OperatorTeamMatches({ tournament }: { tournament: NonNullable<ReturnType<typeof useTournament>['data']> }) {
+  const startGame = useStartTeamGame(tournament.id)
+  const [pickedTab, setPickedTab] = useState<Tab | null>(null)
+  const [courtFilter, setCourtFilter] = useState('all')
+  const [scoring, setScoring] = useState<{ tieId: string; game: import('@/types/api').TeamTieGame } | null>(null)
+  const teamsById = new Map(tournament.teams.map((team) => [team.id, team]))
+  const allGames = tournament.team_ties.flatMap((tie) => tie.games.map((game) => ({ tie, game })))
+  const playAll = tournament.team_config?.completion_mode === 'PLAY_ALL'
+  const scopedGames = allGames.filter(({ game }) => courtFilter === 'all' || game.court_id === courtFilter)
+  const live = scopedGames.filter(({ game }) => game.status === 'IN_PROGRESS')
+  const upcoming = scopedGames.filter(({ tie, game }) =>
+    !game.is_completed && game.status === 'SCHEDULED' && tie.lineups_locked &&
+    (playAll || tie.games.filter((row) => row.order_num < game.order_num).every((row) => row.is_completed))
+  )
+  const completed = scopedGames.filter(({ game }) => game.is_completed)
+  const tab: Tab = pickedTab ?? (live.length ? 'live' : 'upcoming')
+  const rows = tab === 'live' ? live : tab === 'completed' ? completed : upcoming
+  const tiesToShow = Array.from(new Map(rows.map(({ tie }) => [tie.id, tie])).values())
+  const openCountByCourt = new Map<string, number>()
+  for (const { game } of allGames) {
+    if (game.is_completed || !game.court_id) continue
+    openCountByCourt.set(game.court_id, (openCountByCourt.get(game.court_id) ?? 0) + 1)
+  }
+  function goTo(next: Tab) {
+    setPickedTab(next)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+  const start = (game: import('@/types/api').TeamTieGame) => startGame.mutate(game.id, {
+    onError: (err) => toast.error(extractErrorMessage(err)),
+    onSuccess: () => {
+      toast.success('Game started.')
+      goTo('live')
+    },
+  })
+  const selectedTie = tournament.team_ties.find((tie) => tie.id === scoring?.tieId)
+  const selectedNames: [string, string] = [
+    selectedTie ? teamsById.get(selectedTie.team1_id ?? '')?.name ?? 'Team 1' : 'Team 1',
+    selectedTie ? teamsById.get(selectedTie.team2_id ?? '')?.name ?? 'Team 2' : 'Team 2',
+  ]
+
+  return (
+    <div className="space-y-4 pb-24">
+      <div>
+        <h1 className="font-display text-xl font-medium leading-tight text-court-cream sm:text-2xl">{tournament.name}</h1>
+        <p className="mt-0.5 text-sm text-court-cream/55">{live.length} on court · {upcoming.length} ready to start</p>
+      </div>
+      {tournament.courts.length > 1 && (
+        <div className="-mx-4 overflow-x-auto px-4 no-scrollbar sm:mx-0 sm:px-0">
+          <div className="flex w-max gap-2">
+            <CourtChip active={courtFilter === 'all'} onClick={() => setCourtFilter('all')}>All courts</CourtChip>
+            {tournament.courts.map((court) => (
+              <CourtChip key={court.id} active={courtFilter === court.id} onClick={() => setCourtFilter(court.id)}>
+                <MapPin className="size-3.5" />{court.name}<span className="opacity-60">{openCountByCourt.get(court.id) ?? 0}</span>
+              </CourtChip>
+            ))}
+          </div>
+        </div>
+      )}
+      <div key={`${tab}-${courtFilter}`} className="animate-fade-up space-y-3">
+        {rows.length === 0 ? (
+          tab === 'live' ? (
+            <EmptyState icon={Swords} title="Nothing on court" description={upcoming.length > 0 ? 'Start a ready game from Up next.' : 'No games are currently in progress.'} />
+          ) : tab === 'upcoming' ? (
+            <EmptyState icon={CalendarClock} title="Nothing else scheduled" description="Games appear here once both lineups are locked." />
+          ) : (
+            <EmptyState icon={CheckCircle2} title="No results yet" />
+          )
+        ) : (
+          <TeamFixtureVisualizer
+            ties={tiesToShow}
+            teams={tournament.teams}
+            players={tournament.players}
+            courts={tournament.courts}
+            completionMode={playAll ? 'PLAY_ALL' : 'MAJORITY'}
+            onStart={tab === 'upcoming' ? start : undefined}
+            onScore={tab === 'live' ? (tie, game) => setScoring({ tieId: tie.id, game }) : undefined}
+            busyId={startGame.isPending ? startGame.variables : undefined}
+          />
+        )}
+      </div>
+      <nav
+        className="fixed inset-x-0 bottom-0 z-30 border-t border-white/10 bg-ink/95 backdrop-blur"
+        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+        aria-label="Match lists"
+      >
+        <div className="mx-auto grid max-w-3xl grid-cols-3">
+          <TabButton active={tab === 'live'} onClick={() => goTo('live')} icon={Radio} label="On court" count={live.length} pulse={live.length > 0} />
+          <TabButton active={tab === 'upcoming'} onClick={() => goTo('upcoming')} icon={CalendarClock} label="Up next" count={upcoming.length} />
+          <TabButton active={tab === 'completed'} onClick={() => goTo('completed')} icon={CheckCircle2} label="Done" count={completed.length} />
+        </div>
+      </nav>
+      {scoring && selectedTie && (
+        <ScoreDialog
+          tournamentId={tournament.id}
+          teamGame={scoring.game}
+          teamNames={selectedNames}
+          teamIds={[selectedTie.team1_id ?? '', selectedTie.team2_id ?? '']}
+          playersById={new Map(tournament.players.map((player) => [player.id, player]))}
+          open
+          onOpenChange={(open) => !open && setScoring(null)}
         />
       )}
     </div>

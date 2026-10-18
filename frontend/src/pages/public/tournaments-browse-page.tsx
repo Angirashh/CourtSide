@@ -6,7 +6,7 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { Button } from '@/components/ui/button'
 import type { TournamentFormat, TournamentStatus } from '@/types/api'
 
-const formatOptions: Array<TournamentFormat | 'All'> = ['All', 'GROUP_KNOCKOUT', 'SWISS_KNOCKOUT']
+const formatOptions: Array<TournamentFormat | 'All'> = ['All', 'GROUP_KNOCKOUT', 'SWISS_KNOCKOUT', 'KNOCKOUT']
 const statusOptions: Array<TournamentStatus | 'All'> = ['All', 'IN_PROGRESS', 'SCHEDULING', 'DRAFT', 'COMPLETED']
 const statusLabel: Record<string, string> = {
   All: 'All',
@@ -19,6 +19,7 @@ const formatLabelShort: Record<string, string> = {
   All: 'All',
   GROUP_KNOCKOUT: 'Group + Knockout',
   SWISS_KNOCKOUT: 'Swiss + Knockout',
+  KNOCKOUT: 'Knockout',
 }
 
 export function TournamentsBrowsePage() {

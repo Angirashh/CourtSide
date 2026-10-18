@@ -17,6 +17,9 @@ import { FixtureVisualizer } from '@/components/fixtures/fixture-visualizer'
 import { MyMatchesList } from '@/components/public/my-matches-list'
 import { GroupStandingsTable } from '@/components/fixtures/group-standings-table'
 import { TeamStandingsCard, leadingTeam } from '@/components/fixtures/team-standings-card'
+import { TeamFixtureVisualizer } from '@/components/fixtures/team-fixture-visualizer'
+import { TeamStandingsView } from '@/components/fixtures/team-standings-view'
+import { CaptainLineupPanel } from '@/components/tournament/captain-lineup-panel'
 import { PublicStandingsTable } from '@/components/public/public-standings-table'
 import { MedalPodium } from '@/components/public/medal-podium'
 import { CourtLines } from '@/components/public/court-lines'
@@ -45,6 +48,8 @@ export function TournamentLivePage() {
   const { id } = useParams<{ id: string }>()
   const { data: tournament, isLoading } = usePublicTournament(id)
   const { data: standings } = usePublicStandings(id)
+  const user = useAuthStore((state) => state.user)
+  const isPlayer = user?.role === 'PLAYER'
   useCourtChangeAlerts(tournament?.courts ?? [], tournament?.matches ?? [])
 
   // Same registrations query HeroRegistrationBlock uses below -- React Query dedupes the
@@ -87,6 +92,7 @@ export function TournamentLivePage() {
   // group format) — computed client-side from the same matches/players already on the
   // page, identically to the organiser-side StandingsView, so the two never disagree.
   const isTeamFriendly = tournament.format === 'TEAM_FRIENDLY'
+  const isTeamTournament = tournament.tournament_type === 'TEAM'
   const realPlayers = tournament.players.filter((p) => !p.is_placeholder)
   const crossoverMatches = tournament.matches.filter((m) => m.stage === 'CROSSOVER')
   const teamFriendlyTeamRows = isTeamFriendly ? computeTeamStandings(realPlayers, crossoverMatches) : []
@@ -96,14 +102,26 @@ export function TournamentLivePage() {
   const allCrossoverMatchesDecided = crossoverMatches.length > 0 && crossoverMatches.every((m) => m.is_completed)
   // Fixtures/standings only mean anything once a schedule has actually been generated
   // (matches exist) — a DRAFT tournament has neither yet.
-  const hasSchedule = tournament.matches.length > 0
+  const hasSchedule = tournament.matches.length > 0 || tournament.team_ties.length > 0
   const notStarted = tournament.status === 'DRAFT' || tournament.status === 'SCHEDULING'
   // The final can be decided before the organiser gets around to clicking "End tournament",
   // so show the podium as soon as it's played rather than waiting on tournament.status.
   const podium = finalPodium(tournament.matches)
-  const numGroups = groupEntries.length
-  const avgGroupSize = numGroups > 0 ? Math.round(realPlayers.length / numGroups) : 0
-  const swissRounds = new Set(tournament.matches.filter((m) => m.stage !== 'KNOCKOUT').map((m) => m.round_num)).size
+  const knockoutTies = tournament.team_ties.filter((tie) => tie.stage === 'KNOCKOUT')
+  const finalTie = knockoutTies.length
+    ? knockoutTies.find((tie) => tie.round_num === Math.max(...knockoutTies.map((tie) => tie.round_num)))
+    : undefined
+  const teamsById = new Map(tournament.teams.map((team) => [team.id, team]))
+  const teamChampion = finalTie?.is_completed && finalTie.winner_team_id ? teamsById.get(finalTie.winner_team_id)?.name : null
+  const runnerUpId = finalTie?.winner_team_id === finalTie?.team1_id ? finalTie?.team2_id : finalTie?.team1_id
+  const teamRunnerUp = runnerUpId ? teamsById.get(runnerUpId)?.name ?? null : null
+  const teamGroupIds = new Set(tournament.team_ties.filter((tie) => tie.stage === 'GROUP' && tie.group_id).map((tie) => tie.group_id!))
+  const numGroups = isTeamTournament ? teamGroupIds.size : groupEntries.length
+  const groupedTeamIds = new Set(tournament.team_ties.filter((tie) => tie.stage === 'GROUP').flatMap((tie) => [tie.team1_id, tie.team2_id]).filter((id): id is string => !!id && !id.startsWith('TBD')))
+  const avgGroupSize = numGroups > 0 ? Math.round((isTeamTournament ? groupedTeamIds.size : realPlayers.length) / numGroups) : 0
+  const swissRounds = isTeamTournament
+    ? new Set(tournament.team_ties.filter((tie) => tie.stage === 'SWISS').map((tie) => tie.round_num)).size
+    : new Set(tournament.matches.filter((m) => m.stage !== 'KNOCKOUT').map((m) => m.round_num)).size
 
   return (
     <div className="space-y-5">
@@ -151,11 +169,11 @@ export function TournamentLivePage() {
               {tournament.tournament_date ? formatPlainDate(tournament.tournament_date) : 'Date TBD'}
             </span>
             <span className="flex items-center gap-1.5 font-sans text-xs font-bold uppercase tracking-wide text-court-cream">
-              <Users className="size-3.5 text-ember-400" /> {realPlayers.length} players
+              <Users className="size-3.5 text-ember-400" /> {isTeamTournament ? `${tournament.teams.length} teams` : `${realPlayers.length} players`}
             </span>
           </div>
 
-          {notStarted && <HeroRegistrationBlock tournament={tournament} />}
+          {notStarted && !isTeamTournament && <HeroRegistrationBlock tournament={tournament} />}
         </div>
         {/* Fades the hero's grey floor out into the page's black background instead of
             cutting off on a hard edge. */}
@@ -163,6 +181,7 @@ export function TournamentLivePage() {
       </section>
 
       <div className="mx-auto max-w-[680px] space-y-5">
+        {isTeamTournament && isPlayer && <CaptainLineupPanel tournamentId={tournament.id} teams={tournament.teams} players={tournament.players} />}
         {hasSchedule ? (
           <Tabs value={tab} onValueChange={setTab}>
             <TabsList
@@ -190,12 +209,16 @@ export function TournamentLivePage() {
             <TabsContent value="overview" className="space-y-6">
               {notStarted ? (
                 <>
-                  <FormatOverviewBlock format={tournament.format} numGroups={numGroups} avgGroupSize={avgGroupSize} swissRounds={swissRounds} />
+                  <FormatOverviewBlock format={tournament.format} isTeam={isTeamTournament} numGroups={numGroups} avgGroupSize={avgGroupSize} swissRounds={swissRounds} />
                   {isTeamFriendly && <TeamRosterCard players={realPlayers} />}
                 </>
               ) : (
                 <>
-                  {podium.first ? (
+                  {isTeamTournament && teamChampion ? (
+                    <Card className="relative overflow-hidden p-6 sm:p-8">
+                      <MedalPodium eyebrow={tournament.status === 'COMPLETED' ? 'Tournament complete' : 'Final decided'} champion={teamChampion} runnerUp={teamRunnerUp} />
+                    </Card>
+                  ) : podium.first ? (
                     <CompletedPodium
                       tournament={tournament}
                       playersById={playersById}
@@ -205,9 +228,15 @@ export function TournamentLivePage() {
                     <TeamFriendlyResultCard rows={teamFriendlyTeamRows} />
                   ) : (
                     <div className="space-y-6">
-                      <FormatOverviewBlock format={tournament.format} numGroups={numGroups} avgGroupSize={avgGroupSize} swissRounds={swissRounds} />
+                      <FormatOverviewBlock format={tournament.format} isTeam={isTeamTournament} numGroups={numGroups} avgGroupSize={avgGroupSize} swissRounds={swissRounds} />
 
-                      {isTeamFriendly ? (
+                      {isTeamTournament ? (
+                        <div>
+                          <Eyebrow>Teams</Eyebrow>
+                          <h2 className="mb-3 font-display text-2xl leading-none text-court-cream">Team fixtures</h2>
+                          <TeamFixtureVisualizer ties={tournament.team_ties} teams={tournament.teams} players={tournament.players} courts={tournament.courts} />
+                        </div>
+                      ) : isTeamFriendly ? (
                         <div>
                           <Eyebrow>Teams</Eyebrow>
                           <h2 className="mb-3 font-display text-2xl leading-none text-court-cream">Team rosters</h2>
@@ -241,17 +270,19 @@ export function TournamentLivePage() {
             </TabsContent>
 
             <TabsContent value="fixtures">
-              <FixtureVisualizer format={tournament.format} matches={tournament.matches} players={tournament.players} courts={tournament.courts} />
+              {isTeamTournament
+                ? <TeamFixtureVisualizer ties={tournament.team_ties} teams={tournament.teams} players={tournament.players} courts={tournament.courts} />
+                : <FixtureVisualizer format={tournament.format} matches={tournament.matches} players={tournament.players} courts={tournament.courts} />}
             </TabsContent>
 
             <TabsContent value="standings" className="space-y-5">
               <div>
                 <Eyebrow>Every point counts</Eyebrow>
                 <h2 className="font-display text-2xl leading-none text-court-cream">
-                  {isTeamFriendly ? 'Team & individual standings' : 'Group standings'}
+                  {isTeamTournament ? 'Team standings' : isTeamFriendly ? 'Team & individual standings' : 'Group standings'}
                 </h2>
               </div>
-              {isTeamFriendly ? (
+              {isTeamTournament ? <TeamStandingsView tournamentId={tournament.id} format={tournament.format} /> : isTeamFriendly ? (
                 crossoverMatches.length === 0 ? (
                   <EmptyState icon={Trophy} title="No standings yet" description="Standings appear once matches are completed." />
                 ) : (
@@ -283,7 +314,7 @@ export function TournamentLivePage() {
           </Tabs>
         ) : (
           <div className="space-y-6">
-            <FormatOverviewBlock format={tournament.format} numGroups={numGroups} avgGroupSize={avgGroupSize} swissRounds={swissRounds} />
+            <FormatOverviewBlock format={tournament.format} isTeam={isTeamTournament} numGroups={numGroups} avgGroupSize={avgGroupSize} swissRounds={swissRounds} />
             {isTeamFriendly && <TeamRosterCard players={realPlayers} />}
           </div>
         )}
@@ -298,11 +329,13 @@ function Eyebrow({ children }: { children: string }) {
 
 function FormatStrip({
   format,
+  isTeam,
   numGroups,
   avgGroupSize,
   swissRounds,
 }: {
   format: TournamentFormat
+  isTeam: boolean
   numGroups: number
   avgGroupSize: number
   swissRounds: number
@@ -315,6 +348,10 @@ function FormatStrip({
     )
   }
 
+  if (format === 'KNOCKOUT') {
+    return <div className="rounded-2xl border border-white/10 bg-ink-card p-5"><StepBlock n="01" icon={GitBranch} title="Knockout bracket" subtitle="Win to advance · loss means elimination" /></div>
+  }
+
   const [step1, step2] =
     format === 'SWISS_KNOCKOUT'
       ? [
@@ -322,7 +359,7 @@ function FormatStrip({
           { icon: GitBranch, title: 'Knockout', subtitle: 'Top finishers · semi-finals + final' },
         ]
       : [
-          { icon: Network, title: 'Group stage', subtitle: `${numGroups || '—'} groups · ${avgGroupSize || '—'} players each` },
+          { icon: Network, title: 'Group stage', subtitle: `${numGroups || '—'} groups · ${avgGroupSize || '—'} ${isTeam ? 'teams' : 'players'} each` },
           { icon: GitBranch, title: 'Knockout', subtitle: 'Top 2 · semi-finals + final' },
         ]
 
@@ -430,11 +467,13 @@ function HeroRegistrationBlock({ tournament }: { tournament: PublicTournamentDet
 /** The "how this format works" blurb, shared between a pre-schedule overview and the post-start Overview tab. */
 function FormatOverviewBlock({
   format,
+  isTeam,
   numGroups,
   avgGroupSize,
   swissRounds,
 }: {
   format: TournamentFormat
+  isTeam: boolean
   numGroups: number
   avgGroupSize: number
   swissRounds: number
@@ -446,18 +485,35 @@ function FormatOverviewBlock({
         <h2 className="font-display text-[27px] leading-none text-court-cream">The road to the final</h2>
       </div>
 
-      <FormatStrip format={format} numGroups={numGroups} avgGroupSize={avgGroupSize} swissRounds={swissRounds} />
+      <FormatStrip format={format} isTeam={isTeam} numGroups={numGroups} avgGroupSize={avgGroupSize} swissRounds={swissRounds} />
 
-      <p className="font-sans text-sm leading-[1.65] text-court-cream/60">{formatMeta[format].howItWorks}</p>
+      <p className="font-sans text-sm leading-[1.65] text-court-cream/60">{formatCopy(format, isTeam).howItWorks}</p>
 
       <details className="border-t border-white/10 pt-3">
         <summary className="cursor-pointer font-sans text-sm font-bold text-court-cream">
           How standings are calculated
         </summary>
-        <p className="mt-2 font-sans text-sm leading-[1.65] text-court-cream/60">{formatMeta[format].standings}</p>
+        <p className="mt-2 font-sans text-sm leading-[1.65] text-court-cream/60">{formatCopy(format, isTeam).standings}</p>
       </details>
     </div>
   )
+}
+
+function formatCopy(format: TournamentFormat, isTeam: boolean) {
+  if (!isTeam) return formatMeta[format]
+  if (format === 'GROUP_KNOCKOUT') return {
+    howItWorks: 'Teams are split into groups and play every other team in their group once. The top two teams from each group advance to a single-elimination bracket.',
+    standings: 'Group standings rank teams by tie points (1 per win, 1 each for a draw), then head-to-head for a two-team tie, game difference, rally point difference, and seed.',
+  }
+  if (format === 'SWISS_KNOCKOUT') return {
+    howItWorks: 'Teams play a fixed number of Swiss rounds. Each round pairs teams with similar records without repeating an opponent, then the top teams advance to a knockout bracket.',
+    standings: 'Swiss standings rank teams by tie points, then Buchholz, Sonneborn-Berger, game difference, rally point difference, and seed.',
+  }
+  if (format === 'KNOCKOUT') return {
+    howItWorks: 'Teams play a single-elimination bracket. Win the tie to advance; a loss ends the run.',
+    standings: 'There is no standings table in a knockout tournament. The bracket determines the champion.',
+  }
+  return formatMeta[format]
 }
 
 function CompletedPodium({

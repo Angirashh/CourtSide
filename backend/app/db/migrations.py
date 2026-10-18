@@ -83,7 +83,7 @@ def ensure_team_friendly_enum_values(engine: Engine) -> None:
     """
     Postgres enum columns compile to a native, rigid ENUM TYPE — `Base.metadata.create_all()`
     only creates tables that don't exist yet, it never alters an existing type's allowed values.
-    TEAM_FRIENDLY (on TournamentFormat) and CROSSOVER (on MatchStage) were both added to the
+    TEAM_FRIENDLY / KNOCKOUT (on TournamentFormat) and CROSSOVER (on MatchStage) were added to the
     Python enums after production's `tournamentformat`/`matchstage` types already existed, so
     without this, inserting either value fails at the database level with "invalid input value
     for enum ..." — a 500 on tournament creation (format) or schedule generation (stage) for this
@@ -97,6 +97,7 @@ def ensure_team_friendly_enum_values(engine: Engine) -> None:
     # about that across Postgres versions/drivers rather than relying on engine.begin().
     with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
         conn.execute(text("ALTER TYPE tournamentformat ADD VALUE IF NOT EXISTS 'TEAM_FRIENDLY'"))
+        conn.execute(text("ALTER TYPE tournamentformat ADD VALUE IF NOT EXISTS 'KNOCKOUT'"))
         conn.execute(text("ALTER TYPE matchstage ADD VALUE IF NOT EXISTS 'CROSSOVER'"))
 
 

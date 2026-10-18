@@ -16,6 +16,7 @@ from app.schemas.player import (
     PlayerUpdate,
     PlayerWithdrawRequest,
     PlayerWithdrawResponse,
+    PlayerTeamAssignmentsUpdate,
     NextMatchResponse,
     TeamAssignmentBulkUpdate,
 )
@@ -81,6 +82,16 @@ def register_player(
             detail="Cannot add players once the tournament is in progress or completed."
         )
 
+    if payload.team_id is not None:
+        if tournament.tournament_type != models.TournamentType.TEAM:
+            raise HTTPException(status_code=400, detail="Players can only be assigned to teams in team tournaments.")
+        team_exists = db.query(models.TournamentTeam.id).filter(
+            models.TournamentTeam.id == payload.team_id,
+            models.TournamentTeam.tournament_id == tournament_id,
+        ).first()
+        if not team_exists:
+            raise HTTPException(status_code=400, detail="Choose a team from this tournament.")
+
     athlete = _find_or_create_athlete(db, payload.name, payload.email)
     if athlete:
         existing_entry = db.query(models.Player).filter(
@@ -96,7 +107,8 @@ def register_player(
         athlete_id=athlete.id if athlete else None,
         name=payload.name,
         seed=payload.seed,
-        is_placeholder=payload.is_placeholder
+        is_placeholder=payload.is_placeholder,
+        team_id=payload.team_id,
     )
     db.add(player)
     if not player.is_placeholder:
@@ -123,6 +135,8 @@ def self_register_player(
     tournament = db.query(models.Tournament).filter(models.Tournament.id == tournament_id).first()
     if not tournament:
         raise HTTPException(status_code=404, detail="Tournament not found")
+    if tournament.tournament_type == models.TournamentType.TEAM:
+        raise HTTPException(status_code=400, detail="Team tournament rosters are managed by the organiser.")
 
     if tournament.status not in (models.TournamentStatus.DRAFT, models.TournamentStatus.SCHEDULING):
         raise HTTPException(status_code=400, detail="Registration is closed for this tournament.")
@@ -377,6 +391,24 @@ def update_player(
     if "team" in updates and updates["team"] is not None and updates["team"] not in ("A", "B"):
         raise HTTPException(status_code=400, detail="Team must be 'A' or 'B'.")
 
+    if "team_id" in updates:
+        if tournament.tournament_type != models.TournamentType.TEAM:
+            raise HTTPException(status_code=400, detail="Team assignment is only available in team tournaments.")
+        new_team_id = updates["team_id"]
+        if new_team_id is not None:
+            team = db.query(models.TournamentTeam).filter(
+                models.TournamentTeam.id == new_team_id,
+                models.TournamentTeam.tournament_id == tournament_id,
+            ).first()
+            if not team:
+                raise HTTPException(status_code=400, detail="Choose a team from this tournament.")
+        if player.team_id and player.team_id != new_team_id:
+            old_team = db.query(models.TournamentTeam).filter(
+                models.TournamentTeam.id == player.team_id
+            ).first()
+            if old_team and old_team.captain_player_id == player.id:
+                old_team.captain_player_id = None
+
     for field, value in updates.items():
         setattr(player, field, value)
 
@@ -406,6 +438,8 @@ def delete_all_players(
     if db.query(models.Match).filter(models.Match.tournament_id == tournament_id).first():
         raise HTTPException(status_code=400, detail="Cannot remove players while fixtures exist for this tournament.")
 
+    for team in db.query(models.TournamentTeam).filter(models.TournamentTeam.tournament_id == tournament_id):
+        team.captain_player_id = None
     deleted = db.query(models.Player).filter(models.Player.tournament_id == tournament_id).delete(synchronize_session=False)
     db.commit()
     return {"message": "Roster cleared.", "deleted_count": deleted}

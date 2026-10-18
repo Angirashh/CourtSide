@@ -151,6 +151,10 @@ export function FixtureVisualizer({
     )
   }
 
+  if (format === 'KNOCKOUT') {
+    return <BracketTree matches={knockoutMatches} playersById={playersById} courtsById={courtsById} />
+  }
+
   return (
     <Tabs defaultValue={format === 'GROUP_KNOCKOUT' ? 'groups' : 'swiss'} className="space-y-5">
       <TabsList className="grid w-full grid-cols-2 gap-0 bg-white/10 p-1">

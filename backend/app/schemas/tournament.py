@@ -1,7 +1,7 @@
 from datetime import date, datetime
-from typing import Optional, List, Dict
-from pydantic import BaseModel, Field, ConfigDict
-from app.db.models import RegistrationStatus, TournamentFormat, TournamentStatus, TournamentCategory
+from typing import Optional, List, Dict, Literal
+from pydantic import BaseModel, Field, ConfigDict, model_validator
+from app.db.models import RegistrationStatus, TournamentFormat, TournamentStatus, TournamentCategory, TournamentType
 from app.schemas.player import PlayerResponse
 from app.schemas.match import MatchResponse
 
@@ -56,7 +56,10 @@ class CourtRescheduleRequest(BaseModel):
 # =====================================================================
 class TournamentBase(BaseModel):
     name: str = Field(..., min_length=2, max_length=150, examples=["All England Open 2026"])
+    tournament_type: TournamentType = TournamentType.INDIVIDUAL
     format: TournamentFormat
+    event_formats: Optional[Dict[str, TournamentFormat]] = None
+    team_config: Optional["TeamTieConfig"] = None
     category: Optional[TournamentCategory] = None
     match_duration_minutes: int = Field(default=15, ge=10, le=120)
     rest_time_minutes: int = Field(default=10, ge=0, le=120)
@@ -74,11 +77,65 @@ class TournamentBase(BaseModel):
     )
 
 
+class TeamTieConfig(BaseModel):
+    singles_matches: int = Field(0, ge=0, le=30)
+    doubles_matches: int = Field(0, ge=0, le=30)
+    max_singles_per_player: int = Field(0, ge=0, le=30)
+    max_doubles_per_player: int = Field(0, ge=0, le=30)
+    match_order: List[Literal["SINGLES", "DOUBLES"]]
+    completion_mode: Literal["MAJORITY", "PLAY_ALL"] = "MAJORITY"
+
+    @model_validator(mode="after")
+    def validate_slots(self):
+        if self.singles_matches + self.doubles_matches == 0:
+            raise ValueError("Add at least one singles or doubles match.")
+        if self.match_order.count("SINGLES") != self.singles_matches:
+            raise ValueError("Match order must contain the configured number of singles matches.")
+        if self.match_order.count("DOUBLES") != self.doubles_matches:
+            raise ValueError("Match order must contain the configured number of doubles matches.")
+        if self.max_singles_per_player > self.singles_matches:
+            raise ValueError("A player's singles limit cannot exceed the singles matches in a tie.")
+        if self.max_doubles_per_player > self.doubles_matches:
+            raise ValueError("A player's doubles limit cannot exceed the doubles matches in a tie.")
+        if self.singles_matches and self.max_singles_per_player == 0:
+            raise ValueError("Set a per-player singles limit.")
+        if self.doubles_matches and self.max_doubles_per_player == 0:
+            raise ValueError("Set a per-player doubles limit.")
+        return self
+
+
+TournamentBase.model_rebuild()
+
+
 class TournamentCreate(TournamentBase):
     category: TournamentCategory
     venue: str = Field(..., min_length=2, max_length=200, examples=["Koramangala Indoor Stadium"])
     tournament_date: date = Field(..., examples=["2026-10-12"])
     courts: Optional[List[CourtCreate]] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def validate_competition_setup(self):
+        if self.tournament_type == TournamentType.TEAM:
+            if self.format == TournamentFormat.TEAM_FRIENDLY:
+                raise ValueError("Team tournaments require a team competition format.")
+            if self.team_config is None:
+                raise ValueError("Configure the singles and doubles matches for each team tie.")
+            if self.event_formats:
+                raise ValueError("Team tournaments use one competition format for teams.")
+        elif self.format == TournamentFormat.TEAM_FRIENDLY:
+            if self.event_formats:
+                raise ValueError("Team Friendly keeps its existing setup.")
+            if self.team_config is not None:
+                raise ValueError("Team Friendly keeps its existing setup.")
+        else:
+            if self.team_config is not None:
+                raise ValueError("Team tie settings are only available for team tournaments.")
+            if self.event_formats:
+                if set(self.event_formats) - {"singles", "doubles"}:
+                    raise ValueError("Event formats can only be set for singles and doubles.")
+                if TournamentFormat.TEAM_FRIENDLY in self.event_formats.values():
+                    raise ValueError("Team Friendly cannot be selected as an individual event format.")
+        return self
 
 
 class TournamentDetailsUpdate(BaseModel):
@@ -176,6 +233,70 @@ class TournamentDetailResponse(TournamentResponse):
     players: List[PlayerResponse] = []
     matches: List[MatchResponse] = []
     schedule_summary: Optional[ScheduleSummary] = None
+    teams: List["TournamentTeamResponse"] = []
+    team_ties: List["TeamTieResponse"] = []
+
+
+class TournamentTeamResponse(BaseModel):
+    id: str
+    tournament_id: str
+    name: str
+    seed: Optional[int] = None
+    captain_player_id: Optional[str] = None
+    player_ids: List[str] = []
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class TournamentTeamCreate(BaseModel):
+    name: str = Field(..., min_length=1, max_length=80)
+
+
+class TournamentTeamUpdate(BaseModel):
+    name: Optional[str] = Field(None, min_length=1, max_length=80)
+    captain_player_id: Optional[str] = None
+    seed: Optional[int] = Field(None, ge=1)
+
+
+class TeamTieGameResponse(BaseModel):
+    id: str
+    order_num: int
+    match_type: Literal["SINGLES", "DOUBLES"]
+    team1_player_ids: Optional[List[str]] = None
+    team2_player_ids: Optional[List[str]] = None
+    winner_team_id: Optional[str] = None
+    scores: Optional[List[dict]] = None
+    court_id: Optional[str] = None
+    scheduled_start_time: Optional[datetime] = None
+    scheduled_end_time: Optional[datetime] = None
+    actual_start_time: Optional[datetime] = None
+    actual_end_time: Optional[datetime] = None
+    status: str
+    is_completed: bool
+    is_skipped: bool
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class TeamTieResponse(BaseModel):
+    id: str
+    tournament_id: str
+    stage: str
+    round_num: int
+    group_id: Optional[str] = None
+    team1_id: Optional[str] = None
+    team2_id: Optional[str] = None
+    winner_team_id: Optional[str] = None
+    is_draw: bool
+    is_completed: bool
+    lineups_locked: bool
+    my_team_id: Optional[str] = None
+    games: List[TeamTieGameResponse] = []
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+TournamentDetailResponse.model_rebuild()
 
 
 class ScheduleGenerationResponse(BaseModel):

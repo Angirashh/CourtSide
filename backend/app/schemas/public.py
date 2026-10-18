@@ -1,10 +1,11 @@
 from datetime import date, datetime
 from typing import List, Optional
 from pydantic import BaseModel, ConfigDict
-from app.db.models import MatchStatus, RegistrationStatus, TournamentFormat, TournamentStatus, TournamentCategory
+from app.db.models import MatchStatus, RegistrationStatus, TournamentFormat, TournamentStatus, TournamentCategory, TournamentType
 from app.schemas.player import PlayerResponse
 from app.schemas.match import MatchResponse
 from app.schemas.tournament import CourtResponse
+from app.schemas.tournament import TeamTieConfig, TournamentTeamResponse, TeamTieResponse
 
 
 # =====================================================================
@@ -60,6 +61,7 @@ class PublicTournamentSummary(BaseModel):
     id: str
     name: str
     format: TournamentFormat
+    tournament_type: TournamentType = TournamentType.INDIVIDUAL
     category: Optional[TournamentCategory] = None
     status: TournamentStatus
     venue: Optional[str] = None
@@ -90,6 +92,8 @@ class PublicTournamentDetail(BaseModel):
     id: str
     name: str
     format: TournamentFormat
+    tournament_type: TournamentType = TournamentType.INDIVIDUAL
+    team_config: Optional[TeamTieConfig] = None
     category: Optional[TournamentCategory] = None
     status: TournamentStatus
     venue: Optional[str] = None
@@ -100,6 +104,8 @@ class PublicTournamentDetail(BaseModel):
     courts: List[CourtResponse] = []
     players: List[PlayerResponse] = []
     matches: List[MatchResponse] = []
+    teams: List[TournamentTeamResponse] = []
+    team_ties: List[TeamTieResponse] = []
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -111,6 +117,21 @@ class PublicStandingRow(BaseModel):
     matches_played: int
     matches_won: int
     matches_lost: int
+    games_won: int
+    games_lost: int
+    points_won: int
+    points_lost: int
+    match_points: float
+
+
+class PublicTeamStandingRow(BaseModel):
+    rank: int
+    team_id: str
+    team_name: str
+    matches_played: int
+    matches_won: int
+    matches_lost: int
+    matches_drawn: int
     games_won: int
     games_lost: int
     points_won: int

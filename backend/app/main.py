@@ -17,12 +17,13 @@ from app.db.migrations import (
     ensure_court_available_from_column,
     ensure_tournament_registration_columns,
     ensure_tournament_registration_status_column,
+    ensure_competition_setup_columns,
     ensure_user_contact_unique_per_role,
     ensure_athlete_profile_columns,
     ensure_player_captain_column,
 )
 from app.db.session import engine
-from app.api import routes_auth, routes_player_auth, routes_tournaments, routes_players, routes_matches, routes_athletes, routes_public, routes_courts
+from app.api import routes_auth, routes_player_auth, routes_tournaments, routes_players, routes_matches, routes_athletes, routes_public, routes_courts, routes_teams, routes_team_ties
 
 
 @asynccontextmanager
@@ -41,6 +42,7 @@ async def lifespan(app: FastAPI):
     ensure_court_available_from_column(engine)
     ensure_tournament_registration_columns(engine)
     ensure_tournament_registration_status_column(engine)
+    ensure_competition_setup_columns(engine)
     ensure_user_contact_unique_per_role(engine)
     ensure_athlete_profile_columns(engine)
     ensure_player_captain_column(engine)
@@ -74,6 +76,8 @@ app.include_router(routes_auth.router, prefix=settings.API_V1_STR)
 app.include_router(routes_player_auth.router, prefix=settings.API_V1_STR)
 app.include_router(routes_tournaments.router, prefix=settings.API_V1_STR)
 app.include_router(routes_players.router, prefix=settings.API_V1_STR)
+app.include_router(routes_teams.router, prefix=settings.API_V1_STR)
+app.include_router(routes_team_ties.router, prefix=settings.API_V1_STR)
 app.include_router(routes_courts.router, prefix=settings.API_V1_STR)
 app.include_router(routes_matches.router, prefix=settings.API_V1_STR)
 app.include_router(routes_athletes.router, prefix=settings.API_V1_STR)

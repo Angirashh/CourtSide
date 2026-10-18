@@ -470,6 +470,9 @@ function UpcomingRow({ tournament }: { tournament: PublicTournamentSummary }) {
 }
 
 function formatLabel(format: string): string {
+  if (format === 'KNOCKOUT') return 'Knockout'
+  if (format === 'GROUP_KNOCKOUT') return 'Group + Knockout'
+  if (format === 'SWISS_KNOCKOUT') return 'Swiss + Knockout'
   return format
     .toLowerCase()
     .split('_')
