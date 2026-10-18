@@ -25,7 +25,13 @@ Base = declarative_base()
 class TournamentFormat(enum.Enum):
     GROUP_KNOCKOUT = "GROUP_KNOCKOUT"
     SWISS_KNOCKOUT = "SWISS_KNOCKOUT"
+    KNOCKOUT = "KNOCKOUT"
     TEAM_FRIENDLY = "TEAM_FRIENDLY"
+
+
+class TournamentType(str, enum.Enum):
+    INDIVIDUAL = "INDIVIDUAL"
+    TEAM = "TEAM"
 
 
 class TournamentCategory(enum.Enum):
@@ -213,7 +219,11 @@ class Tournament(Base):
 
     id = Column(String, primary_key=True, default=lambda: f"TOURN_{uuid.uuid4().hex[:8]}")
     name = Column(String, nullable=False)
+    # TEAM_FRIENDLY remains the legacy two-side individual event.
+    tournament_type = Column(Enum(TournamentType, native_enum=False), default=TournamentType.INDIVIDUAL, nullable=False)
     format = Column(Enum(TournamentFormat), nullable=False)
+    event_formats = Column(JSON, nullable=True)
+    team_config = Column(JSON, nullable=True)
     status = Column(Enum(TournamentStatus), default=TournamentStatus.DRAFT)
     category = Column(Enum(TournamentCategory), nullable=True)
 
@@ -255,6 +265,8 @@ class Tournament(Base):
     # Relationships
     organiser = relationship("User", back_populates="organised_tournaments")
     players = relationship("Player", back_populates="tournament", cascade="all, delete-orphan")
+    teams = relationship("TournamentTeam", back_populates="tournament", cascade="all, delete-orphan")
+    team_ties = relationship("TeamTie", back_populates="tournament", cascade="all, delete-orphan")
     courts = relationship("Court", back_populates="tournament", cascade="all, delete-orphan")
     matches = relationship("Match", back_populates="tournament", cascade="all, delete-orphan")
     operator_assignments = relationship(
@@ -285,6 +297,71 @@ class Court(Base):
     matches = relationship("Match", back_populates="court")
 
 
+class TournamentTeam(Base):
+    __tablename__ = "tournament_teams"
+
+    id = Column(String, primary_key=True, default=lambda: f"TEAM_{uuid.uuid4().hex[:8]}")
+    tournament_id = Column(String, ForeignKey("tournaments.id", ondelete="CASCADE"), nullable=False, index=True)
+    name = Column(String, nullable=False)
+    seed = Column(Integer, nullable=True)
+    captain_player_id = Column(String, nullable=True)
+
+    tournament = relationship("Tournament", back_populates="teams")
+    players = relationship("Player", back_populates="tournament_team")
+
+    @property
+    def player_ids(self):
+        return [player.id for player in self.players]
+
+
+class TeamTie(Base):
+    """A format-level fixture between two tournament teams."""
+    __tablename__ = "team_ties"
+
+    id = Column(String, primary_key=True, default=lambda: f"TIE_{uuid.uuid4().hex[:8]}")
+    tournament_id = Column(String, ForeignKey("tournaments.id", ondelete="CASCADE"), nullable=False, index=True)
+    stage = Column(Enum(MatchStage, native_enum=False), nullable=False)
+    round_num = Column(Integer, nullable=False)
+    group_id = Column(String, nullable=True)
+    # Strings intentionally allow unresolved knockout placeholders (TBD_*).
+    team1_id = Column(String, nullable=True, index=True)
+    team2_id = Column(String, nullable=True, index=True)
+    winner_team_id = Column(String, ForeignKey("tournament_teams.id", ondelete="SET NULL"), nullable=True)
+    is_draw = Column(Boolean, default=False, nullable=False)
+    is_completed = Column(Boolean, default=False, nullable=False)
+    lineups_locked = Column(Boolean, default=False, nullable=False)
+
+    tournament = relationship("Tournament", back_populates="team_ties")
+    games = relationship("TeamTieGame", back_populates="tie", cascade="all, delete-orphan", order_by="TeamTieGame.order_num")
+
+
+class TeamTieGame(Base):
+    """One scheduled singles/doubles game inside a team tie."""
+    __tablename__ = "team_tie_games"
+
+    id = Column(String, primary_key=True, default=lambda: f"TG_{uuid.uuid4().hex[:8]}")
+    tie_id = Column(String, ForeignKey("team_ties.id", ondelete="CASCADE"), nullable=False, index=True)
+    order_num = Column(Integer, nullable=False)
+    match_type = Column(String, nullable=False)  # SINGLES or DOUBLES
+    team1_player_ids = Column(JSON, nullable=True)
+    team2_player_ids = Column(JSON, nullable=True)
+    winner_team_id = Column(String, ForeignKey("tournament_teams.id", ondelete="SET NULL"), nullable=True)
+    scores = Column(JSON, nullable=True)
+    court_id = Column(String, ForeignKey("courts.id", ondelete="SET NULL"), nullable=True)
+    scheduled_start_time = Column(DateTime, nullable=True)
+    scheduled_end_time = Column(DateTime, nullable=True)
+    actual_start_time = Column(DateTime, nullable=True)
+    actual_end_time = Column(DateTime, nullable=True)
+    status = Column(Enum(MatchStatus, native_enum=False), default=MatchStatus.SCHEDULED, nullable=False)
+    is_completed = Column(Boolean, default=False, nullable=False)
+    is_skipped = Column(Boolean, default=False, nullable=False)
+    operator_id = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+
+    tie = relationship("TeamTie", back_populates="games")
+    court = relationship("Court")
+    operator = relationship("User")
+
+
 # =====================================================================
 # TOURNAMENT PLAYER (ROSTER / SLOT MODEL)
 # =====================================================================
@@ -310,6 +387,7 @@ class Player(Base):
     team = Column(String, nullable=True)
     # TEAM_FRIENDLY format only: at most one captain per team, enforced at the API layer.
     is_captain = Column(Boolean, nullable=False, default=False)
+    team_id = Column(String, ForeignKey("tournament_teams.id", ondelete="SET NULL"), nullable=True, index=True)
 
     # Tournament-specific awards
     ranking_points_earned = Column(Float, default=0.0)
@@ -323,6 +401,7 @@ class Player(Base):
     # Relationships
     tournament = relationship("Tournament", back_populates="players")
     athlete = relationship("Athlete", back_populates="tournament_entries")
+    tournament_team = relationship("TournamentTeam", back_populates="players")
 
 
 # =====================================================================

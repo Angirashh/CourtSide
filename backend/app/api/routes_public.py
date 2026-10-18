@@ -13,6 +13,7 @@ from app.schemas.public import (
     PublicHubStats,
     PublicLiveMatch,
     TeamFriendlyResult,
+    PublicTeamStandingRow,
 )
 from app.services.fixture_engine.datatypes import (
     Player as EnginePlayer,
@@ -23,6 +24,7 @@ from app.services.court_queues import build_court_queues
 from app.services.podium import compute_podium
 from app.services.round_labels import build_round_label_fn
 from app.services.standings import StandingsEngine
+from app.services.team_competition import calculate_team_standings
 
 router = APIRouter(prefix="/public", tags=["Public Showcase"])
 
@@ -76,6 +78,8 @@ def _load_public_tournaments(db: Session) -> List[PublicTournamentSummary]:
             selectinload(models.Tournament.players),
             selectinload(models.Tournament.courts),
             selectinload(models.Tournament.matches),
+            selectinload(models.Tournament.teams),
+            selectinload(models.Tournament.team_ties).selectinload(models.TeamTie.games),
         )
         .order_by(models.Tournament.tournament_date.desc().nullslast(), models.Tournament.created_at.desc())
         .all()
@@ -87,6 +91,7 @@ def _load_public_tournaments(db: Session) -> List[PublicTournamentSummary]:
         courts_by_id = {c.id: c.name for c in t.courts}
 
         live_matches = []
+        team_games = [game for tie in t.team_ties for game in tie.games]
         if t.status == models.TournamentStatus.IN_PROGRESS:
             round_label = build_round_label_fn(t.matches)
             for m in t.matches:
@@ -103,19 +108,47 @@ def _load_public_tournaments(db: Session) -> List[PublicTournamentSummary]:
                         player2_name=players_by_id.get(m.player2_id, "TBD"),
                     )
                 )
+            team_map = {team.id: team.name for team in t.teams}
+            for tie in t.team_ties:
+                for game in tie.games:
+                    if game.status != models.MatchStatus.IN_PROGRESS:
+                        continue
+                    stage_label = tie.group_id.replace("_", " ") if tie.group_id else tie.stage.value.title()
+                    live_matches.append(PublicLiveMatch(
+                        id=game.id, stage=tie.stage.value, round_num=tie.round_num,
+                        round_label=f"{stage_label} · {game.match_type.title()} {game.order_num}",
+                        court_name=courts_by_id.get(game.court_id),
+                        player1_name=team_map.get(tie.team1_id, "TBD"),
+                        player2_name=team_map.get(tie.team2_id, "TBD"),
+                    ))
 
         # Shown as soon as the knockout final is actually decided, even if the organiser
         # hasn't clicked "End tournament" yet — compute_podium only returns names once
         # that final match has a real winner, so this is safe to try unconditionally.
         champion_name = runner_up_name = None
         team_friendly_result = None
+        team_champion_name = team_runner_up_name = None
         if t.status in (models.TournamentStatus.IN_PROGRESS, models.TournamentStatus.COMPLETED):
-            champion_id, runner_up_id = compute_podium(t.matches)
-            champion_name = players_by_id.get(champion_id) if champion_id else None
-            runner_up_name = players_by_id.get(runner_up_id) if runner_up_id else None
-            team_friendly_result = _compute_team_friendly_result(t)
+            if t.tournament_type == models.TournamentType.TEAM:
+                final_ties = [tie for tie in t.team_ties if tie.stage == models.MatchStage.KNOCKOUT]
+                if final_ties:
+                    final_round = max(tie.round_num for tie in final_ties)
+                    final = next((tie for tie in final_ties if tie.round_num == final_round and tie.is_completed), None)
+                    if final and final.winner_team_id:
+                        teams_by_id = {team.id: team for team in t.teams}
+                        champion = teams_by_id.get(final.winner_team_id)
+                        runner_up_id = final.team2_id if final.winner_team_id == final.team1_id else final.team1_id
+                        runner_up = teams_by_id.get(runner_up_id)
+                        team_champion_name = champion.name if champion else None
+                        team_runner_up_name = runner_up.name if runner_up else None
+            else:
+                champion_id, runner_up_id = compute_podium(t.matches)
+                champion_name = players_by_id.get(champion_id) if champion_id else None
+                runner_up_name = players_by_id.get(runner_up_id) if runner_up_id else None
+                team_friendly_result = _compute_team_friendly_result(t)
 
         scheduled_starts = [m.scheduled_start_time for m in t.matches if m.scheduled_start_time]
+        scheduled_starts.extend(game.scheduled_start_time for game in team_games if game.scheduled_start_time)
         earliest_match_start_time = min(scheduled_starts) if scheduled_starts else None
 
         result.append(
@@ -129,17 +162,18 @@ def _load_public_tournaments(db: Session) -> List[PublicTournamentSummary]:
                 venue_link=t.venue_link,
                 tournament_date=t.tournament_date,
                 earliest_match_start_time=earliest_match_start_time,
-                players_count=len([p for p in t.players if not p.is_placeholder]),
+                tournament_type=t.tournament_type,
+                players_count=len(t.teams) if t.tournament_type == models.TournamentType.TEAM else len([p for p in t.players if not p.is_placeholder]),
                 courts_count=len(t.courts),
                 registration_status=t.registration_status,
                 max_players=t.max_players,
                 created_at=t.created_at,
                 live_matches=live_matches,
                 court_queues=build_court_queues(t) if t.status == models.TournamentStatus.IN_PROGRESS else [],
-                matches_completed=len([m for m in t.matches if m.is_completed]),
-                matches_total=len(t.matches),
-                champion_name=champion_name,
-                runner_up_name=runner_up_name,
+                matches_completed=len([m for m in t.matches if m.is_completed]) + len([g for g in team_games if g.is_completed]),
+                matches_total=len(t.matches) + len(team_games),
+                champion_name=team_champion_name if t.tournament_type == models.TournamentType.TEAM else champion_name,
+                runner_up_name=team_runner_up_name if t.tournament_type == models.TournamentType.TEAM else runner_up_name,
                 team_friendly_result=team_friendly_result,
             )
         )
@@ -156,13 +190,23 @@ def get_public_tournament(tournament_id: str, response: Response, db: Session = 
             selectinload(models.Tournament.courts),
             selectinload(models.Tournament.players),
             selectinload(models.Tournament.matches),
+            selectinload(models.Tournament.teams),
+            selectinload(models.Tournament.team_ties).selectinload(models.TeamTie.games),
         )
         .filter(models.Tournament.id == tournament_id)
         .first()
     )
     if not tournament:
         raise HTTPException(status_code=404, detail="Tournament not found")
-    return tournament
+    response_model = PublicTournamentDetail.model_validate(tournament)
+    for tie in response_model.team_ties:
+        tie_started = any(game.actual_start_time for game in tie.games)
+        if tie_started:
+            continue
+        for game in tie.games:
+            game.team1_player_ids = None
+            game.team2_player_ids = None
+    return response_model
 
 
 # =====================================================================
@@ -274,6 +318,43 @@ def get_public_standings(tournament_id: str, db: Session = Depends(get_db)):
         pool_player_ids = {m.player1_id for m in group_matches} | {m.player2_id for m in group_matches}
         pool_players = [real_players[pid] for pid in pool_player_ids if pid in real_players]
         result[gid] = _standing_rows(StandingsEngine.calculate_group_standings(pool_players, group_matches, group_id=gid))
+    return result
+
+
+@router.get("/tournaments/{tournament_id}/team-standings", response_model=Dict[str, List[PublicTeamStandingRow]])
+def get_public_team_standings(tournament_id: str, db: Session = Depends(get_db)):
+    tournament = db.query(models.Tournament).options(
+        selectinload(models.Tournament.teams),
+        selectinload(models.Tournament.team_ties).selectinload(models.TeamTie.games),
+    ).filter(models.Tournament.id == tournament_id).first()
+    if not tournament:
+        raise HTTPException(status_code=404, detail="Tournament not found")
+    if tournament.tournament_type != models.TournamentType.TEAM:
+        return {}
+    if tournament.format == models.TournamentFormat.KNOCKOUT:
+        return {}
+    if tournament.format == models.TournamentFormat.SWISS_KNOCKOUT:
+        groups = {"SWISS": [tie for tie in tournament.team_ties if tie.stage == models.MatchStage.SWISS]}
+        is_swiss = True
+    else:
+        groups = {
+            group_id: [tie for tie in tournament.team_ties if tie.stage == models.MatchStage.GROUP and tie.group_id == group_id]
+            for group_id in sorted({tie.group_id for tie in tournament.team_ties if tie.stage == models.MatchStage.GROUP and tie.group_id})
+        }
+        is_swiss = False
+    result = {}
+    for group_id, ties in groups.items():
+        ids = {team_id for tie in ties for team_id in (tie.team1_id, tie.team2_id) if team_id and not team_id.startswith("TBD")}
+        teams = [team for team in tournament.teams if team.id in ids]
+        rows = calculate_team_standings(teams, ties, swiss=is_swiss)
+        result[group_id] = [PublicTeamStandingRow(
+            rank=row.rank, team_id=row.team_id, team_name=row.team_name,
+            matches_played=row.matches_played, matches_won=row.matches_won,
+            matches_lost=row.matches_lost, matches_drawn=row.matches_drawn,
+            games_won=row.games_won, games_lost=row.games_lost,
+            points_won=row.points_won, points_lost=row.points_lost,
+            match_points=row.match_points,
+        ) for row in rows]
     return result
 
 

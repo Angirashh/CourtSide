@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { playersApi } from '@/lib/api/players'
+import { playersApi, type PlayerTeamAssignment } from '@/lib/api/players'
 import { tournamentKeys } from './use-tournaments'
 import { LIVE_POLL_MS, publicKeys } from './use-public'
 import { myRegistrationsKeys } from './use-player-auth'
@@ -15,7 +15,7 @@ export function usePlayers(tournamentId: string | undefined, includePlaceholders
 export function useRegisterPlayer(tournamentId: string) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (payload: { name: string; seed?: number; email?: string }) => playersApi.register(tournamentId, payload),
+    mutationFn: (payload: { name: string; seed?: number; email?: string; team_id?: string }) => playersApi.register(tournamentId, payload),
     onSuccess: () => qc.invalidateQueries({ queryKey: tournamentKeys.detail(tournamentId) }),
   })
 }
@@ -56,7 +56,7 @@ export function useWithdrawPlayer(tournamentId: string) {
 export function useUpdatePlayer(tournamentId: string) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ playerId, ...payload }: { playerId: string; team?: 'A' | 'B' }) =>
+    mutationFn: ({ playerId, ...payload }: { playerId: string; team?: 'A' | 'B'; team_id?: string | null }) =>
       playersApi.update(tournamentId, playerId, payload),
     onSuccess: () => qc.invalidateQueries({ queryKey: tournamentKeys.detail(tournamentId) }),
   })
@@ -67,6 +67,14 @@ export function useUpdateTeamAssignments(tournamentId: string) {
   return useMutation({
     mutationFn: (assignments: { player_id: string; team: 'A' | 'B' | null; is_captain: boolean }[]) =>
       playersApi.updateTeamAssignments(tournamentId, assignments),
+    onSuccess: () => qc.invalidateQueries({ queryKey: tournamentKeys.detail(tournamentId) }),
+  })
+}
+
+export function useUpdatePlayerTeamAssignments(tournamentId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (assignments: PlayerTeamAssignment[]) => playersApi.updatePlayerTeamAssignments(tournamentId, assignments),
     onSuccess: () => qc.invalidateQueries({ queryKey: tournamentKeys.detail(tournamentId) }),
   })
 }

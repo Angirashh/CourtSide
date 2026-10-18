@@ -1,5 +1,5 @@
 import { api } from './client'
-import type { PublicHubStats, PublicStandings, PublicTournamentDetail, PublicTournamentSummary } from '@/types/api'
+import type { PublicHubStats, PublicStandings, PublicTeamStandings, PublicTournamentDetail, PublicTournamentSummary } from '@/types/api'
 
 export const publicApi = {
   listTournaments: () => api.get<PublicTournamentSummary[]>('/public/tournaments').then((r) => r.data),
@@ -7,6 +7,8 @@ export const publicApi = {
   getTournament: (id: string) => api.get<PublicTournamentDetail>(`/public/tournaments/${id}`).then((r) => r.data),
 
   getStandings: (id: string) => api.get<PublicStandings>(`/public/tournaments/${id}/standings`).then((r) => r.data),
+
+  getTeamStandings: (id: string) => api.get<PublicTeamStandings>(`/public/tournaments/${id}/team-standings`).then((r) => r.data),
 
   getStats: () => api.get<PublicHubStats>('/public/stats').then((r) => r.data),
 }

@@ -20,6 +20,7 @@ def tournament(matches, courts=("C1", "C2", "C10")):
         courts=[NS(id=c, name=f"Court {c[1:]}") for c in courts],
         players=[NS(id="P1", name="Asha", is_placeholder=False), NS(id="P2", name="TBD_R1_M1_Win", is_placeholder=True)],
         matches=matches,
+        team_ties=[],
     )
 
 

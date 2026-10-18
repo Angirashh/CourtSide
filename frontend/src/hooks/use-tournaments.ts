@@ -7,6 +7,7 @@ import {
   type CreateTournamentPayload,
   type GenerateSchedulePayload,
   type UpdateTournamentDetailsPayload,
+  type TournamentTeamPayload,
 } from '@/lib/api/tournaments'
 
 export const tournamentKeys = {
@@ -35,6 +36,23 @@ export function useCreateTournament() {
   return useMutation({
     mutationFn: (payload: CreateTournamentPayload) => tournamentsApi.create(payload),
     onSuccess: () => qc.invalidateQueries({ queryKey: tournamentKeys.all }),
+  })
+}
+
+export function useAddTournamentTeam(tournamentId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (name: string) => tournamentsApi.addTeam(tournamentId, name),
+    onSuccess: () => qc.invalidateQueries({ queryKey: tournamentKeys.detail(tournamentId) }),
+  })
+}
+
+export function useUpdateTournamentTeam(tournamentId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ teamId, payload }: { teamId: string; payload: TournamentTeamPayload }) =>
+      tournamentsApi.updateTeam(tournamentId, teamId, payload),
+    onSuccess: () => qc.invalidateQueries({ queryKey: tournamentKeys.detail(tournamentId) }),
   })
 }
 

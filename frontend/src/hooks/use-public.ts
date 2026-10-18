@@ -5,6 +5,7 @@ export const publicKeys = {
   tournaments: ['public', 'tournaments'] as const,
   tournament: (id: string) => ['public', 'tournaments', id] as const,
   standings: (id: string) => ['public', 'tournaments', id, 'standings'] as const,
+  teamStandings: (id: string) => ['public', 'tournaments', id, 'team-standings'] as const,
   stats: ['public', 'stats'] as const,
 }
 
@@ -38,6 +39,15 @@ export function usePublicStandings(id: string | undefined) {
   return useQuery({
     queryKey: publicKeys.standings(id ?? ''),
     queryFn: () => publicApi.getStandings(id!),
+    enabled: !!id,
+    refetchInterval: STANDINGS_POLL_MS,
+  })
+}
+
+export function usePublicTeamStandings(id: string | undefined) {
+  return useQuery({
+    queryKey: publicKeys.teamStandings(id ?? ''),
+    queryFn: () => publicApi.getTeamStandings(id!),
     enabled: !!id,
     refetchInterval: STANDINGS_POLL_MS,
   })

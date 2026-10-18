@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { FieldError, Input, Label } from '@/components/ui/input'
 import { useAddCourt, useRemoveCourt, useUpdateCourt } from '@/hooks/use-tournaments'
 import { extractErrorMessage } from '@/lib/api/client'
-import type { Court, Match } from '@/types/api'
+import type { Court, Match, TeamTieGame } from '@/types/api'
 
 const courtsSchema = z.object({
   courts: z
@@ -27,14 +27,17 @@ const courtsSchema = z.object({
 type FormInput = z.input<typeof courtsSchema>
 type FormOutput = z.output<typeof courtsSchema>
 
-export function EditCourtsDialog({ tournamentId, courts, matches }: { tournamentId: string; courts: Court[]; matches: Match[] }) {
+export function EditCourtsDialog({ tournamentId, courts, matches, teamGames = [] }: { tournamentId: string; courts: Court[]; matches: Match[]; teamGames?: TeamTieGame[] }) {
   const [open, setOpen] = useState(false)
   const addCourt = useAddCourt(tournamentId)
   const updateCourt = useUpdateCourt(tournamentId)
   const removeCourt = useRemoveCourt(tournamentId)
   const [submitting, setSubmitting] = useState(false)
 
-  const busyCourtIds = new Set(matches.filter((m) => !m.is_completed && m.court_id).map((m) => m.court_id as string))
+  const busyCourtIds = new Set([
+    ...matches.filter((m) => !m.is_completed && m.court_id).map((m) => m.court_id as string),
+    ...teamGames.filter((game) => !game.is_completed && game.court_id).map((game) => game.court_id as string),
+  ])
 
   const {
     register,
