@@ -1,0 +1,26 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "border-accent-on-rounded",
+        "value": "*",
+        "files": [
+          "frontend/src/pages/public/about-page.tsx"
+        ],
+        "createdAt": "2026-10-12T09:26:16.358Z",
+        "reason": "overflow-hidden on the card clips border-b-4 to follow rounded-lg corners cleanly (verified via screenshot); pre-existing ember accent-bar brand element, user explicitly requested the rounded corners on this card"
+      },
+      {
+        "rule": "low-contrast",
+        "value": "*",
+        "files": [
+          "brag-output/composition/index.html"
+        ],
+        "createdAt": "2026-10-12T13:07:35.294Z",
+        "reason": "video composition, not a web page; .s1-frag text is intentionally faint background clutter in the hook scene (readability isn't the point -- it gets wiped away), not body copy subject to WCAG"
+      }
+    ]
+  }
+}
