@@ -10,7 +10,7 @@ export function GroupStandingsTable({ title, rows, qualifySlots = 2 }: { title: 
         <h4 className="font-display text-xl leading-none text-court-cream">{title.replace(/_/g, ' ')}</h4>
         {qualifySlots > 0 && (
           <span className="flex items-center gap-1 font-sans text-[10px] font-bold uppercase tracking-wide text-ember-500">
-            Top {qualifySlots} advance <ArrowRight className="size-3" />
+            Top {qualifySlots} advance <ArrowRight className="size-3" aria-hidden="true" />
           </span>
         )}
       </div>
@@ -22,7 +22,10 @@ export function GroupStandingsTable({ title, rows, qualifySlots = 2 }: { title: 
             <th className="px-2 py-2 text-center font-semibold">P</th>
             <th className="px-2 py-2 text-center font-semibold">W-L</th>
             <th className="px-2 py-2 text-center font-semibold">Pts</th>
-            <th title="Rally point difference" className="hidden px-2 py-2 text-center font-semibold sm:table-cell">Diff</th>
+            <th className="hidden px-2 py-2 text-center font-semibold sm:table-cell">
+              Diff
+              <span className="sr-only"> (rally point difference)</span>
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -54,14 +57,19 @@ export function GroupStandingsTable({ title, rows, qualifySlots = 2 }: { title: 
                       Team {row.team}
                     </span>
                   )}
-                  {row.isWithdrawn && <UserX className="size-3.5 text-danger" />}
+                  {row.isWithdrawn && (
+                    <>
+                      <UserX className="size-3.5 text-danger" aria-hidden="true" />
+                      <span className="sr-only"> (withdrawn)</span>
+                    </>
+                  )}
                 </span>
               </td>
-              <td className="px-2 py-2.5 text-center font-sans text-court-cream/55">{row.played}</td>
-              <td className="px-2 py-2.5 text-center font-sans text-court-cream/55">
+              <td className="px-2 py-2.5 text-center font-sans tabular-nums text-court-cream/55">{row.played}</td>
+              <td className="px-2 py-2.5 text-center font-sans tabular-nums text-court-cream/55">
                 {row.won}-{row.lost}
               </td>
-              <td className="px-2 py-2.5 text-center font-sans font-bold text-court-cream">{row.points}</td>
+              <td className="px-2 py-2.5 text-center font-sans font-bold tabular-nums text-court-cream">{row.points}</td>
               <td className="hidden px-2 py-2.5 text-center sm:table-cell">
                 <DiffIndicator value={row.pointDiff} />
               </td>
@@ -76,21 +84,21 @@ export function GroupStandingsTable({ title, rows, qualifySlots = 2 }: { title: 
 export function DiffIndicator({ value }: { value: number }) {
   if (value > 0)
     return (
-      <span className="inline-flex items-center gap-0.5 text-success">
-        <ArrowUp className="size-3" />
+      <span className="inline-flex items-center gap-0.5 tabular-nums text-success">
+        <ArrowUp className="size-3" aria-hidden="true" />
         {value}
       </span>
     )
   if (value < 0)
     return (
-      <span className="inline-flex items-center gap-0.5 text-danger">
-        <ArrowDown className="size-3" />
+      <span className="inline-flex items-center gap-0.5 tabular-nums text-danger">
+        <ArrowDown className="size-3" aria-hidden="true" />
         {Math.abs(value)}
       </span>
     )
   return (
-    <span className="inline-flex items-center gap-0.5 text-court-cream/45">
-      <Minus className="size-3" />
+    <span className="inline-flex items-center gap-0.5 tabular-nums text-court-cream/45">
+      <Minus className="size-3" aria-hidden="true" />
       0
     </span>
   )

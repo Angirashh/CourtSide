@@ -16,14 +16,14 @@ export function SelectTrigger({
     <SelectPrimitive.Trigger
       className={cn(
         'flex h-11 w-full items-center justify-between rounded-lg border border-white/20 bg-ink-card px-3.5 text-sm text-court-cream shadow-sm',
-        'focus:outline-none focus:ring-2 focus:ring-ember-500/40 focus:border-ember-500 data-[placeholder]:text-court-cream/45',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-500/40 focus-visible:border-ember-500 data-[placeholder]:text-court-cream/45',
         className
       )}
       {...props}
     >
       {children}
       <SelectPrimitive.Icon>
-        <ChevronDown className="size-4 text-court-cream/45" />
+        <ChevronDown className="size-4 text-court-cream/45" aria-hidden="true" />
       </SelectPrimitive.Icon>
     </SelectPrimitive.Trigger>
   )
@@ -67,7 +67,7 @@ export function SelectItem({
     >
       <span className="absolute left-2.5 flex size-4 items-center justify-center">
         <SelectPrimitive.ItemIndicator>
-          <Check className="size-3.5 text-ember-600" />
+          <Check className="size-3.5 text-ember-600" aria-hidden="true" />
         </SelectPrimitive.ItemIndicator>
       </span>
       <SelectPrimitive.ItemText>{children}</SelectPrimitive.ItemText>

@@ -1,11 +1,11 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
 import { ArrowRight, CalendarDays, LogOut, MapPin, Trophy } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { EmptyState } from '@/components/ui/empty-state'
-import { Label, PhoneInput } from '@/components/ui/input'
+import { FieldError, Label, PhoneInput } from '@/components/ui/input'
 import { TournamentStatusBadge } from '@/components/ui/status-badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { GoogleSignInButton } from '@/components/auth/google-signin-button'
@@ -40,8 +40,18 @@ function LoggedOutView() {
   const setSession = useAuthStore((s) => s.setSession)
   const [pendingSignup, setPendingSignup] = useState<{ signupToken: string; name: string | null } | null>(null)
   const [phone, setPhone] = useState('')
+  const [phoneError, setPhoneError] = useState<string | null>(null)
   const googleAuth = useGoogleAuth()
   const completeSignup = useCompleteSignup()
+  const phoneInputRef = useRef<HTMLInputElement>(null)
+
+  // Autofocus only where a hardware keyboard means it won't pop a mobile virtual keyboard
+  // and jump the viewport the instant this step appears.
+  useEffect(() => {
+    if (pendingSignup && window.matchMedia('(min-width: 640px)').matches) {
+      phoneInputRef.current?.focus()
+    }
+  }, [pendingSignup])
 
   function handleCredential(idToken: string) {
     googleAuth.mutate(idToken, {
@@ -70,36 +80,49 @@ function LoggedOutView() {
             <GoogleSignInButton onCredential={handleCredential} disabled={googleAuth.isPending} />
           </div>
         ) : (
-          <div className="flex flex-col gap-4">
+          <form
+            className="flex flex-col gap-4"
+            onSubmit={(e) => {
+              e.preventDefault()
+              if (!PHONE_RE.test(phone)) {
+                setPhoneError('Enter a valid 10-digit mobile number')
+                return
+              }
+              setPhoneError(null)
+              completeSignup.mutate(
+                { signupToken: pendingSignup.signupToken, phone },
+                {
+                  onSuccess: (res) =>
+                    toast.success(
+                      res.claimed_existing_record
+                        ? 'Welcome! We found you on an existing tournament roster and linked your account.'
+                        : 'Welcome!'
+                    ),
+                  onError: (err) => toast.error(extractErrorMessage(err)),
+                }
+              )
+            }}
+          >
             <p className="text-center text-sm text-court-cream/55">
-              Hey {pendingSignup.name ?? 'there'} — one last thing. What's your phone number?
+              Hey {pendingSignup.name ?? 'there'} — one last thing. What’s your phone number?
             </p>
             <div className="space-y-1.5">
-              <Label>Phone number</Label>
-              <PhoneInput value={phone} onChange={(e) => setPhone(e.target.value)} autoFocus />
+              <Label htmlFor="player-phone">Phone number</Label>
+              <PhoneInput
+                id="player-phone"
+                ref={phoneInputRef}
+                value={phone}
+                onChange={(e) => {
+                  setPhone(e.target.value)
+                  setPhoneError(null)
+                }}
+              />
+              <FieldError>{phoneError ?? undefined}</FieldError>
             </div>
-            <Button
-              className="w-full"
-              disabled={!PHONE_RE.test(phone)}
-              loading={completeSignup.isPending}
-              onClick={() =>
-                completeSignup.mutate(
-                  { signupToken: pendingSignup.signupToken, phone },
-                  {
-                    onSuccess: (res) =>
-                      toast.success(
-                        res.claimed_existing_record
-                          ? "Welcome! We found you on an existing tournament roster and linked your account."
-                          : 'Welcome!'
-                      ),
-                    onError: (err) => toast.error(extractErrorMessage(err)),
-                  }
-                )
-              }
-            >
+            <Button type="submit" className="w-full" loading={completeSignup.isPending}>
               Create account
             </Button>
-          </div>
+          </form>
         )}
       </Card>
     </div>
@@ -187,7 +210,7 @@ function LoggedInView() {
               <Link key={r.player_id} to={`/tournaments/${r.tournament_id}`} className="block active:scale-[0.98]">
                 <Card className="p-4 transition-shadow hover:shadow-md">
                   <div className="flex items-center justify-between gap-2">
-                    <p className="font-display text-base text-court-cream">{r.tournament_name}</p>
+                    <p className="min-w-0 truncate font-display text-base text-court-cream">{r.tournament_name}</p>
                     <TournamentStatusBadge status={r.tournament_status} />
                   </div>
                   <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-court-cream/55">
@@ -202,7 +225,7 @@ function LoggedInView() {
                       </span>
                     )}
                   </div>
-                  {r.is_withdrawn && <p className="mt-2 text-xs font-semibold text-danger">You've withdrawn</p>}
+                  {r.is_withdrawn && <p className="mt-2 text-xs font-semibold text-danger">You’ve withdrawn</p>}
                 </Card>
               </Link>
             ))}
@@ -236,7 +259,7 @@ function JoinableTournamentCard({ tournament }: { tournament: PublicTournamentSu
 
   return (
     <Card className="p-4">
-      <p className="font-display text-base text-court-cream">{tournament.name}</p>
+      <p className="truncate font-display text-base text-court-cream">{tournament.name}</p>
       <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-court-cream/55">
         <span className="flex items-center gap-1.5">
           <MapPin className="size-3.5" /> {tournament.venue ?? 'Venue TBD'}

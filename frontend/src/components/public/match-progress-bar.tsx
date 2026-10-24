@@ -12,8 +12,11 @@ export function MatchProgressBar({ completed, total, className }: { completed: n
         </span>
         <span className="font-mono text-court-cream/45">{pct}%</span>
       </div>
-      <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/10">
-        <div className="h-full rounded-full bg-ember-500 transition-[width] duration-500" style={{ width: `${pct}%` }} />
+      <div className="relative h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+        <div
+          className="absolute inset-y-0 left-0 w-full origin-left rounded-full bg-ember-500 transition-transform duration-500"
+          style={{ transform: `scaleX(${pct / 100})` }}
+        />
       </div>
     </div>
   )

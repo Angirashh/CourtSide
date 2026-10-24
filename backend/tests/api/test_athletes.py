@@ -1,8 +1,19 @@
 import pytest
 
+from app.core.security import create_access_token
 from app.db import models
 
 API = "/api/v1"
+
+
+def _organiser_token(db_session):
+    organiser = models.User(
+        name="Org", email=f"org-{id(db_session)}@example.com", role=models.UserRole.ORGANISER,
+        pin_hash="x", is_approved=True,
+    )
+    db_session.add(organiser)
+    db_session.commit()
+    return create_access_token({"sub": organiser.id, "role": organiser.role.value})
 
 
 @pytest.fixture
@@ -96,3 +107,41 @@ def test_get_athlete_by_id_surfaces_profile_fields_without_auth(client, db_sessi
     assert body["dominant_hand"] == "RIGHT"
     assert body["preferred_formats"] == ["SINGLES", "MIXED_DOUBLES"]
     assert body["bio"] == "Right-handed singles player."
+
+
+def test_create_athlete_requires_organiser_auth(client):
+    resp = client.post(f"{API}/athletes", json={"name": "Anon Athlete"})
+    assert resp.status_code == 401, resp.text
+
+
+def test_create_athlete_allowed_for_organiser(client, db_session):
+    headers = {"Authorization": f"Bearer {_organiser_token(db_session)}"}
+    resp = client.post(f"{API}/athletes", json={"name": "Org Added Athlete"}, headers=headers)
+    assert resp.status_code == 201, resp.text
+    assert resp.json()["name"] == "Org Added Athlete"
+
+
+def test_update_athlete_requires_organiser_auth(client, db_session, mock_phone_verify):
+    """Regression guard: PATCH /{athlete_id} used to have zero auth, letting anyone rewrite
+    a victim athlete's email/phone -- which _claim_or_create_athlete (routes_player_auth.py)
+    would then match a brand-new Google signup onto, hijacking the victim's competitive
+    record. This must now require organiser auth, same as the account-takeover-adjacent
+    `PATCH /athletes/me` requires player auth."""
+    _signup(client, "9200000005", "victim@example.com")
+    victim = db_session.query(models.Athlete).filter(models.Athlete.email == "victim@example.com").first()
+
+    resp = client.patch(f"{API}/athletes/{victim.id}", json={"email": "attacker@example.com"})
+    assert resp.status_code == 401, resp.text
+
+    db_session.refresh(victim)
+    assert victim.email == "victim@example.com", "unauthenticated PATCH must not have changed the record"
+
+
+def test_update_athlete_allowed_for_organiser(client, db_session, mock_phone_verify):
+    _signup(client, "9200000006", "update-target@example.com")
+    athlete = db_session.query(models.Athlete).filter(models.Athlete.email == "update-target@example.com").first()
+    headers = {"Authorization": f"Bearer {_organiser_token(db_session)}"}
+
+    resp = client.patch(f"{API}/athletes/{athlete.id}", json={"club_or_city": "Pune"}, headers=headers)
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["club_or_city"] == "Pune"

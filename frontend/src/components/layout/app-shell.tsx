@@ -5,6 +5,7 @@ import { useScrollToTop } from '@/hooks/use-scroll-to-top'
 import { BrandMark, BrandWordmark } from '@/components/brand/logo'
 import { cn, initials } from '@/lib/utils'
 import { OrganiserApprovalsBell } from './organiser-approvals-bell'
+import { SkipToContent } from '@/components/ui/skip-to-content'
 
 const organiserNav = [
   { to: '/organiser', label: 'Tournaments', icon: Trophy, end: true },
@@ -24,6 +25,7 @@ export function AppShell() {
 
   return (
     <div className="min-h-svh bg-paper text-court-cream">
+      <SkipToContent />
       {/* Desktop sidebar */}
       <div className="hidden lg:fixed lg:inset-y-0 lg:left-0 lg:z-40 lg:flex lg:w-64 lg:flex-col">
         <div className="flex grow flex-col gap-y-6 bg-atmosphere px-6 py-8">
@@ -31,7 +33,7 @@ export function AppShell() {
             <Brand />
             <OrganiserApprovalsBell />
           </div>
-          <nav className="flex flex-1 flex-col gap-1">
+          <nav aria-label="Main navigation" className="flex flex-1 flex-col gap-1">
             {organiserNav.map((item) => (
               <NavLink
                 key={item.to}
@@ -70,14 +72,16 @@ export function AppShell() {
         </div>
       </header>
 
-      <main className="pb-24 lg:pb-10 lg:pl-64">
+      <main id="main-content" className="pb-24 lg:pb-10 lg:pl-64">
         <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:px-10 lg:py-10">
           <Outlet />
         </div>
       </main>
 
       {/* Mobile bottom nav */}
-      <nav className="fixed inset-x-0 bottom-0 z-30 flex items-center justify-around border-t border-white/10 bg-ink/95 py-2 backdrop-blur-md lg:hidden"
+      <nav
+        aria-label="Main navigation"
+        className="fixed inset-x-0 bottom-0 z-30 flex items-center justify-around border-t border-white/10 bg-ink/95 py-2 backdrop-blur-md lg:hidden"
         style={{ paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom))' }}
       >
         {organiserNav.map((item) => (

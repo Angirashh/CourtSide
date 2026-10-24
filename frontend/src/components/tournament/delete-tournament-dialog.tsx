@@ -23,7 +23,7 @@ export function DeleteTournamentDialog({ tournamentId, name, status }: { tournam
   function handleDelete() {
     deleteTournament.mutate(undefined, {
       onSuccess: () => {
-        toast.success(`"${name}" deleted.`)
+        toast.success(`“${name}” deleted.`)
         setOpen(false)
         navigate('/organiser')
       },
@@ -41,8 +41,8 @@ export function DeleteTournamentDialog({ tournamentId, name, status }: { tournam
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Delete "{name}"?</DialogTitle>
-          <DialogDescription>{warning} This can't be undone.</DialogDescription>
+          <DialogTitle>Delete “{name}”?</DialogTitle>
+          <DialogDescription>{warning} This can’t be undone.</DialogDescription>
         </DialogHeader>
         <DialogFooter>
           <Button variant="ghost" onClick={() => setOpen(false)}>

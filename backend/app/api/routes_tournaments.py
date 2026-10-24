@@ -434,8 +434,10 @@ def _generate_team_schedule(
             raise HTTPException(status_code=400, detail=f"Assign an active captain to {team.name}.")
         required_singles = (config.get("singles_matches", 0) + config.get("max_singles_per_player", 0) - 1) // max(config.get("max_singles_per_player", 0), 1)
         required_doubles = (config.get("doubles_matches", 0) * 2 + config.get("max_doubles_per_player", 0) - 1) // max(config.get("max_doubles_per_player", 0), 1)
-        if len(active_players) < max(required_singles, required_doubles):
-            raise HTTPException(status_code=400, detail=f"{team.name} needs at least {max(required_singles, required_doubles)} active players for its tie settings.")
+        required_mixed_doubles = (config.get("mixed_doubles_matches", 0) * 2 + config.get("max_mixed_doubles_per_player", 0) - 1) // max(config.get("max_mixed_doubles_per_player", 0), 1)
+        required = max(required_singles, required_doubles, required_mixed_doubles)
+        if len(active_players) < required:
+            raise HTTPException(status_code=400, detail=f"{team.name} needs at least {required} active players for its tie settings.")
 
     fixtures = _build_team_template_matches(
         tournament, teams, payload.num_groups or 2, payload.num_swiss_rounds,

@@ -111,7 +111,7 @@ export function BracketTree({
                   fill="none"
                   stroke={e.advanced ? LINE_ADVANCED : LINE_IDLE}
                   strokeWidth={e.advanced ? 2.5 : 2}
-                  className="transition-[stroke,stroke-width] duration-300"
+                  className="transition-[stroke] duration-300"
                 />
               )
             })}
@@ -153,7 +153,7 @@ export function BracketTree({
           className="flex items-center justify-center gap-2.5 rounded-2xl border border-ember-300/60 bg-gradient-to-br from-ember-500/20 to-ink-card px-5 py-4"
         >
           <div className="flex size-9 items-center justify-center rounded-full bg-ember-500 text-ink">
-            <Trophy className="size-4" />
+            <Trophy className="size-4" aria-hidden="true" />
           </div>
           <p className="font-display text-lg text-court-cream">
             {playerLabel(champion.winner_id, playersById)} <span className="text-court-cream/55 text-sm font-sans">wins the title</span>
@@ -211,7 +211,7 @@ function BracketMatchCard({
           <MatchStatusBadge status={match.status} />
           {courtName && (
             <span className="inline-flex min-w-0 items-center gap-1 truncate text-[10px] font-semibold text-court-cream/45">
-              <MapPin className="size-2.5 shrink-0" />
+              <MapPin className="size-2.5 shrink-0" aria-hidden="true" />
               <span className="truncate">{courtName}</span>
             </span>
           )}
@@ -250,7 +250,12 @@ function PlayerRow({
         )}
       >
         {label}
-        {isWithdrawn && <UserX className="ml-1 inline size-3 text-danger" />}
+        {isWithdrawn && (
+          <>
+            <UserX className="ml-1 inline size-3 text-danger" aria-hidden="true" />
+            <span className="sr-only"> (withdrawn)</span>
+          </>
+        )}
       </span>
       {score && score.length > 0 && (
         <span className="flex shrink-0 gap-1">

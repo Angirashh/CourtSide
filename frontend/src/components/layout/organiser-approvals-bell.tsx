@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Bell, Check, Mail, Phone, UserRound, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { EmptyState } from '@/components/ui/empty-state'
 import { useApproveOrganiser, usePendingOrganisers, useRejectOrganiser } from '@/hooks/use-auth'
@@ -74,6 +75,14 @@ function PendingOrganiserRow({
   const approve = useApproveOrganiser()
   const reject = useRejectOrganiser()
   const busy = approve.isPending || reject.isPending
+  const [confirmingReject, setConfirmingReject] = useState(false)
+
+  function handleReject() {
+    reject.mutate(id, {
+      onSuccess: () => setConfirmingReject(false),
+      onError: (err) => toast.error(extractErrorMessage(err)),
+    })
+  }
 
   return (
     <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-ink-card p-3">
@@ -97,21 +106,32 @@ function PendingOrganiserRow({
         <p className="mt-0.5 text-[11px] text-court-cream/35">Requested {formatDateTime(requestedAt)}</p>
       </div>
       <div className="flex shrink-0 items-center gap-1.5">
-        <Button
-          size="icon"
-          variant="outline"
-          className="size-8 border-danger/30 text-danger hover:bg-danger-bg"
-          disabled={busy}
-          onClick={() => reject.mutate(id, { onError: (err) => toast.error(extractErrorMessage(err)) })}
-          aria-label={`Decline ${name}`}
-        >
-          <X className="size-4" />
-        </Button>
+        <ConfirmDialog
+          open={confirmingReject}
+          onOpenChange={setConfirmingReject}
+          trigger={
+            <Button
+              size="icon"
+              variant="outline"
+              className="size-8 border-danger/30 text-danger hover:bg-danger-bg"
+              disabled={busy}
+              aria-label={`Decline ${name}`}
+            >
+              <X className="size-4" aria-hidden="true" />
+            </Button>
+          }
+          title={`Decline ${name}?`}
+          description="They won’t be let in as an organiser. They can ask to sign up again later."
+          confirmLabel="Decline"
+          pending={reject.isPending}
+          onConfirm={handleReject}
+        />
         <Button
           size="icon"
           variant="primary"
           className="size-8"
           disabled={busy}
+          loading={approve.isPending}
           onClick={() =>
             approve.mutate(id, {
               onSuccess: () => toast.success(`${name} approved.`),
@@ -120,7 +140,7 @@ function PendingOrganiserRow({
           }
           aria-label={`Approve ${name}`}
         >
-          <Check className="size-4" />
+          <Check className="size-4" aria-hidden="true" />
         </Button>
       </div>
     </div>

@@ -15,11 +15,11 @@ export function ProfileSummary({ profile, onEdit }: { profile: MyAthleteProfile;
     return (
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-dashed border-white/15 bg-white/[0.03] px-4 py-3">
         <p className="flex items-center gap-2 text-sm text-court-cream/70">
-          <Sparkles className="size-4 shrink-0 text-ember-500" />
+          <Sparkles className="size-4 shrink-0 text-ember-500" aria-hidden="true" />
           Tell opponents and organisers a bit about your game.
         </p>
         <Button size="sm" variant="outline" onClick={onEdit}>
-          <Pencil className="size-3.5" /> Add profile info
+          <Pencil className="size-3.5" aria-hidden="true" /> Add profile info
         </Button>
       </div>
     )
@@ -33,19 +33,19 @@ export function ProfileSummary({ profile, onEdit }: { profile: MyAthleteProfile;
       <div className="flex flex-wrap items-center gap-2">
         {genderInfo && (
           <Badge variant="outline" className="gap-1.5">
-            <genderInfo.icon className="size-3.5" /> {genderInfo.label}
+            <genderInfo.icon className="size-3.5" aria-hidden="true" /> {genderInfo.label}
           </Badge>
         )}
         {handInfo && (
           <Badge variant="outline" className="gap-1.5">
-            <handInfo.icon className={cn('size-3.5', handInfo.iconClassName)} /> {handInfo.label}
+            <handInfo.icon className={cn('size-3.5', handInfo.iconClassName)} aria-hidden="true" /> {handInfo.label}
           </Badge>
         )}
         {profile.preferred_formats.map((format) => {
           const meta = preferredFormatMeta[format]
           return (
             <Badge key={format} variant="outline" className="gap-1.5">
-              <meta.icon className="size-3.5" /> {meta.label}
+              <meta.icon className="size-3.5" aria-hidden="true" /> {meta.label}
             </Badge>
           )
         })}
@@ -56,7 +56,7 @@ export function ProfileSummary({ profile, onEdit }: { profile: MyAthleteProfile;
           title="Edit profile"
           aria-label="Edit profile"
         >
-          <Pencil className="size-3.5" /> Edit
+          <Pencil className="size-3.5" aria-hidden="true" /> Edit
         </button>
       </div>
       {profile.bio && <p className="text-sm leading-relaxed text-court-cream/70">{profile.bio}</p>}

@@ -7,6 +7,7 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { MatchStatusBadge } from '@/components/ui/status-badge'
 import { VsBadge } from '@/components/ui/vs-badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { useUrlParam } from '@/hooks/use-url-param'
 import { cn, formatCurrency, formatDate, formatDuration, formatTime, playerLabel } from '@/lib/utils'
 import type { Court, Match, TournamentDetail } from '@/types/api'
 
@@ -85,13 +86,16 @@ export function ScheduleSummaryTab({ tournament }: { tournament: TournamentDetai
     }
     return map
   }, [tournament.courts, scheduledMatches])
+  // Hooks must run unconditionally on every render, so this is read up front even though
+  // only the generated-schedule branch below actually uses it.
+  const [activeCourtId, setActiveCourtId] = useUrlParam('court', tournament.courts[0]?.id ?? '')
 
   if (scheduledMatches.length === 0) {
     return (
       <EmptyState
         icon={CalendarClock}
         title="No schedule generated yet"
-        description="Generate a schedule to see the tournament's total duration, each court's timetable, and how much the optimiser saves over booking every court all day."
+        description="Generate a schedule to see the tournament’s total duration, each court’s timetable, and how much the optimiser saves over booking every court all day."
       />
     )
   }
@@ -108,11 +112,11 @@ export function ScheduleSummaryTab({ tournament }: { tournament: TournamentDetai
         <StatCard icon={CalendarClock} label="Play window" value={`${formatTime(overallStart.toISOString())} – ${formatTime(overallEnd.toISOString())}`} />
       </div>
 
-      <Tabs defaultValue={tournament.courts[0]?.id}>
+      <Tabs value={activeCourtId} onValueChange={setActiveCourtId}>
         <TabsList>
           {tournament.courts.map((court) => (
             <TabsTrigger key={court.id} value={court.id} className="inline-flex items-center gap-1.5">
-              <MapPin className="size-3.5" />
+              <MapPin className="size-3.5" aria-hidden="true" />
               {court.name}
               <span className="opacity-60">({matchesByCourt.get(court.id)?.length ?? 0})</span>
             </TabsTrigger>
@@ -151,7 +155,7 @@ function StatCard({
     <Card className={cn('p-3 sm:p-4', accent && 'border-ember-300/60 bg-ember-500/10')}>
       <div className="flex items-center gap-2.5">
         <div className={cn('hidden size-8 shrink-0 items-center justify-center rounded-lg sm:flex', accent ? 'bg-ember-500 text-ink' : 'bg-white/10 text-court-cream/60')}>
-          <Icon className="size-4" />
+          <Icon className="size-4" aria-hidden="true" />
         </div>
         <div className="min-w-0">
           <p className={cn('font-display text-base leading-tight sm:truncate sm:text-lg sm:leading-none', accent ? 'text-ember-600' : 'text-court-cream')}>{value}</p>
@@ -178,9 +182,9 @@ function CourtScheduleCard({
     <Card className="overflow-hidden p-0">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 bg-navy-900 px-4 py-3">
         <div className="flex items-center gap-2 text-cream-50">
-          <MapPin className="size-4 text-ember-400" />
+          <MapPin className="size-4 text-ember-400" aria-hidden="true" />
           <span className="font-display text-sm ">{court.name}</span>
-          <span className="text-[11px] font-medium text-cream-200/50">₹{court.hourly_rate}/hr</span>
+          <span className="text-[11px] font-medium text-cream-200/50">{formatCurrency(court.hourly_rate)}/hr</span>
         </div>
         {booking && (
           <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] font-semibold text-cream-200/70">

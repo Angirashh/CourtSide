@@ -123,11 +123,11 @@ export function EditCourtsDialog({ tournamentId, courts, matches, teamGames = []
       <DialogTrigger asChild>
         <button
           type="button"
-          className="inline-flex items-center gap-1 rounded px-1 py-0.5 text-court-cream/45 transition-colors hover:bg-white/10 hover:text-court-cream"
+          className="inline-flex items-center gap-1 rounded px-1 py-0.5 text-court-cream/45 transition-colors hover:bg-white/10 hover:text-court-cream focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-500"
           title="Edit courts"
           aria-label="Edit courts"
         >
-          <Settings2 className="size-3.5" />
+          <Settings2 className="size-3.5" aria-hidden="true" />
         </button>
       </DialogTrigger>
       <DialogContent>
@@ -135,8 +135,8 @@ export function EditCourtsDialog({ tournamentId, courts, matches, teamGames = []
           <DialogTitle>Edit courts</DialogTitle>
           <DialogDescription>
             Add, rename, or remove courts any time — before or during the tournament. Renaming is always safe, even
-            mid-match. A court with a scheduled or in-progress match on it can't be removed until that match wraps up.
-            If a court isn&rsquo;t free until later than the others — say 3 courts from 1:00pm but a 4th not until
+            mid-match. A court with a scheduled or in-progress match on it can’t be removed until that match wraps up.
+            If a court isn’t free until later than the others — say 3 courts from 1:00pm but a 4th not until
             1:30pm — set how many minutes late it opens; the next schedule generation plans around it.
           </DialogDescription>
         </DialogHeader>
@@ -148,17 +148,18 @@ export function EditCourtsDialog({ tournamentId, courts, matches, teamGames = []
                 <div key={field.id} className="rounded-lg border border-white/10 p-3">
                   <div className="flex items-center gap-2.5">
                     <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-white/10 text-court-cream/55">
-                      <MapPin className="size-4" />
+                      <MapPin className="size-4" aria-hidden="true" />
                     </div>
                     <Input placeholder="Court name" className="flex-1" {...register(`courts.${idx}.name` as const)} />
                     <button
                       type="button"
                       onClick={() => remove(idx)}
                       disabled={fields.length === 1 || isBusy}
-                      title={isBusy ? "Can't remove — has a match on it right now" : 'Remove court'}
-                      className="flex size-9 shrink-0 items-center justify-center rounded-lg text-court-cream/45 transition-colors hover:bg-danger-bg hover:text-danger disabled:opacity-30"
+                      title={isBusy ? 'Can’t remove — has a match on it right now' : 'Remove court'}
+                      aria-label={isBusy ? 'Can’t remove — has a match on it right now' : 'Remove court'}
+                      className="flex size-9 shrink-0 items-center justify-center rounded-lg text-court-cream/45 transition-colors hover:bg-danger-bg hover:text-danger focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-500 disabled:opacity-30"
                     >
-                      <Trash2 className="size-4" />
+                      <Trash2 className="size-4" aria-hidden="true" />
                     </button>
                   </div>
                   <div className="mt-2.5 grid grid-cols-2 gap-2.5 pl-11">
@@ -172,7 +173,7 @@ export function EditCourtsDialog({ tournamentId, courts, matches, teamGames = []
                         type="number"
                         min={0}
                         max={1440}
-                        title="Minutes after the tournament's start time before this court opens"
+                        title="Minutes after the tournament’s start time before this court opens"
                         {...register(`courts.${idx}.available_from_minutes` as const)}
                       />
                     </div>

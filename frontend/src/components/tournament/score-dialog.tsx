@@ -71,7 +71,7 @@ export function ScoreDialog({
     const winnerSets = winnerId === p1Id ? p1Sets : p2Sets
     const loserSets = winnerId === p1Id ? p2Sets : p1Sets
     if (winnerSets <= loserSets) {
-      toast.error("These scores don't match the selected winner. Check each set is entered under the right player.")
+      toast.error('These scores don’t match the selected winner. Check each set is entered under the right player.')
       return
     }
     const callbacks = {
@@ -109,10 +109,10 @@ export function ScoreDialog({
                     <button
                       type="button"
                       onClick={() => setSets((prev) => prev.filter((_, i) => i !== idx))}
-                      className="flex size-8 items-center justify-center rounded-full text-court-cream/45 active:bg-danger-bg active:text-danger"
+                      className="flex size-8 items-center justify-center rounded-full text-court-cream/45 transition-colors hover:bg-danger-bg hover:text-danger active:bg-danger-bg active:text-danger focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-500"
                       aria-label={`Remove set ${idx + 1}`}
                     >
-                      <Minus className="size-4" />
+                      <Minus className="size-4" aria-hidden="true" />
                     </button>
                   )}
                 </div>
@@ -161,10 +161,10 @@ function ScoreStepper({ label, value, onChange }: { label: string; value: number
         <button
           type="button"
           onClick={() => onChange(value - 1)}
-          className="flex h-12 w-11 shrink-0 items-center justify-center rounded-lg border border-white/20 bg-ink-card text-court-cream/60 active:scale-95 active:bg-white/10"
+          className="flex h-12 w-11 shrink-0 items-center justify-center rounded-lg border border-white/20 bg-ink-card text-court-cream/60 transition-colors hover:bg-white/10 active:scale-95 active:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-500"
           aria-label={`Decrease ${label}`}
         >
-          <Minus className="size-4" />
+          <Minus className="size-4" aria-hidden="true" />
         </button>
         <input
           type="number"
@@ -173,16 +173,16 @@ function ScoreStepper({ label, value, onChange }: { label: string; value: number
           value={value}
           onFocus={(e) => e.target.select()}
           onChange={(e) => onChange(Number(e.target.value))}
-          className="h-12 w-full min-w-0 rounded-lg border border-white/20 bg-ink-card text-center font-display text-2xl text-court-cream focus:border-ember-500 focus:outline-none"
+          className="h-12 w-full min-w-0 rounded-lg border border-white/20 bg-ink-card text-center font-display text-2xl text-court-cream focus-visible:border-ember-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-500/40"
           aria-label={`${label} score`}
         />
         <button
           type="button"
           onClick={() => onChange(value + 1)}
-          className="flex h-12 w-11 shrink-0 items-center justify-center rounded-lg border border-white/20 bg-ink-card text-court-cream/60 active:scale-95 active:bg-white/10"
+          className="flex h-12 w-11 shrink-0 items-center justify-center rounded-lg border border-white/20 bg-ink-card text-court-cream/60 transition-colors hover:bg-white/10 active:scale-95 active:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-500"
           aria-label={`Increase ${label}`}
         >
-          <Plus className="size-4" />
+          <Plus className="size-4" aria-hidden="true" />
         </button>
       </div>
     </div>
@@ -195,11 +195,11 @@ function WinnerOption({ label, active, onClick }: { label: string; active: boole
       type="button"
       onClick={onClick}
       className={cn(
-        'flex min-h-14 flex-col items-center justify-center gap-1.5 rounded-xl border-2 px-3 py-3 text-center transition-all active:scale-[0.98]',
+        'flex min-h-14 flex-col items-center justify-center gap-1.5 rounded-xl border-2 px-3 py-3 text-center transition-[border-color,background-color,box-shadow,transform] hover:border-ember-400/60 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-500 focus-visible:ring-offset-2 focus-visible:ring-offset-ink',
         active ? 'border-ember-500 bg-ember-500/15 shadow-sm' : 'border-white/20'
       )}
     >
-      <Trophy className={cn('size-5', active ? 'text-ember-600' : 'text-court-cream/35')} />
+      <Trophy className={cn('size-5', active ? 'text-ember-600' : 'text-court-cream/35')} aria-hidden="true" />
       <span className={cn('max-w-full truncate text-sm font-bold', active ? 'text-court-cream' : 'text-court-cream/60')}>{label}</span>
     </button>
   )

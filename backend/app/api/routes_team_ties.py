@@ -75,7 +75,7 @@ def _validate_lineup(tie: models.TeamTie, team_id: str, submission: TeamLineupSu
             models.Player.is_withdrawn == False,
         ).all()
     }
-    counts = {"SINGLES": {}, "DOUBLES": {}}
+    counts = {"SINGLES": {}, "DOUBLES": {}, "MIXED_DOUBLES": {}}
     for game_id, player_ids in submitted.items():
         game = games[game_id]
         expected = 1 if game.match_type == "SINGLES" else 2
@@ -90,6 +90,7 @@ def _validate_lineup(tie: models.TeamTie, team_id: str, submission: TeamLineupSu
     for player_counts, limit_key in (
         (counts["SINGLES"], "max_singles_per_player"),
         (counts["DOUBLES"], "max_doubles_per_player"),
+        (counts["MIXED_DOUBLES"], "max_mixed_doubles_per_player"),
     ):
         limit = config.get(limit_key, 0)
         if any(count > limit for count in player_counts.values()):

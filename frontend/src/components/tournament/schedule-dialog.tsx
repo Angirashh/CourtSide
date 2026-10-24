@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input, Label } from '@/components/ui/input'
 import { useGenerateSchedule } from '@/hooks/use-tournaments'
 import { extractErrorMessage } from '@/lib/api/client'
-import { formatPlainDate } from '@/lib/utils'
+import { formatCurrency, formatPlainDate } from '@/lib/utils'
 import type { TournamentFormat } from '@/types/api'
 
 export function ScheduleDialog({
@@ -51,9 +51,9 @@ export function ScheduleDialog({
       },
       {
         onSuccess: (res) => {
-          const savingsNote = res.savings > 0 ? ` Saved ₹${res.savings.toFixed(0)} vs. flat booking.` : ''
+          const savingsNote = res.savings > 0 ? ` Saved ${formatCurrency(res.savings)} vs. flat booking.` : ''
           const verb = isRegenerate ? 'Schedule regenerated' : 'Schedule generated'
-          toast.success(`${verb} — ${res.scheduled_matches_count} matches, ~${res.total_billable_hours}h, ₹${res.total_estimated_cost.toFixed(0)}.${savingsNote}`)
+          toast.success(`${verb} — ${res.scheduled_matches_count} matches, ~${res.total_billable_hours}h, ${formatCurrency(res.total_estimated_cost)}.${savingsNote}`)
           setOpen(false)
         },
         onError: (err) => toast.error(extractErrorMessage(err)),

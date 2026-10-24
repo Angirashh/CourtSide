@@ -7,6 +7,7 @@ import { Check, Copy, KeyRound, MapPin, Plus, RefreshCw, ShieldOff, UserPlus } f
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { FieldError, Input, Label, PhoneInput } from '@/components/ui/input'
 import { EmptyState } from '@/components/ui/empty-state'
@@ -96,7 +97,7 @@ export function OperatorsTab({ tournamentId }: { tournamentId: string }) {
               </div>
               <div className="space-y-1.5">
                 <Label>Email</Label>
-                <Input placeholder="operator@example.com" {...register('email')} />
+                <Input type="email" placeholder="operator@example.com" {...register('email')} />
                 <FieldError>{errors.email?.message}</FieldError>
               </div>
               <div className="space-y-1.5">
@@ -155,6 +156,7 @@ const OperatorRow = memo(
     onIssueCode: (op: OperatorStatus) => void
     onRevoke: (op: OperatorStatus) => void
   }) {
+    const [confirmingRevoke, setConfirmingRevoke] = useState(false)
     return (
       <Card className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center">
         <div className="flex min-w-0 items-start gap-3 sm:flex-1 sm:items-center">
@@ -191,21 +193,33 @@ const OperatorRow = memo(
               aria-label="Issue a new code"
               onClick={() => onIssueCode(operator)}
             >
-              <RefreshCw className="size-4 text-court-cream/45" />
+              <RefreshCw className="size-4 text-court-cream/45" aria-hidden="true" />
               <span className="sm:hidden">New code</span>
             </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="sm:h-10 sm:w-10 sm:px-0"
-              title="Revoke access"
-              aria-label="Revoke access"
-              disabled={operator.is_revoked}
-              onClick={() => onRevoke(operator)}
-            >
-              <ShieldOff className="size-4 text-court-cream/45" />
-              <span className="sm:hidden">Revoke</span>
-            </Button>
+            <ConfirmDialog
+              open={confirmingRevoke}
+              onOpenChange={setConfirmingRevoke}
+              trigger={
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="sm:h-10 sm:w-10 sm:px-0"
+                  title="Revoke access"
+                  aria-label="Revoke access"
+                  disabled={operator.is_revoked}
+                >
+                  <ShieldOff className="size-4 text-court-cream/45" aria-hidden="true" />
+                  <span className="sm:hidden">Revoke</span>
+                </Button>
+              }
+              title={`Revoke ${operator.name}’s access?`}
+              description="They’ll immediately lose the ability to score matches on this tournament."
+              confirmLabel="Revoke"
+              onConfirm={() => {
+                onRevoke(operator)
+                setConfirmingRevoke(false)
+              }}
+            />
           </div>
         </div>
       </Card>
@@ -226,7 +240,7 @@ function OperatorLiveStatusBadge({ operator }: { operator: OperatorStatus }) {
   if (operator.is_busy && operator.current_court) {
     return (
       <Badge variant="ember" dot>
-        <MapPin className="size-3" />
+        <MapPin className="size-3" aria-hidden="true" />
         {operator.current_court.name}
       </Badge>
     )
@@ -243,13 +257,14 @@ function InviteCodeChip({ code }: { code: string }) {
         setCopied(true)
         setTimeout(() => setCopied(false), 1500)
       }}
+      aria-label={copied ? 'Invite code copied' : `Copy invite code ${code}`}
       className={cn(
-        'flex shrink-0 items-center gap-1.5 rounded-full bg-ember-500/15 px-2.5 py-1.5 font-mono text-xs font-bold text-ember-400 transition-colors hover:bg-ember-500/25'
+        'flex shrink-0 items-center gap-1.5 rounded-full bg-ember-500/15 px-2.5 py-1.5 font-mono text-xs font-bold text-ember-400 transition-colors hover:bg-ember-500/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-500 focus-visible:ring-offset-2 focus-visible:ring-offset-ink'
       )}
     >
-      {copied ? <Check className="size-3.5" /> : <KeyRound className="size-3.5" />}
+      {copied ? <Check className="size-3.5" aria-hidden="true" /> : <KeyRound className="size-3.5" aria-hidden="true" />}
       {code}
-      <Copy className="size-3 opacity-50" />
+      <Copy className="size-3 opacity-50" aria-hidden="true" />
     </button>
   )
 }

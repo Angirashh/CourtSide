@@ -1,6 +1,6 @@
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowRight, Award, Briefcase, CalendarSearch, GraduationCap, Handshake, Swords, Trophy } from 'lucide-react'
+import { ArrowRight, Award, Briefcase, CalendarSearch, GraduationCap, Handshake, Pause, Play, Swords, Trophy } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { usePublicHubStats, usePublicTournaments } from '@/hooks/use-public'
 import { Card } from '@/components/ui/card'
@@ -10,6 +10,7 @@ const BadmintonCourt3D = lazy(() => import('@/components/three/badminton-court-3
 export function AboutPage() {
   const { data: tournaments } = usePublicTournaments()
   const { data: stats } = usePublicHubStats()
+  const [spinning, setSpinning] = useState(true)
 
   const categoryCounts = {
     CORPORATE: (tournaments ?? []).filter((t) => t.category === 'CORPORATE').length,
@@ -24,7 +25,7 @@ export function AboutPage() {
         <div className="relative min-h-[380px] overflow-hidden px-4 pb-10 pt-8 sm:min-h-[480px] sm:px-6 sm:pb-12 sm:pt-10 lg:min-h-[580px] lg:px-10 lg:pb-14 lg:pt-12">
           <div className="absolute inset-0 sm:touch-none">
             <Suspense fallback={<div className="size-full bg-ink-card" />}>
-              <BadmintonCourt3D />
+              <BadmintonCourt3D spinning={spinning} />
             </Suspense>
           </div>
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-ink via-ink/40 to-transparent" />
@@ -47,10 +48,20 @@ export function AboutPage() {
             </Link>
           </div>
 
-          <p className="pointer-events-none absolute bottom-4 right-4 text-[11px] text-court-cream/40 sm:bottom-6 sm:right-6">
-            <span className="sm:hidden">Auto-rotating</span>
-            <span className="hidden sm:inline">Drag to rotate · scroll to zoom</span>
-          </p>
+          <div className="pointer-events-auto absolute bottom-4 right-4 flex items-center gap-2 sm:bottom-6 sm:right-6">
+            <p className="text-[11px] text-court-cream/40">
+              <span className="sm:hidden">{spinning ? 'Auto-rotating' : 'Rotation paused'}</span>
+              <span className="hidden sm:inline">Drag to rotate · scroll to zoom</span>
+            </p>
+            <button
+              type="button"
+              onClick={() => setSpinning((prev) => !prev)}
+              aria-label={spinning ? 'Pause court rotation' : 'Resume court rotation'}
+              className="flex size-7 shrink-0 items-center justify-center rounded-full border border-white/15 bg-ink/60 text-court-cream/70 transition-colors hover:bg-white/10 hover:text-court-cream focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-500"
+            >
+              {spinning ? <Pause className="size-3.5" aria-hidden="true" /> : <Play className="size-3.5" aria-hidden="true" />}
+            </button>
+          </div>
         </div>
 
         {stats && (
@@ -155,10 +166,10 @@ function CompetitorTrackCard({
   count: number
 }) {
   return (
-    <div className="relative flex min-h-[230px] flex-col overflow-hidden rounded-lg border-b-4 border-b-ember-500 bg-[#100C0B] p-5 text-court-cream sm:p-6">
+    <div className="relative flex min-h-[230px] flex-col overflow-hidden rounded-lg border border-white/10 border-b-4 border-b-ember-500 bg-[#100C0B] p-5 text-court-cream sm:p-6">
       <div className="pointer-events-none absolute -bottom-10 -right-8 h-40 w-px skew-x-[-20deg] bg-ember-500/20" />
 
-      <div className="relative flex size-11 shrink-0 items-center justify-center bg-ember-500 text-ink">
+      <div className="relative flex size-11 shrink-0 items-center justify-center rounded-lg bg-ember-500 text-ink">
         <Icon className="size-5" />
       </div>
       <h3 className="relative mt-5 font-display text-2xl leading-none text-court-cream">{title}</h3>

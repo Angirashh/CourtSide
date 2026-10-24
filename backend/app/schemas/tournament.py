@@ -80,27 +80,35 @@ class TournamentBase(BaseModel):
 class TeamTieConfig(BaseModel):
     singles_matches: int = Field(0, ge=0, le=30)
     doubles_matches: int = Field(0, ge=0, le=30)
+    mixed_doubles_matches: int = Field(0, ge=0, le=30)
     max_singles_per_player: int = Field(0, ge=0, le=30)
     max_doubles_per_player: int = Field(0, ge=0, le=30)
-    match_order: List[Literal["SINGLES", "DOUBLES"]]
+    max_mixed_doubles_per_player: int = Field(0, ge=0, le=30)
+    match_order: List[Literal["SINGLES", "DOUBLES", "MIXED_DOUBLES"]]
     completion_mode: Literal["MAJORITY", "PLAY_ALL"] = "MAJORITY"
 
     @model_validator(mode="after")
     def validate_slots(self):
-        if self.singles_matches + self.doubles_matches == 0:
-            raise ValueError("Add at least one singles or doubles match.")
+        if self.singles_matches + self.doubles_matches + self.mixed_doubles_matches == 0:
+            raise ValueError("Add at least one singles, doubles, or mixed doubles match.")
         if self.match_order.count("SINGLES") != self.singles_matches:
             raise ValueError("Match order must contain the configured number of singles matches.")
         if self.match_order.count("DOUBLES") != self.doubles_matches:
             raise ValueError("Match order must contain the configured number of doubles matches.")
+        if self.match_order.count("MIXED_DOUBLES") != self.mixed_doubles_matches:
+            raise ValueError("Match order must contain the configured number of mixed doubles matches.")
         if self.max_singles_per_player > self.singles_matches:
             raise ValueError("A player's singles limit cannot exceed the singles matches in a tie.")
         if self.max_doubles_per_player > self.doubles_matches:
             raise ValueError("A player's doubles limit cannot exceed the doubles matches in a tie.")
+        if self.max_mixed_doubles_per_player > self.mixed_doubles_matches:
+            raise ValueError("A player's mixed doubles limit cannot exceed the mixed doubles matches in a tie.")
         if self.singles_matches and self.max_singles_per_player == 0:
             raise ValueError("Set a per-player singles limit.")
         if self.doubles_matches and self.max_doubles_per_player == 0:
             raise ValueError("Set a per-player doubles limit.")
+        if self.mixed_doubles_matches and self.max_mixed_doubles_per_player == 0:
+            raise ValueError("Set a per-player mixed doubles limit.")
         return self
 
 
@@ -261,7 +269,7 @@ class TournamentTeamUpdate(BaseModel):
 class TeamTieGameResponse(BaseModel):
     id: str
     order_num: int
-    match_type: Literal["SINGLES", "DOUBLES"]
+    match_type: Literal["SINGLES", "DOUBLES", "MIXED_DOUBLES"]
     team1_player_ids: Optional[List[str]] = None
     team2_player_ids: Optional[List[str]] = None
     winner_team_id: Optional[str] = None

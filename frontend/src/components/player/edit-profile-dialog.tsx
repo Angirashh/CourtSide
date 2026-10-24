@@ -91,23 +91,34 @@ export function EditProfileDialog({
         </DialogHeader>
         <form onSubmit={onSubmit} className="space-y-4">
           <div className="space-y-1.5">
-            <Label>Gender</Label>
-            <IconToggleGroup options={genderOptions} value={gender} onChange={setGender} />
+            <Label id="profile-gender-label">Gender</Label>
+            <IconToggleGroup aria-labelledby="profile-gender-label" options={genderOptions} value={gender} onChange={setGender} />
           </div>
 
           <div className="space-y-1.5">
-            <Label>Dominant hand</Label>
-            <IconToggleGroup options={dominantHandOptions} value={dominantHand} onChange={setDominantHand} />
+            <Label id="profile-hand-label">Dominant hand</Label>
+            <IconToggleGroup aria-labelledby="profile-hand-label" options={dominantHandOptions} value={dominantHand} onChange={setDominantHand} />
           </div>
 
           <div className="space-y-1.5">
-            <Label>Preferred format</Label>
-            <IconToggleGroup multiple options={preferredFormatOptions} value={preferredFormats} onChange={setPreferredFormats} />
+            <Label id="profile-format-label">Preferred format</Label>
+            <IconToggleGroup
+              multiple
+              aria-labelledby="profile-format-label"
+              options={preferredFormatOptions}
+              value={preferredFormats}
+              onChange={setPreferredFormats}
+            />
           </div>
 
           <div className="space-y-1.5">
-            <Label>Bio</Label>
-            <Textarea placeholder="Tell opponents a bit about your game." maxLength={BIO_MAX} {...register('bio')} />
+            <Label htmlFor="profile-bio">Bio</Label>
+            <Textarea
+              id="profile-bio"
+              placeholder="A few words about your game, favourite shot, or what brought you to badminton…"
+              maxLength={BIO_MAX}
+              {...register('bio')}
+            />
             <FieldError>{errors.bio?.message}</FieldError>
           </div>
 

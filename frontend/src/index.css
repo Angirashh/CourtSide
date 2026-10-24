@@ -208,6 +208,13 @@
 
   html {
     color-scheme: dark;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
+  html,
+  body {
+    overscroll-behavior: none;
   }
 
   body {

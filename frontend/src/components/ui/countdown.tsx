@@ -38,7 +38,7 @@ export function Countdown({
           variant === 'dark' ? 'text-ember-400' : 'text-ember-600'
         )}
       >
-        <Timer className="size-3" /> {label}
+        <Timer className="size-3" aria-hidden="true" /> {label}
       </p>
       <div className="grid grid-cols-4 gap-1.5">
         <CountdownUnit value={days} label="days" variant={variant} />

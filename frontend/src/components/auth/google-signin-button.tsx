@@ -108,7 +108,7 @@ export function GoogleSignInButton({
   }, [])
 
   if (!CLIENT_ID) {
-    return <p className="text-center text-xs font-medium text-danger">Google sign-in isn't configured yet.</p>
+    return <p className="text-center text-xs font-medium text-danger">Google sign-in isn’t configured yet.</p>
   }
 
   return (

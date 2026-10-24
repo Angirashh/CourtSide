@@ -33,7 +33,7 @@ export function RescheduleCourtDialog({
       {
         onSuccess: (res) => {
           if (res.delta_minutes === 0) {
-            toast.success(`${courtName}'s start time is unchanged.`)
+            toast.success(`${courtName}’s start time is unchanged.`)
           } else {
             const direction = res.delta_minutes > 0 ? 'later' : 'earlier'
             const matchWord = res.shifted_matches_count === 1 ? 'match' : 'matches'
@@ -53,11 +53,11 @@ export function RescheduleCourtDialog({
       <DialogTrigger asChild>
         <button
           type="button"
-          className="inline-flex items-center gap-1 rounded px-1 py-0.5 text-court-cream/45 transition-colors hover:bg-white/10 hover:text-court-cream"
-          title={`Edit ${courtName}'s start time`}
-          aria-label={`Edit ${courtName}'s start time`}
+          className="inline-flex items-center gap-1 rounded px-1 py-0.5 text-court-cream/45 transition-colors hover:bg-white/10 hover:text-court-cream focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-500"
+          title={`Edit ${courtName}’s start time`}
+          aria-label={`Edit ${courtName}’s start time`}
         >
-          <Clock3 className="size-3.5" />
+          <Clock3 className="size-3.5" aria-hidden="true" />
         </button>
       </DialogTrigger>
       <DialogContent>

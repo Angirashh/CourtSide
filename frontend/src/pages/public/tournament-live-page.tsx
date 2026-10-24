@@ -41,9 +41,6 @@ const statusWord: Record<TournamentStatus, string> = {
 const TAB_VALUES = ['overview', 'fixtures', 'standings', 'mine'] as const
 type TabValue = (typeof TAB_VALUES)[number]
 
-const tabTriggerClass =
-  'relative rounded-none bg-transparent px-0 py-3 font-sans text-sm font-semibold text-court-cream/55 shadow-none transition-colors hover:text-court-cream/85 data-[state=active]:bg-transparent data-[state=active]:text-court-cream data-[state=active]:shadow-none after:absolute after:inset-x-0 after:-bottom-px after:h-[3px] after:scale-x-0 after:bg-ember-500 after:transition-transform after:content-[""] data-[state=active]:after:scale-x-100'
-
 export function TournamentLivePage() {
   const { id } = useParams<{ id: string }>()
   const { data: tournament, isLoading } = usePublicTournament(id)
@@ -183,23 +180,21 @@ export function TournamentLivePage() {
         {isTeamTournament && isPlayer && <CaptainLineupPanel tournamentId={tournament.id} teams={tournament.teams} players={tournament.players} />}
         {hasSchedule ? (
           <Tabs value={tab} onValueChange={setTab}>
-            <TabsList
-              className={cn(
-                'grid w-full gap-0 rounded-none border-b border-white/14 bg-transparent p-0',
-                showMyMatchesTab ? 'grid-cols-4' : 'grid-cols-3'
-              )}
-            >
-              <TabsTrigger value="overview" className={tabTriggerClass}>
+            {/* Native-feeling segmented control, matching the sliding-pill tab language used
+                elsewhere in the app (fixture-visualizer, schedule-summary-tab) rather than a
+                desktop-web underline tab -- this is the page's primary navigation. */}
+            <TabsList className={cn('grid w-full gap-1', showMyMatchesTab ? 'grid-cols-4' : 'grid-cols-3')}>
+              <TabsTrigger value="overview" className="truncate">
                 Overview
               </TabsTrigger>
-              <TabsTrigger value="fixtures" className={tabTriggerClass}>
+              <TabsTrigger value="fixtures" className="truncate">
                 Fixtures
               </TabsTrigger>
-              <TabsTrigger value="standings" className={tabTriggerClass}>
+              <TabsTrigger value="standings" className="truncate">
                 Standings
               </TabsTrigger>
               {showMyMatchesTab && (
-                <TabsTrigger value="mine" className={tabTriggerClass}>
+                <TabsTrigger value="mine" className="truncate">
                   My matches
                 </TabsTrigger>
               )}

@@ -8,7 +8,7 @@ export function BrandMark({ size = 36, className }: { size?: number; className?:
       src="/images/brand/cs-figure.svg"
       alt=""
       className={cn('shrink-0 object-contain', className)}
-      style={{ height: size, width: 'auto' }}
+      style={{ height: size, width: 'auto', aspectRatio: '972 / 1000' }}
     />
   )
 }
@@ -22,7 +22,7 @@ export function BrandWordmark({ size = 20, className }: { size?: number; classNa
       src="/images/brand/courtside-wordmark-text.svg"
       alt="Courtside"
       className={cn('shrink-0 object-contain', className)}
-      style={{ height: size, width: 'auto' }}
+      style={{ height: size, width: 'auto', aspectRatio: '1820 / 286' }}
     />
   )
 }
@@ -37,7 +37,7 @@ export function BrandWatermark({ size = 120, className }: { size?: number; class
       alt=""
       aria-hidden="true"
       className={cn('pointer-events-none absolute -z-10 opacity-[0.14]', className)}
-      style={{ height: size, width: 'auto' }}
+      style={{ height: size, width: 'auto', aspectRatio: '972 / 1000' }}
     />
   )
 }

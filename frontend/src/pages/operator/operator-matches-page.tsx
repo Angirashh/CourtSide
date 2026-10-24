@@ -6,6 +6,7 @@ import { useAuthStore } from '@/stores/auth-store'
 import { useTournament } from '@/hooks/use-tournaments'
 import { useStartMatch } from '@/hooks/use-matches'
 import { useCourtChangeAlerts } from '@/hooks/use-court-change-alerts'
+import { useUrlParam } from '@/hooks/use-url-param'
 import { FullPageSpinner } from '@/components/ui/spinner'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Card } from '@/components/ui/card'
@@ -27,9 +28,9 @@ export function OperatorMatchesPage() {
   const { data: tournament, isLoading } = useTournament(tournamentId ?? undefined, { refetchInterval: 10_000 })
   const startMatch = useStartMatch(tournamentId ?? '')
   const [scoringMatch, setScoringMatch] = useState<Match | null>(null)
-  const [courtFilter, setCourtFilter] = useState<string>('all')
-  // null = "follow the action": show what's live, else what's next, until the operator picks a tab.
-  const [pickedTab, setPickedTab] = useState<Tab | null>(null)
+  const [rawCourtFilter, setCourtFilter] = useUrlParam('court', 'all')
+  // '' = "follow the action": show what's live, else what's next, until the operator picks a tab.
+  const [rawTab, setRawTab] = useUrlParam('tab', '')
 
   const playersById = useMemo(() => new Map((tournament?.players ?? []).map((p) => [p.id, p])), [tournament])
   useCourtChangeAlerts(tournament?.courts ?? [], tournament?.matches ?? [])
@@ -43,6 +44,8 @@ export function OperatorMatchesPage() {
     return <OperatorTeamMatches tournament={tournament} />
   }
 
+  const courtFilter = rawCourtFilter === 'all' || tournament.courts.some((c) => c.id === rawCourtFilter) ? rawCourtFilter : 'all'
+  const pickedTab: Tab | null = (['live', 'upcoming', 'completed'] as const).includes(rawTab as Tab) ? (rawTab as Tab) : null
   const courtsById = new Map(tournament.courts.map((c) => [c.id, c]))
   const scopedMatches = tournament.matches.filter((m) => courtFilter === 'all' || m.court_id === courtFilter)
 
@@ -68,7 +71,7 @@ export function OperatorMatchesPage() {
   const tab: Tab = pickedTab ?? (live.length > 0 ? 'live' : 'upcoming')
 
   function goTo(next: Tab) {
-    setPickedTab(next)
+    setRawTab(next)
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
@@ -107,7 +110,7 @@ export function OperatorMatchesPage() {
             </CourtChip>
             {tournament.courts.map((c) => (
               <CourtChip key={c.id} active={courtFilter === c.id} onClick={() => setCourtFilter(c.id)}>
-                <MapPin className="size-3.5" />
+                <MapPin className="size-3.5" aria-hidden="true" />
                 {c.name}
                 <span className="opacity-60">{openCountByCourt.get(c.id) ?? 0}</span>
               </CourtChip>
@@ -174,8 +177,10 @@ export function OperatorMatchesPage() {
 
 function OperatorTeamMatches({ tournament }: { tournament: NonNullable<ReturnType<typeof useTournament>['data']> }) {
   const startGame = useStartTeamGame(tournament.id)
-  const [pickedTab, setPickedTab] = useState<Tab | null>(null)
-  const [courtFilter, setCourtFilter] = useState('all')
+  const [rawTab, setRawTab] = useUrlParam('tab', '')
+  const pickedTab: Tab | null = (['live', 'upcoming', 'completed'] as const).includes(rawTab as Tab) ? (rawTab as Tab) : null
+  const [rawCourtFilter, setCourtFilter] = useUrlParam('court', 'all')
+  const courtFilter = rawCourtFilter === 'all' || tournament.courts.some((c) => c.id === rawCourtFilter) ? rawCourtFilter : 'all'
   const [scoring, setScoring] = useState<{ tieId: string; game: import('@/types/api').TeamTieGame } | null>(null)
   const teamsById = new Map(tournament.teams.map((team) => [team.id, team]))
   const allGames = tournament.team_ties.flatMap((tie) => tie.games.map((game) => ({ tie, game })))
@@ -196,7 +201,7 @@ function OperatorTeamMatches({ tournament }: { tournament: NonNullable<ReturnTyp
     openCountByCourt.set(game.court_id, (openCountByCourt.get(game.court_id) ?? 0) + 1)
   }
   function goTo(next: Tab) {
-    setPickedTab(next)
+    setRawTab(next)
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
   const start = (game: import('@/types/api').TeamTieGame) => startGame.mutate(game.id, {

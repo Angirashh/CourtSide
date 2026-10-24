@@ -288,7 +288,7 @@ function TeamFriendlyPanel({
                   aria-pressed={draft[p.id]?.team === t}
                   onClick={() => setDraftTeam(p.id, t)}
                   className={cn(
-                    'rounded-full px-2 py-1 text-[11px] font-bold transition-colors',
+                    'rounded-full px-2 py-1 text-[11px] font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-500 focus-visible:ring-offset-2 focus-visible:ring-offset-ink',
                     draft[p.id]?.team === t ? 'bg-navy-900 text-cream-50' : 'text-court-cream/45 hover:text-court-cream/70'
                   )}
                 >
@@ -447,7 +447,7 @@ function PlayerRow({
             <DialogHeader>
               <DialogTitle>Withdraw {player.name}?</DialogTitle>
               <DialogDescription>
-                Any pending match with a known opponent is immediately walked over. This can't be undone.
+                Any pending match with a known opponent is immediately walked over. This can’t be undone.
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-1.5">
@@ -577,7 +577,7 @@ function DeleteAllPlayersDialog({ tournamentId, count }: { tournamentId: string;
         <DialogHeader>
           <DialogTitle>Delete all {count} players?</DialogTitle>
           <DialogDescription>
-            This clears the whole roster so you can upload or add a fresh set of players. This can't be undone.
+            This clears the whole roster so you can upload or add a fresh set of players. This can’t be undone.
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>
@@ -640,11 +640,11 @@ function UploadRosterDialog({ tournamentId }: { tournamentId: string }) {
           type="button"
           onClick={() => fileInputRef.current?.click()}
           className={cn(
-            'flex w-full flex-col items-center gap-2 rounded-xl border-2 border-dashed p-8 text-center transition-colors',
+            'flex w-full flex-col items-center gap-2 rounded-xl border-2 border-dashed p-8 text-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-500 focus-visible:ring-offset-2 focus-visible:ring-offset-ink',
             file ? 'border-ember-400 bg-ember-500/10' : 'border-white/20 hover:border-white/25'
           )}
         >
-          <FileUp className="size-6 text-court-cream/45" />
+          <FileUp className="size-6 text-court-cream/45" aria-hidden="true" />
           <p className="text-sm font-semibold text-court-cream/70">{file ? file.name : 'Choose a file'}</p>
           <p className="text-xs text-court-cream/45">.csv or .xlsx</p>
         </button>
@@ -713,13 +713,19 @@ function TeamSetup({
             <div className="flex flex-wrap gap-1.5">
               <Badge variant="neutral">{teamConfig.singles_matches} singles</Badge>
               <Badge variant="neutral">{teamConfig.doubles_matches} doubles</Badge>
-              <Badge variant="neutral">Max {teamConfig.max_singles_per_player} singles / {teamConfig.max_doubles_per_player} doubles per player</Badge>
+              {teamConfig.mixed_doubles_matches > 0 && (
+                <Badge variant="neutral">{teamConfig.mixed_doubles_matches} mixed doubles</Badge>
+              )}
+              <Badge variant="neutral">
+                Max {teamConfig.max_singles_per_player} singles / {teamConfig.max_doubles_per_player} doubles
+                {teamConfig.mixed_doubles_matches > 0 && ` / ${teamConfig.max_mixed_doubles_per_player} mixed doubles`} per player
+              </Badge>
               <Badge variant="neutral">{teamConfig.completion_mode === 'MAJORITY' ? 'Finish at majority' : 'Play all games'}</Badge>
             </div>
             <div className="flex flex-wrap gap-1.5" aria-label="Configured match order">
               {teamConfig.match_order.map((slot, index) => (
                 <Badge key={`${slot}-${index}`} variant="outline">
-                  {index + 1}. {slot === 'SINGLES' ? 'Singles' : 'Doubles'}
+                  {index + 1}. {slot === 'SINGLES' ? 'Singles' : slot === 'DOUBLES' ? 'Doubles' : 'Mixed Doubles'}
                 </Badge>
               ))}
             </div>

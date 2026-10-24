@@ -18,7 +18,7 @@ export function EmptyState({ icon: Icon, title, description, action, className }
       )}
     >
       <div className="flex size-12 items-center justify-center rounded-full bg-white/10 text-court-cream/60">
-        <Icon className="size-6" />
+        <Icon className="size-6" aria-hidden="true" />
       </div>
       <div className="space-y-1">
         <p className="font-display text-base text-court-cream">{title}</p>

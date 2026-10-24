@@ -66,7 +66,7 @@ function TournamentCard({ tournament, index }: { tournament: Tournament; index: 
       transition={{ duration: 0.35, delay: Math.min(index * 0.05, 0.3), ease: [0.16, 1, 0.3, 1] }}
     >
       <Link to={`/organiser/${tournament.id}`} className="group block h-full active:scale-[0.98]">
-        <Card className="h-full transition-all duration-200 group-hover:-translate-y-1 group-hover:shadow-lg group-hover:shadow-navy-900/10 group-hover:border-ember-300/60">
+        <Card className="h-full transition-[transform,box-shadow,border-color] duration-200 group-hover:-translate-y-1 group-hover:shadow-lg group-hover:shadow-navy-900/10 group-hover:border-ember-300/60">
           <CardContent className="flex h-full flex-col gap-4 pt-5">
             <div className="flex items-start justify-between gap-2">
               <div className="flex size-10 items-center justify-center rounded-xl bg-navy-900 text-ember-400">
@@ -75,20 +75,20 @@ function TournamentCard({ tournament, index }: { tournament: Tournament; index: 
               <TournamentStatusBadge status={tournament.status} />
             </div>
             <div>
-              <h3 className="font-display text-lg leading-snug text-court-cream group-hover:text-ember-600 transition-colors">
+              <h2 className="font-display text-lg leading-snug text-court-cream group-hover:text-ember-600 transition-colors">
                 {tournament.name}
-              </h3>
+              </h2>
               <p className="mt-0.5 text-xs font-semibold uppercase tracking-wide text-court-cream/45">
                 {formatLabel(tournament.format)}
               </p>
             </div>
             <div className="mt-auto flex flex-col gap-1.5 border-t border-white/10 pt-3 text-xs text-court-cream/55">
               <div className="flex items-center gap-1.5">
-                <MapPin className="size-3.5" />
+                <MapPin className="size-3.5" aria-hidden="true" />
                 {tournament.venue ?? 'Venue TBD'}
               </div>
               <div className="flex items-center gap-1.5">
-                <CalendarClock className="size-3.5" />
+                <CalendarClock className="size-3.5" aria-hidden="true" />
                 {tournament.tournament_date ? formatPlainDate(tournament.tournament_date) : 'Date TBD'}
               </div>
             </div>

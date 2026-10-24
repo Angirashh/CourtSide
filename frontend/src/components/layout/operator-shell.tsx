@@ -3,6 +3,7 @@ import { LogOut } from 'lucide-react'
 import { useAuthStore } from '@/stores/auth-store'
 import { useScrollToTop } from '@/hooks/use-scroll-to-top'
 import { BrandMark, BrandWordmark } from '@/components/brand/logo'
+import { SkipToContent } from '@/components/ui/skip-to-content'
 
 export function OperatorShell() {
   const user = useAuthStore((s) => s.user)
@@ -12,6 +13,7 @@ export function OperatorShell() {
 
   return (
     <div className="min-h-svh bg-paper text-court-cream">
+      <SkipToContent />
       <header
         className="sticky top-0 z-30 flex items-center justify-between border-b border-white/10 bg-atmosphere px-4 py-3.5 shadow-sm"
         style={{ paddingTop: 'max(0.875rem, env(safe-area-inset-top))' }}
@@ -39,7 +41,7 @@ export function OperatorShell() {
           Operating as organiser.
         </div>
       )}
-      <main className="mx-auto max-w-3xl px-4 py-5 pb-10 sm:px-6">
+      <main id="main-content" className="mx-auto max-w-3xl px-4 py-5 pb-10 sm:px-6">
         <Outlet />
       </main>
     </div>

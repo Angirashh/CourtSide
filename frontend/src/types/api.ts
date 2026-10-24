@@ -37,7 +37,7 @@ export type TournamentFormat = 'GROUP_KNOCKOUT' | 'SWISS_KNOCKOUT' | 'KNOCKOUT' 
 export type TournamentType = 'INDIVIDUAL' | 'TEAM'
 export type EventFormat = Exclude<TournamentFormat, 'TEAM_FRIENDLY'>
 export type TournamentEvent = 'singles' | 'doubles'
-export type TeamMatchType = 'SINGLES' | 'DOUBLES'
+export type TeamMatchType = 'SINGLES' | 'DOUBLES' | 'MIXED_DOUBLES'
 export type TournamentCategory = 'CORPORATE' | 'COLLEGE' | 'JUNIOR' | 'FRIENDLY'
 export type TournamentStatus = 'DRAFT' | 'SCHEDULING' | 'IN_PROGRESS' | 'COMPLETED'
 export type MatchStage = 'GROUP' | 'SWISS' | 'KNOCKOUT' | 'CROSSOVER'
@@ -148,8 +148,10 @@ export interface TournamentDetail extends Tournament {
 export interface TeamTieConfig {
   singles_matches: number
   doubles_matches: number
+  mixed_doubles_matches: number
   max_singles_per_player: number
   max_doubles_per_player: number
+  max_mixed_doubles_per_player: number
   match_order: TeamMatchType[]
   completion_mode: 'MAJORITY' | 'PLAY_ALL'
 }

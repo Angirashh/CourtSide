@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { ArrowLeft, Check, Copy, Play, Trophy } from 'lucide-react'
 import { useTournament } from '@/hooks/use-tournaments'
+import { useUrlParam } from '@/hooks/use-url-param'
 import { FullPageSpinner } from '@/components/ui/spinner'
 import { EmptyState } from '@/components/ui/empty-state'
 import { RegistrationStatusBadge, TournamentStatusBadge } from '@/components/ui/status-badge'
@@ -31,6 +32,7 @@ export function TournamentDetailPage() {
   const { data: tournament, isLoading } = useTournament(id)
   const lockTie = useLockTeamTie(id ?? '')
   const unlockTie = useUnlockTeamTie(id ?? '')
+  const [activeTab, setActiveTab] = useUrlParam('tab', 'fixtures')
 
   if (isLoading) return <FullPageSpinner />
   if (!tournament) {
@@ -111,7 +113,7 @@ export function TournamentDetailPage() {
         />
       )}
 
-      <Tabs defaultValue="fixtures">
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
           <TabsTrigger value="fixtures">Fixtures</TabsTrigger>
           <TabsTrigger value="standings">Standings</TabsTrigger>

@@ -94,19 +94,19 @@ export function EditTournamentDetailsDialog({
       <DialogTrigger asChild>
         <button
           type="button"
-          className="inline-flex items-center gap-1 rounded px-1 py-0.5 text-court-cream/45 transition-colors hover:bg-white/10 hover:text-court-cream"
+          className="inline-flex items-center gap-1 rounded px-1 py-0.5 text-court-cream/45 transition-colors hover:bg-white/10 hover:text-court-cream focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-500"
           title="Edit venue and date"
           aria-label="Edit venue and date"
         >
-          <Pencil className="size-3.5" />
+          <Pencil className="size-3.5" aria-hidden="true" />
         </button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Edit tournament details</DialogTitle>
           <DialogDescription>
-            Updates the tournament's logistics and public registration settings. If a schedule is already
-            generated, its match times aren't recalculated — regenerate the schedule if the new date should apply
+            Updates the tournament’s logistics and public registration settings. If a schedule is already
+            generated, its match times aren’t recalculated — regenerate the schedule if the new date should apply
             to fixtures too.
           </DialogDescription>
         </DialogHeader>
@@ -118,7 +118,7 @@ export function EditTournamentDetailsDialog({
           </div>
           <div className="space-y-1.5">
             <Label>Venue link (optional)</Label>
-            <Input placeholder="https://maps.google.com/?q=..." {...register('venue_link')} />
+            <Input type="url" placeholder="https://maps.google.com/?q=…" {...register('venue_link')} />
             <FieldError>{errors.venue_link?.message}</FieldError>
           </div>
           <div className="space-y-1.5">
