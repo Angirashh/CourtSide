@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { Children, cloneElement, isValidElement, useId, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
@@ -8,7 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { FieldError, Input, Label, PhoneInput } from '@/components/ui/input'
-import { BrandMark, BrandWordmark } from '@/components/brand/logo'
+import { BrandWatermark, BrandWordmark } from '@/components/brand/logo'
 import { useOrganiserLogin, useOrganiserSignup, useOperatorLogin } from '@/hooks/use-auth'
 import { extractErrorMessage } from '@/lib/api/client'
 import { cn } from '@/lib/utils'
@@ -28,12 +28,10 @@ export function AuthPage() {
       <div className="pointer-events-none absolute inset-0 opacity-[0.04] [background-image:radial-gradient(circle,white_1px,transparent_1px)] [background-size:22px_22px]" />
 
       <div className="relative w-full max-w-md animate-fade-up">
-        <div className="mb-8 flex flex-col items-center gap-3 text-center">
-          <BrandMark size={56} className="text-2xl shadow-lg shadow-ember-500/20" />
-          <div>
-            <BrandWordmark className="text-3xl text-cream-50" />
-            <p className="mt-1 text-sm text-cream-200/60">Every route tells a story. Run yours, swiftly.</p>
-          </div>
+        <div className="relative mb-8 flex flex-col items-center text-center">
+          <BrandWatermark size={150} className="left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2" />
+          <BrandWordmark size={40} />
+          <p className="mt-1 text-sm text-cream-200/60">Every route tells a story. Run yours, swiftly.</p>
         </div>
 
         <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-1.5 shadow-2xl shadow-navy-950/40 backdrop-blur-sm">
@@ -80,11 +78,11 @@ function RoleTab({ active, onClick, icon: Icon, label }: { active: boolean; onCl
     <button
       onClick={onClick}
       className={cn(
-        'flex items-center justify-center gap-1.5 rounded-full py-2.5 text-xs font-bold transition-all',
+        'flex items-center justify-center gap-1.5 rounded-full py-2.5 text-xs font-bold transition-[background-color,color,box-shadow]',
         active ? 'bg-ember-500 text-ink shadow-sm' : 'text-cream-200/50 hover:text-cream-100'
       )}
     >
-      <Icon className="size-3.5" />
+      <Icon className="size-3.5" aria-hidden="true" />
       {label}
     </button>
   )
@@ -112,11 +110,11 @@ function OrganiserLoginForm() {
   return (
     <form onSubmit={onSubmit} className="space-y-3.5">
       <FormField label="Email or phone" icon={Mail}>
-        <Input placeholder="you@club.com" {...register('identifier')} />
+        <Input autoComplete="username" placeholder="you@club.com" {...register('identifier')} />
         <FieldError>{errors.identifier?.message}</FieldError>
       </FormField>
       <FormField label="PIN" icon={KeyRound}>
-        <Input type="password" placeholder="••••••" {...register('pin')} />
+        <Input type="password" autoComplete="current-password" placeholder="••••••" {...register('pin')} />
         <FieldError>{errors.pin?.message}</FieldError>
       </FormField>
       <Button type="submit" className="w-full" size="lg" loading={login.isPending}>
@@ -163,7 +161,7 @@ function OrganiserSignupForm({ onDone }: { onDone: () => void }) {
         <div>
           <p className="font-display text-lg text-cream-50">Request sent</p>
           <p className="mt-1 text-sm text-cream-200/70">
-            Your account is pending approval from the tournament admin. You'll be able to log in once it's approved.
+            Your account is pending approval from the tournament admin. You’ll be able to log in once it’s approved.
           </p>
         </div>
         <Button variant="outline" className="mt-1 border-white/20 text-cream-100 hover:bg-white/10" onClick={onDone}>
@@ -176,11 +174,11 @@ function OrganiserSignupForm({ onDone }: { onDone: () => void }) {
   return (
     <form onSubmit={onSubmit} className="space-y-3.5">
       <FormField label="Full name">
-        <Input placeholder="Rhythm Mahajan" {...register('name')} />
+        <Input autoComplete="name" placeholder="Rhythm Mahajan" {...register('name')} />
         <FieldError>{errors.name?.message}</FieldError>
       </FormField>
       <FormField label="Email">
-        <Input placeholder="you@club.com" {...register('email')} />
+        <Input type="email" autoComplete="email" placeholder="you@club.com" {...register('email')} />
         <FieldError>{errors.email?.message}</FieldError>
       </FormField>
       <FormField label="Phone (optional)">
@@ -188,7 +186,7 @@ function OrganiserSignupForm({ onDone }: { onDone: () => void }) {
         <FieldError>{errors.phone?.message}</FieldError>
       </FormField>
       <FormField label="Choose a PIN">
-        <Input type="password" placeholder="At least 4 characters" {...register('pin')} />
+        <Input type="password" autoComplete="new-password" placeholder="At least 4 characters" {...register('pin')} />
         <FieldError>{errors.pin?.message}</FieldError>
       </FormField>
       <Button type="submit" className="w-full" size="lg" loading={signup.isPending}>
@@ -226,7 +224,7 @@ function OperatorLoginForm() {
         Tournament ID, to start scoring matches.
       </p>
       <FormField label="Email or phone">
-        <Input placeholder="you@example.com" {...register('identifier')} />
+        <Input autoComplete="username" placeholder="you@example.com" {...register('identifier')} />
         <FieldError>{errors.identifier?.message}</FieldError>
       </FormField>
       <FormField label="Tournament ID">
@@ -247,13 +245,21 @@ function OperatorLoginForm() {
 }
 
 function FormField({ label, icon: Icon, children }: { label: string; icon?: typeof Mail; children: React.ReactNode }) {
+  const id = useId()
+  // The control is always the first child (an Input/PhoneInput); FieldError, if present,
+  // follows it -- cloning in the id here is what lets Label stay a plain <Label>children
+  // API at every call site instead of each one wiring its own id/htmlFor by hand.
+  const [control, ...rest] = Children.toArray(children)
+  const controlWithId = isValidElement(control) ? cloneElement(control, { id } as Record<string, unknown>) : control
+
   return (
     <div className="space-y-1.5">
-      <Label className="flex items-center gap-1.5 text-cream-100/80">
-        {Icon && <Icon className="size-3.5" />}
+      <Label htmlFor={id} className="flex items-center gap-1.5 text-cream-100/80">
+        {Icon && <Icon className="size-3.5" aria-hidden="true" />}
         {label}
       </Label>
-      {children}
+      {controlWithId}
+      {rest}
     </div>
   )
 }

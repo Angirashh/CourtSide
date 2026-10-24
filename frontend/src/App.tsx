@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { RouterProvider } from 'react-router-dom'
+import { MotionConfig } from 'framer-motion'
 import { Toaster } from 'sonner'
 import { router } from '@/routes/router'
 
@@ -16,7 +17,9 @@ const queryClient = new QueryClient({
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <RouterProvider router={router} />
+      <MotionConfig reducedMotion="user">
+        <RouterProvider router={router} />
+      </MotionConfig>
       <Toaster
         position="top-center"
         toastOptions={{

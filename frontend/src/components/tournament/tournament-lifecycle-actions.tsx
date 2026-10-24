@@ -44,7 +44,7 @@ export function TournamentLifecycleActions({ tournamentId, status }: { tournamen
             <DialogTitle>End this tournament?</DialogTitle>
             <DialogDescription>
               This marks the tournament as completed. Any matches still in progress or scheduled will stay as-is, but the
-              tournament can't be reopened afterwards.
+              tournament can’t be reopened afterwards.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

@@ -17,7 +17,7 @@ export function PublicStandingsTable({
         <h4 className="font-display text-xl leading-none text-court-cream">{title.replace(/_/g, ' ')}</h4>
         {qualifySlots > 0 && (
           <span className="flex items-center gap-1 font-sans text-[10px] font-bold uppercase tracking-wide text-ember-500">
-            Top {qualifySlots} advance <ArrowRight className="size-3" />
+            Top {qualifySlots} advance <ArrowRight className="size-3" aria-hidden="true" />
           </span>
         )}
       </div>
@@ -30,7 +30,10 @@ export function PublicStandingsTable({
               <th className="px-2 py-2 text-center font-semibold">P</th>
               <th className="px-2 py-2 text-center font-semibold">W-L</th>
               <th className="px-2 py-2 text-center font-semibold">Pts</th>
-              <th title="Game difference" className="px-2 py-2 text-center font-semibold">Diff</th>
+              <th className="px-2 py-2 text-center font-semibold">
+                Diff
+                <span className="sr-only"> (game difference)</span>
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -50,12 +53,14 @@ export function PublicStandingsTable({
                 >
                   {String(row.rank).padStart(2, '0')}
                 </td>
-                <td className="w-full px-2 py-2.5 font-sans text-[13px] font-semibold text-court-cream">{row.player_name}</td>
-                <td className="px-2 py-2.5 text-center font-sans text-court-cream/55">{row.matches_played}</td>
-                <td className="px-2 py-2.5 text-center font-sans text-court-cream/55">
+                <td className="w-full max-w-[40vw] truncate px-2 py-2.5 font-sans text-[13px] font-semibold text-court-cream">
+                  {row.player_name}
+                </td>
+                <td className="px-2 py-2.5 text-center font-sans tabular-nums text-court-cream/55">{row.matches_played}</td>
+                <td className="px-2 py-2.5 text-center font-sans tabular-nums text-court-cream/55">
                   {row.matches_won}-{row.matches_lost}
                 </td>
-                <td className="px-2 py-2.5 text-center font-sans font-bold text-court-cream">{row.match_points}</td>
+                <td className="px-2 py-2.5 text-center font-sans font-bold tabular-nums text-court-cream">{row.match_points}</td>
                 <td className="px-2 py-2.5 text-center">
                   <DiffIndicator value={row.games_won - row.games_lost} />
                 </td>
@@ -71,21 +76,21 @@ export function PublicStandingsTable({
 function DiffIndicator({ value }: { value: number }) {
   if (value > 0)
     return (
-      <span className="inline-flex items-center gap-0.5 text-success">
-        <ArrowUp className="size-3" />
+      <span className="inline-flex items-center gap-0.5 tabular-nums text-success">
+        <ArrowUp className="size-3" aria-hidden="true" />
         {value}
       </span>
     )
   if (value < 0)
     return (
-      <span className="inline-flex items-center gap-0.5 text-danger">
-        <ArrowDown className="size-3" />
+      <span className="inline-flex items-center gap-0.5 tabular-nums text-danger">
+        <ArrowDown className="size-3" aria-hidden="true" />
         {Math.abs(value)}
       </span>
     )
   return (
-    <span className="inline-flex items-center gap-0.5 text-court-cream/45">
-      <Minus className="size-3" />
+    <span className="inline-flex items-center gap-0.5 tabular-nums text-court-cream/45">
+      <Minus className="size-3" aria-hidden="true" />
       0
     </span>
   )

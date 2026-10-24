@@ -163,6 +163,9 @@ function BrandHero({ spotlight }: { spotlight: PublicTournamentSummary | null })
   const alreadyRegistered = !!spotlight && isOpen && (myRegistrations?.some((r) => r.tournament_id === spotlight.id) ?? false)
 
   function goToOpenRegistration(e: React.MouseEvent) {
+    // A modified click (new tab, new window, etc.) should behave like any other link --
+    // only hijack the plain left-click case for the smooth-scroll affordance.
+    if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return
     e.preventDefault()
     const section = document.getElementById('open-registration')
     if (section) {
@@ -186,7 +189,7 @@ function BrandHero({ spotlight }: { spotlight: PublicTournamentSummary | null })
               {isOpen ? (
                 <span className="inline-flex items-center gap-1.5 rounded-full bg-success-bg px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-[.14em] text-success">
                   {alreadyRegistered && <CheckCircle2 className="size-3" />}
-                  {alreadyRegistered ? "You're registered" : 'Registration open'}
+                  {alreadyRegistered ? 'You’re registered' : 'Registration open'}
                 </span>
               ) : (
                 <span className="inline-flex items-center gap-1.5 rounded-full bg-ember-500/15 px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-[.14em] text-ember-400">
@@ -470,6 +473,9 @@ function UpcomingRow({ tournament }: { tournament: PublicTournamentSummary }) {
 }
 
 function formatLabel(format: string): string {
+  if (format === 'KNOCKOUT') return 'Knockout'
+  if (format === 'GROUP_KNOCKOUT') return 'Group + Knockout'
+  if (format === 'SWISS_KNOCKOUT') return 'Swiss + Knockout'
   return format
     .toLowerCase()
     .split('_')
@@ -489,7 +495,7 @@ function OnCourtCard({ tournament }: { tournament: PublicTournamentSummary }) {
                 IN_PROGRESS by definition, so the badge would only repeat what the section's "On
                 court now" eyebrow already says. Dropping it lets the tournament name carry the
                 section's primary visual weight instead of competing with a redundant pill. */}
-            <p className="font-display text-3xl leading-none text-court-cream">{tournament.name}</p>
+            <p className="break-words font-display text-3xl leading-none text-court-cream">{tournament.name}</p>
             <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 font-sans text-xs text-court-cream/50">
               {category && (
                 <span className="inline-flex items-center gap-1.5 rounded-full bg-ember-500/14 px-2.5 py-1 text-[11px] font-bold leading-none text-ember-500">
@@ -565,7 +571,7 @@ function CourtQueuePanel({ queue }: { queue: PublicCourtQueue }) {
   return (
     <div
       className={cn(
-        'rounded-2xl border border-white/15 border-l-[3px] p-3 shadow-lg shadow-black/40 transition-all hover:-translate-y-0.5',
+        'rounded-2xl border border-white/15 border-l-[3px] p-3 shadow-lg shadow-black/40 transition-transform hover:-translate-y-0.5',
         'bg-[#100C0B]',
         live ? 'border-l-[#ff5722]' : 'border-l-white/15'
       )}

@@ -2,19 +2,21 @@ import { CalendarClock } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { RescheduleCourtDialog } from '@/components/tournament/reschedule-court-dialog'
 import { formatCurrency, formatDuration, formatTime } from '@/lib/utils'
-import type { Court, CourtBookingWindow, Match, TournamentStatus } from '@/types/api'
+import type { Court, CourtBookingWindow, Match, TeamTieGame, TournamentStatus } from '@/types/api'
 
 export function CourtBookingsSection({
   tournamentId,
   tournamentStatus,
   courts,
   matches,
+  teamGames = [],
   bookings,
 }: {
   tournamentId: string
   tournamentStatus: TournamentStatus
   courts: Court[]
   matches: Match[]
+  teamGames?: TeamTieGame[]
   bookings: Record<string, CourtBookingWindow>
 }) {
   const canEditTiming = tournamentStatus === 'SCHEDULING' || tournamentStatus === 'IN_PROGRESS'
@@ -25,6 +27,11 @@ export function CourtBookingsSection({
     if (!existing || m.scheduled_start_time < existing) {
       firstUpcomingStartByCourt.set(m.court_id, m.scheduled_start_time)
     }
+  }
+  for (const game of teamGames) {
+    if (game.status !== 'SCHEDULED' || !game.court_id || !game.scheduled_start_time) continue
+    const existing = firstUpcomingStartByCourt.get(game.court_id)
+    if (!existing || game.scheduled_start_time < existing) firstUpcomingStartByCourt.set(game.court_id, game.scheduled_start_time)
   }
 
   const rows = courts.filter((c) => bookings[c.id]).map((c) => ({ court: c, booking: bookings[c.id] }))

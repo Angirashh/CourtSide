@@ -33,7 +33,11 @@ export interface PendingOrganiser {
   created_at: string
 }
 
-export type TournamentFormat = 'GROUP_KNOCKOUT' | 'SWISS_KNOCKOUT' | 'TEAM_FRIENDLY'
+export type TournamentFormat = 'GROUP_KNOCKOUT' | 'SWISS_KNOCKOUT' | 'KNOCKOUT' | 'TEAM_FRIENDLY'
+export type TournamentType = 'INDIVIDUAL' | 'TEAM'
+export type EventFormat = Exclude<TournamentFormat, 'TEAM_FRIENDLY'>
+export type TournamentEvent = 'singles' | 'doubles'
+export type TeamMatchType = 'SINGLES' | 'DOUBLES' | 'MIXED_DOUBLES'
 export type TournamentCategory = 'CORPORATE' | 'COLLEGE' | 'JUNIOR' | 'FRIENDLY'
 export type TournamentStatus = 'DRAFT' | 'SCHEDULING' | 'IN_PROGRESS' | 'COMPLETED'
 export type MatchStage = 'GROUP' | 'SWISS' | 'KNOCKOUT' | 'CROSSOVER'
@@ -60,6 +64,7 @@ export interface Player {
   withdrawal_reason: string | null
   team: 'A' | 'B' | null
   is_captain: boolean
+  team_id: string | null
 }
 
 export interface Match {
@@ -88,6 +93,9 @@ export interface Tournament {
   id: string
   name: string
   format: TournamentFormat
+  tournament_type: TournamentType
+  event_formats: Partial<Record<TournamentEvent, EventFormat>> | null
+  team_config: TeamTieConfig | null
   category: TournamentCategory | null
   status: TournamentStatus
   match_duration_minutes: number
@@ -133,6 +141,62 @@ export interface TournamentDetail extends Tournament {
   players: Player[]
   matches: Match[]
   schedule_summary: ScheduleSummary | null
+  teams: TournamentTeam[]
+  team_ties: TeamTie[]
+}
+
+export interface TeamTieConfig {
+  singles_matches: number
+  doubles_matches: number
+  mixed_doubles_matches: number
+  max_singles_per_player: number
+  max_doubles_per_player: number
+  max_mixed_doubles_per_player: number
+  match_order: TeamMatchType[]
+  completion_mode: 'MAJORITY' | 'PLAY_ALL'
+}
+
+export interface TournamentTeam {
+  id: string
+  tournament_id: string
+  name: string
+  seed: number | null
+  captain_player_id: string | null
+  player_ids: string[]
+}
+
+export interface TeamTieGame {
+  id: string
+  order_num: number
+  match_type: TeamMatchType
+  team1_player_ids: string[] | null
+  team2_player_ids: string[] | null
+  winner_team_id: string | null
+  scores: { p1: number; p2: number }[] | null
+  court_id: string | null
+  scheduled_start_time: string | null
+  scheduled_end_time: string | null
+  actual_start_time: string | null
+  actual_end_time: string | null
+  status: MatchStatus
+  is_completed: boolean
+  is_skipped: boolean
+}
+
+export interface TeamTie {
+  id: string
+  tournament_id: string
+  stage: MatchStage
+  round_num: number
+  group_id: string | null
+  team1_id: string | null
+  team2_id: string | null
+  winner_team_id: string | null
+  is_draw: boolean
+  is_completed: boolean
+  lineups_locked: boolean
+  my_team_id?: string | null
+  games: TeamTieGame[]
 }
 
 // =====================================================================
@@ -180,6 +244,7 @@ export interface PublicTournamentSummary {
   id: string
   name: string
   format: TournamentFormat
+  tournament_type: TournamentType
   category: TournamentCategory | null
   status: TournamentStatus
   venue: string | null
@@ -214,7 +279,28 @@ export interface PublicTournamentDetail {
   courts: Court[]
   players: Player[]
   matches: Match[]
+  tournament_type: TournamentType
+  teams: TournamentTeam[]
+  team_config: TeamTieConfig | null
+  team_ties: TeamTie[]
 }
+
+export interface TeamStandingRow {
+  rank: number
+  team_id: string
+  team_name: string
+  matches_played: number
+  matches_won: number
+  matches_lost: number
+  matches_drawn: number
+  match_points: number
+  games_won: number
+  games_lost: number
+  points_won: number
+  points_lost: number
+}
+
+export type PublicTeamStandings = Record<string, TeamStandingRow[]>
 
 export interface PublicStandingRow {
   rank: number

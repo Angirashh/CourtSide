@@ -1,12 +1,13 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { ChevronDown, Search, Trophy } from 'lucide-react'
 import { usePublicTournaments } from '@/hooks/use-public'
+import { useUrlParam } from '@/hooks/use-url-param'
 import { PublicTournamentCard } from '@/components/public/public-tournament-card'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Button } from '@/components/ui/button'
 import type { TournamentFormat, TournamentStatus } from '@/types/api'
 
-const formatOptions: Array<TournamentFormat | 'All'> = ['All', 'GROUP_KNOCKOUT', 'SWISS_KNOCKOUT']
+const formatOptions: Array<TournamentFormat | 'All'> = ['All', 'GROUP_KNOCKOUT', 'SWISS_KNOCKOUT', 'KNOCKOUT']
 const statusOptions: Array<TournamentStatus | 'All'> = ['All', 'IN_PROGRESS', 'SCHEDULING', 'DRAFT', 'COMPLETED']
 const statusLabel: Record<string, string> = {
   All: 'All',
@@ -19,13 +20,16 @@ const formatLabelShort: Record<string, string> = {
   All: 'All',
   GROUP_KNOCKOUT: 'Group + Knockout',
   SWISS_KNOCKOUT: 'Swiss + Knockout',
+  KNOCKOUT: 'Knockout',
 }
 
 export function TournamentsBrowsePage() {
   const { data: tournaments, isLoading } = usePublicTournaments()
-  const [format, setFormat] = useState<TournamentFormat | 'All'>('All')
-  const [status, setStatus] = useState<TournamentStatus | 'All'>('All')
-  const [query, setQuery] = useState('')
+  const [rawFormat, setRawFormat] = useUrlParam('format', 'All')
+  const [rawStatus, setRawStatus] = useUrlParam('status', 'All')
+  const [query, setQuery] = useUrlParam('q', '')
+  const format = (formatOptions as string[]).includes(rawFormat) ? (rawFormat as TournamentFormat | 'All') : 'All'
+  const status = (statusOptions as string[]).includes(rawStatus) ? (rawStatus as TournamentStatus | 'All') : 'All'
 
   const filtered = useMemo(
     () =>
@@ -50,10 +54,12 @@ export function TournamentsBrowsePage() {
 
       <div className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-ink-card p-3 md:flex-row">
         <label className="flex flex-1 items-center gap-2 rounded-xl bg-ink-card px-3 py-2.5 text-court-cream/45">
-          <Search className="size-4" />
+          <Search className="size-4" aria-hidden="true" />
+          <span className="sr-only">Find a tournament</span>
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
+            aria-label="Find a tournament"
             className="w-full bg-transparent text-sm text-court-cream outline-none placeholder:text-court-cream/45"
             placeholder="Find a tournament"
           />
@@ -62,14 +68,14 @@ export function TournamentsBrowsePage() {
           <FilterSelect
             label="Format"
             value={format}
-            onChange={(v) => setFormat(v as typeof format)}
+            onChange={(v) => setRawFormat(v)}
             options={formatOptions}
             optionLabel={(v) => formatLabelShort[v]}
           />
           <FilterSelect
             label="Status"
             value={status}
-            onChange={(v) => setStatus(v as typeof status)}
+            onChange={(v) => setRawStatus(v)}
             options={statusOptions}
             optionLabel={(v) => statusLabel[v]}
           />
@@ -96,8 +102,8 @@ export function TournamentsBrowsePage() {
               variant="outline"
               onClick={() => {
                 setQuery('')
-                setFormat('All')
-                setStatus('All')
+                setRawFormat('All')
+                setRawStatus('All')
               }}
             >
               Reset filters
@@ -134,15 +140,15 @@ function FilterSelect<T extends string>({
       <select
         value={value}
         onChange={(e) => onChange(e.target.value as T)}
-        className="w-full bg-transparent text-xs font-bold text-court-cream outline-none"
+        className="w-full bg-ink-card text-xs font-bold text-court-cream outline-none"
       >
         {options.map((opt) => (
-          <option value={opt} key={opt}>
+          <option value={opt} key={opt} className="bg-ink-card text-court-cream">
             {optionLabel(opt)}
           </option>
         ))}
       </select>
-      <ChevronDown className="size-3.5 shrink-0" />
+      <ChevronDown className="size-3.5 shrink-0" aria-hidden="true" />
     </label>
   )
 }

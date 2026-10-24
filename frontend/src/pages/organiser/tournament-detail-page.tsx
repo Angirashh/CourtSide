@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { ArrowLeft, Check, Copy, Play, Trophy } from 'lucide-react'
 import { useTournament } from '@/hooks/use-tournaments'
+import { useUrlParam } from '@/hooks/use-url-param'
 import { FullPageSpinner } from '@/components/ui/spinner'
 import { EmptyState } from '@/components/ui/empty-state'
 import { RegistrationStatusBadge, TournamentStatusBadge } from '@/components/ui/status-badge'
@@ -19,11 +20,19 @@ import { DeleteTournamentDialog } from '@/components/tournament/delete-tournamen
 import { CourtBookingsSection } from '@/components/tournament/court-bookings-section'
 import { FixtureVisualizer } from '@/components/fixtures/fixture-visualizer'
 import { StandingsView } from '@/components/fixtures/standings-view'
+import { TeamFixtureVisualizer } from '@/components/fixtures/team-fixture-visualizer'
+import { TeamStandingsView } from '@/components/fixtures/team-standings-view'
+import { useLockTeamTie, useUnlockTeamTie } from '@/hooks/use-team-ties'
+import { toast } from 'sonner'
+import { extractErrorMessage } from '@/lib/api/client'
 import { formatLabel, formatPlainDate } from '@/lib/utils'
 
 export function TournamentDetailPage() {
   const { id } = useParams<{ id: string }>()
   const { data: tournament, isLoading } = useTournament(id)
+  const lockTie = useLockTeamTie(id ?? '')
+  const unlockTie = useUnlockTeamTie(id ?? '')
+  const [activeTab, setActiveTab] = useUrlParam('tab', 'fixtures')
 
   if (isLoading) return <FullPageSpinner />
   if (!tournament) {
@@ -31,6 +40,10 @@ export function TournamentDetailPage() {
   }
 
   const realPlayers = tournament.players.filter((p) => !p.is_placeholder)
+  const setupOnly = !!tournament.event_formats
+  const isTeamTournament = tournament.tournament_type === 'TEAM'
+  const participantCount = isTeamTournament ? tournament.teams.length : realPlayers.length
+  const teamGames = tournament.team_ties.flatMap((tie) => tie.games)
 
   return (
     <div className="space-y-6">
@@ -48,7 +61,10 @@ export function TournamentDetailPage() {
           </div>
           <p className="mt-1 flex flex-wrap items-center gap-x-1 text-sm font-medium text-court-cream/55">
             <span>
-              {formatLabel(tournament.format)}
+              {tournament.tournament_type === 'TEAM' ? 'Team' : 'Individual'} · {' '}
+              {tournament.event_formats
+                ? Object.entries(tournament.event_formats).map(([event, eventFormat]) => `${event[0].toUpperCase()}${event.slice(1)} (${formatLabel(eventFormat)})`).join(' + ')
+                : formatLabel(tournament.format)}
               {tournament.venue && <> · {tournament.venue}</>}
               {tournament.tournament_date && <> · {formatPlainDate(tournament.tournament_date)}</>}
             </span>
@@ -60,27 +76,28 @@ export function TournamentDetailPage() {
               registrationStatus={tournament.registration_status}
               maxPlayers={tournament.max_players}
             />
-            <EditCourtsDialog tournamentId={tournament.id} courts={tournament.courts} matches={tournament.matches} />
+            <EditCourtsDialog tournamentId={tournament.id} courts={tournament.courts} matches={tournament.matches} teamGames={teamGames} />
             <span>
               · ID <CopyTournamentId id={tournament.id} />
             </span>
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2.5">
-          <Link to={`/organiser/${tournament.id}/operate`} className="inline-flex h-10 items-center gap-2 rounded-lg bg-ember-500 px-4 text-sm font-bold text-navy-950 shadow-sm transition-colors hover:bg-ember-400">
+          {!setupOnly && <Link to={`/organiser/${tournament.id}/operate`} className="inline-flex h-10 items-center gap-2 rounded-lg bg-ember-500 px-4 text-sm font-bold text-navy-950 shadow-sm transition-colors hover:bg-ember-400">
             <Play className="size-4" />
             Operate tournament
-          </Link>
-          {(tournament.status === 'DRAFT' || tournament.status === 'SCHEDULING') && realPlayers.length >= 2 && (
+          </Link>}
+          {!setupOnly && (tournament.status === 'DRAFT' || tournament.status === 'SCHEDULING') && participantCount >= 2 && (
             <ScheduleDialog
               tournamentId={tournament.id}
               format={tournament.format}
               tournamentDate={tournament.tournament_date}
-              playerCount={realPlayers.length}
+              playerCount={participantCount}
+              participantLabel={isTeamTournament ? 'teams' : 'players'}
               isRegenerate={tournament.status === 'SCHEDULING'}
             />
           )}
-          <TournamentLifecycleActions tournamentId={tournament.id} status={tournament.status} />
+          {!setupOnly && <TournamentLifecycleActions tournamentId={tournament.id} status={tournament.status} />}
           <DeleteTournamentDialog tournamentId={tournament.id} name={tournament.name} status={tournament.status} />
         </div>
       </div>
@@ -91,11 +108,12 @@ export function TournamentDetailPage() {
           tournamentStatus={tournament.status}
           courts={tournament.courts}
           matches={tournament.matches}
+          teamGames={teamGames}
           bookings={tournament.schedule_summary.court_bookings}
         />
       )}
 
-      <Tabs defaultValue="fixtures">
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
           <TabsTrigger value="fixtures">Fixtures</TabsTrigger>
           <TabsTrigger value="standings">Standings</TabsTrigger>
@@ -107,11 +125,30 @@ export function TournamentDetailPage() {
         </TabsList>
 
         <TabsContent value="fixtures">
-          <FixtureVisualizer format={tournament.format} matches={tournament.matches} players={tournament.players} courts={tournament.courts} />
+          {isTeamTournament ? (
+            <TeamFixtureVisualizer
+              ties={tournament.team_ties}
+              teams={tournament.teams}
+              players={tournament.players}
+              courts={tournament.courts}
+              canLock={tournament.status === 'SCHEDULING' || tournament.status === 'IN_PROGRESS'}
+              busyId={lockTie.variables ?? unlockTie.variables}
+              onUnlock={(tie) => unlockTie.mutate(tie.id, {
+                onSuccess: () => toast.success('Lineup submission reopened.'),
+                onError: (err) => toast.error(extractErrorMessage(err)),
+              })}
+              onLock={(tie) => lockTie.mutate(tie.id, {
+                onSuccess: () => toast.success('Tie lineups locked.'),
+                onError: (err) => toast.error(extractErrorMessage(err)),
+              })}
+            />
+          ) : <FixtureVisualizer format={tournament.format} matches={tournament.matches} players={tournament.players} courts={tournament.courts} />}
         </TabsContent>
 
         <TabsContent value="standings">
-          <StandingsView format={tournament.format} matches={tournament.matches} players={tournament.players} />
+          {isTeamTournament
+            ? <TeamStandingsView tournamentId={tournament.id} format={tournament.format} />
+            : <StandingsView format={tournament.format} matches={tournament.matches} players={tournament.players} />}
         </TabsContent>
 
         <TabsContent value="schedule">
@@ -123,7 +160,15 @@ export function TournamentDetailPage() {
         </TabsContent>
 
         <TabsContent value="roster">
-          <RosterTab tournamentId={tournament.id} status={tournament.status} format={tournament.format} players={tournament.players} />
+          <RosterTab
+            tournamentId={tournament.id}
+            status={tournament.status}
+            format={tournament.format}
+            tournamentType={tournament.tournament_type}
+            players={tournament.players}
+            teams={tournament.teams}
+            teamConfig={tournament.team_config}
+          />
         </TabsContent>
 
         <TabsContent value="operators">

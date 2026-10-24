@@ -102,7 +102,12 @@ def remove_court(
     pending = db.query(models.Match).filter(
         models.Match.court_id == court_id, models.Match.is_completed == False
     ).first()
-    if pending:
+    pending_team_game = db.query(models.TeamTieGame).join(models.TeamTie).filter(
+        models.TeamTie.tournament_id == tournament_id,
+        models.TeamTieGame.court_id == court_id,
+        models.TeamTieGame.is_completed == False,
+    ).first()
+    if pending or pending_team_game:
         raise HTTPException(
             status_code=400,
             detail="Cannot remove a court with a scheduled or in-progress match on it. Finish that match, or wait until it's reassigned by a schedule regeneration, first.",
@@ -145,10 +150,16 @@ def reschedule_court(
     if not court:
         raise HTTPException(status_code=404, detail="Court not found in this tournament.")
 
-    movable = db.query(models.Match).filter(
-        models.Match.court_id == court_id,
-        models.Match.status == models.MatchStatus.SCHEDULED,
-        models.Match.scheduled_start_time.isnot(None),
+    is_team = tournament.tournament_type == models.TournamentType.TEAM
+    row_model = models.TeamTieGame if is_team else models.Match
+    movable_query = db.query(row_model)
+    if is_team:
+        movable_query = movable_query.join(models.TeamTie)
+        movable_query = movable_query.filter(models.TeamTie.tournament_id == tournament_id)
+    movable = movable_query.filter(
+        row_model.court_id == court_id,
+        row_model.status == models.MatchStatus.SCHEDULED,
+        row_model.scheduled_start_time.isnot(None),
     ).all()
     if not movable:
         raise HTTPException(status_code=400, detail="This court has no upcoming scheduled matches to shift.")
@@ -159,27 +170,42 @@ def reschedule_court(
 
     # Every other not-yet-completed match in the tournament, keyed by the player(s) in it — these
     # keep their current times, so shifted matches are checked against them as they stand today.
-    others = db.query(models.Match).filter(
-        models.Match.tournament_id == tournament_id,
-        models.Match.id.notin_(movable_ids),
-        models.Match.status != models.MatchStatus.COMPLETED,
-        models.Match.scheduled_start_time.isnot(None),
+    other_query = db.query(row_model)
+    if is_team:
+        other_query = other_query.join(models.TeamTie)
+        other_query = other_query.filter(models.TeamTie.tournament_id == tournament_id)
+    else:
+        other_query = other_query.filter(models.Match.tournament_id == tournament_id)
+    others = other_query.filter(
+        row_model.id.notin_(movable_ids),
+        row_model.status != models.MatchStatus.COMPLETED,
+        row_model.scheduled_start_time.isnot(None),
     ).all()
-    others_by_player: Dict[str, List[models.Match]] = {}
-    for om in others:
-        for pid in (om.player1_id, om.player2_id):
-            if pid:
-                others_by_player.setdefault(pid, []).append(om)
+
+    def participants(row):
+        if is_team:
+            tie = row.tie
+            return [team_id for team_id in (tie.team1_id, tie.team2_id) if team_id]
+        return [player_id for player_id in (row.player1_id, row.player2_id) if player_id]
+
+    resource_label = "team" if is_team else "player"
+    names = {}
+    if is_team:
+        names = {team.id: team.name for team in tournament.teams}
+    else:
+        names = {player.id: player.name for player in tournament.players}
+    others_by_resource: Dict[str, List] = {}
+    for other in others:
+        for resource_id in participants(other):
+            others_by_resource.setdefault(resource_id, []).append(other)
 
     seen_pairs = set()
     conflicts = []
     for m in movable:
         new_start = m.scheduled_start_time + delta
         new_end = m.scheduled_end_time + delta
-        for pid in (m.player1_id, m.player2_id):
-            if not pid:
-                continue
-            for om in others_by_player.get(pid, []):
+        for resource_id in participants(m):
+            for om in others_by_resource.get(resource_id, []):
                 if (m.id, om.id) in seen_pairs:
                     continue
                 # Strict time overlap only — the rest-time cushion is deliberately not enforced
@@ -187,12 +213,11 @@ def reschedule_court(
                 overlaps = new_start < om.scheduled_end_time and om.scheduled_start_time < new_end
                 if overlaps:
                     seen_pairs.add((m.id, om.id))
-                    player = db.query(models.Player).filter(models.Player.id == pid).first()
                     om_court_name = om.court.name if om.court else "another court"
                     conflicts.append(
-                        f"{player.name if player else pid}: match on {court.name} would run "
+                        f"{names.get(resource_id, resource_id)} ({resource_label}): game on {court.name} would run "
                         f"{new_start.strftime('%H:%M')}-{new_end.strftime('%H:%M')}, overlapping their "
-                        f"match on {om_court_name} at {om.scheduled_start_time.strftime('%H:%M')}-"
+                        f"game on {om_court_name} at {om.scheduled_start_time.strftime('%H:%M')}-"
                         f"{om.scheduled_end_time.strftime('%H:%M')} — they can't play both at once."
                     )
 
@@ -207,7 +232,12 @@ def reschedule_court(
         m.scheduled_end_time = m.scheduled_end_time + delta
     db.flush()
 
-    all_matches = db.query(models.Match).filter(models.Match.tournament_id == tournament_id).all()
+    all_matches = (
+        db.query(models.TeamTieGame).join(models.TeamTie)
+        .filter(models.TeamTie.tournament_id == tournament_id).all()
+        if is_team else
+        db.query(models.Match).filter(models.Match.tournament_id == tournament_id).all()
+    )
     all_courts = db.query(models.Court).filter(models.Court.tournament_id == tournament_id).all()
     tournament.schedule_summary = _derive_schedule_summary(all_matches, all_courts)
     db.commit()

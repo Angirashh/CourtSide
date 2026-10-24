@@ -1,6 +1,6 @@
 import collections
 import math
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
 from ortools.sat.python import cp_model
 from app.services.fixture_engine.datatypes import Match, MatchStage
 
@@ -15,6 +15,8 @@ class CourtScheduler:
         court_hourly_cost: float = 40.0,
         time_grid_minutes: int = 30,
         court_available_from: Optional[Dict[int, int]] = None,
+        match_precedence: Optional[List[Tuple[str, str]]] = None,
+        allow_overlap_pairs: Optional[List[Tuple[str, str]]] = None,
     ) -> Dict[str, Any]:
         """
         Assigns matches to courts and time slots.
@@ -45,6 +47,8 @@ class CourtScheduler:
             }
 
         court_available_from = court_available_from or {}
+        match_precedence = match_precedence or []
+        allow_overlap_pairs = {frozenset(pair) for pair in (allow_overlap_pairs or [])}
         max_available_from = max(court_available_from.values(), default=0)
         horizon = len(active_matches) * (match_duration + rest_time) + max_available_from
         model = cp_model.CpModel()
@@ -53,7 +57,9 @@ class CourtScheduler:
         match_ends = {}
         court_intervals = collections.defaultdict(list)
         player_intervals = collections.defaultdict(list)
+        player_match_ids = collections.defaultdict(list)
         player_match_vars = collections.defaultdict(list)
+        padded_ends = {}
         match_presences = {}
 
         # 1. Variables & Interval Setup
@@ -81,16 +87,19 @@ class CourtScheduler:
             # Player rest intervals
             padded_end_var = model.NewIntVar(0, horizon + rest_time, f"padded_end_{m.id}")
             model.Add(padded_end_var == start_var + match_duration + rest_time)
+            padded_ends[m.id] = padded_end_var
 
             if m.player1_id and not str(m.player1_id).startswith("TBD"):
                 p1_int = model.NewIntervalVar(start_var, match_duration + rest_time, padded_end_var, f"p1_{m.id}")
                 player_intervals[m.player1_id].append(p1_int)
-                player_match_vars[m.player1_id].append((start_var, end_var))
+                player_match_ids[m.player1_id].append(m.id)
+                player_match_vars[m.player1_id].append((start_var, end_var, m.id))
 
             if m.player2_id and not str(m.player2_id).startswith("TBD"):
                 p2_int = model.NewIntervalVar(start_var, match_duration + rest_time, padded_end_var, f"p2_{m.id}")
                 player_intervals[m.player2_id].append(p2_int)
-                player_match_vars[m.player2_id].append((start_var, end_var))
+                player_match_ids[m.player2_id].append(m.id)
+                player_match_vars[m.player2_id].append((start_var, end_var, m.id))
 
         # 2. Overlap Constraints
         for c in range(1, num_courts + 1):
@@ -98,7 +107,21 @@ class CourtScheduler:
 
         for pid, intervals in player_intervals.items():
             if len(intervals) > 1:
-                model.AddNoOverlap(intervals)
+                match_ids = player_match_ids[pid]
+                if not any(pair.issubset(match_ids) for pair in allow_overlap_pairs):
+                    model.AddNoOverlap(intervals)
+                    continue
+                for index, first_id in enumerate(match_ids):
+                    for second_id in match_ids[index + 1:]:
+                        if frozenset((first_id, second_id)) in allow_overlap_pairs:
+                            continue
+                        ordered = model.NewBoolVar(f"player_order_{pid}_{first_id}_{second_id}")
+                        model.Add(match_starts[first_id] >= padded_ends[second_id]).OnlyEnforceIf(ordered)
+                        model.Add(match_starts[second_id] >= padded_ends[first_id]).OnlyEnforceIf(ordered.Not())
+
+        for before_id, after_id in match_precedence:
+            if before_id in match_ends and after_id in match_starts:
+                model.Add(match_starts[after_id] >= match_ends[before_id] + rest_time)
 
         # 2b. Player Rest Preference
         # The no-overlap constraint above only guarantees a player's matches are at
@@ -116,9 +139,11 @@ class CourtScheduler:
         consecutive_play_penalties = []
         for pid, pmatches in player_match_vars.items():
             for i in range(len(pmatches)):
-                s_i, e_i = pmatches[i]
+                s_i, e_i, match_i = pmatches[i]
                 for j in range(i + 1, len(pmatches)):
-                    s_j, e_j = pmatches[j]
+                    s_j, e_j, match_j = pmatches[j]
+                    if frozenset((match_i, match_j)) in allow_overlap_pairs:
+                        continue
 
                     touch_fwd = model.NewBoolVar(f"touch_{pid}_{i}_{j}_fwd")
                     model.Add(s_j - e_i != rest_time).OnlyEnforceIf(touch_fwd.Not())

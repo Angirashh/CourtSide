@@ -5,26 +5,30 @@ import { cn, formatCurrency, formatDuration } from '@/lib/utils'
 import type { TournamentDetail } from '@/types/api'
 
 export function StatsTab({ tournament }: { tournament: TournamentDetail }) {
+  const isTeam = tournament.tournament_type === 'TEAM'
   const realPlayers = tournament.players.filter((p) => !p.is_placeholder)
-  const completedMatches = tournament.matches.filter((m) => m.is_completed)
+  const teamGames = tournament.team_ties.flatMap((tie) => tie.games)
+  const totalMatches = isTeam ? teamGames.length : tournament.matches.length
+  const completedMatches = isTeam ? teamGames.filter((game) => game.is_completed).length : tournament.matches.filter((m) => m.is_completed).length
+  const participantCount = isTeam ? tournament.teams.length : realPlayers.length
 
   const summary = tournament.schedule_summary
   // Shuttles wear out by matches played, not by time — count every real (non-bye,
   // non-walkover) match the draw will actually need, whether it's been played yet or not.
-  const playableMatches = tournament.matches.filter((m) => !m.is_bye && !m.is_walkover).length
+  const playableMatches = isTeam ? teamGames.length : tournament.matches.filter((m) => !m.is_bye && !m.is_walkover).length
   const shuttlesNeeded = Math.ceil(playableMatches / tournament.shuttle_matches_per_unit)
   const totalShuttleCost = shuttlesNeeded * tournament.shuttle_cost
   const totalCourtCost = summary?.total_estimated_cost ?? 0
-  const costPerPlayer = realPlayers.length > 0 ? (totalCourtCost + totalShuttleCost) / realPlayers.length : 0
+  const costPerParticipant = participantCount > 0 ? (totalCourtCost + totalShuttleCost) / participantCount : 0
   const savingsPct = summary && summary.flat_booking_cost > 0 ? Math.round((summary.savings / summary.flat_booking_cost) * 100) : 0
 
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3 lg:grid-cols-6">
-        <StatTile icon={Users} label="Players" value={realPlayers.length} />
+        <StatTile icon={Users} label={isTeam ? 'Teams' : 'Players'} value={participantCount} />
         <StatTile icon={MapPin} label="Courts" value={tournament.courts.length} />
-        <StatTile icon={Swords} label="Matches" value={tournament.matches.length} />
-        <StatTile icon={CalendarClock} label="Completed" value={completedMatches.length} />
+        <StatTile icon={Swords} label={isTeam ? 'Team games' : 'Matches'} value={totalMatches} />
+        <StatTile icon={CalendarClock} label="Completed" value={completedMatches} />
         <StatTile icon={Clock} label="Avg. match time" value={`${tournament.match_duration_minutes}m`} />
         <StatTile icon={Timer} label="Rest between matches" value={`${tournament.rest_time_minutes}m`} />
       </div>
@@ -40,8 +44,8 @@ export function StatsTab({ tournament }: { tournament: TournamentDetail }) {
           />
           <StatTile
             icon={Wallet}
-            label="Cost per player"
-            value={realPlayers.length > 0 ? formatCurrency(costPerPlayer) : '—'}
+            label={isTeam ? 'Cost per team' : 'Cost per player'}
+            value={participantCount > 0 ? formatCurrency(costPerParticipant) : '—'}
             sub="Court + shuttle cost"
           />
           <StatTile

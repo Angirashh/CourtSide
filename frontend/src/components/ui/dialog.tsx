@@ -28,14 +28,17 @@ export function DialogContent({
                 'sm:inset-x-auto sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:w-[calc(100%-2rem)] sm:max-w-md sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-2xl sm:p-6 sm:max-h-[85svh] sm:data-[state=open]:animate-scale-in sm:data-[state=closed]:animate-scale-out',
               ]
             : 'left-1/2 top-1/2 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-2xl p-6 max-h-[85svh] data-[state=open]:animate-scale-in data-[state=closed]:animate-scale-out',
-          'overflow-y-auto',
+          'overflow-y-auto overscroll-contain',
           className
         )}
         {...props}
       >
         {children}
-        <DialogPrimitive.Close className="absolute right-4 top-4 rounded-full p-1.5 text-court-cream/45 transition-colors hover:bg-white/10 hover:text-court-cream/70">
-          <X className="size-4" />
+        <DialogPrimitive.Close
+          aria-label="Close"
+          className="absolute right-4 top-4 rounded-full p-1.5 text-court-cream/45 transition-colors hover:bg-white/10 hover:text-court-cream/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-500"
+        >
+          <X className="size-4" aria-hidden="true" />
         </DialogPrimitive.Close>
       </DialogPrimitive.Content>
     </DialogPrimitive.Portal>

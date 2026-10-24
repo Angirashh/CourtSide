@@ -1,0 +1,6 @@
+{
+  "enabledPlugins": {
+    "brag@brag": true,
+    "small-business@anthropic-plugin-directory": true
+  }
+}

@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { GitBranch, Network } from 'lucide-react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { EmptyState } from '@/components/ui/empty-state'
 import { BracketTree } from './bracket-tree'
 import { SwissLadder } from './swiss-ladder'
 import { FixtureMatchRow } from './fixture-match-row'
+import { useUrlParam } from '@/hooks/use-url-param'
 import { groupMatchesByGroupId } from '@/lib/standings'
 import { cn, compareByScheduledTime, formatTime } from '@/lib/utils'
 import type { Court, Match, Player, TournamentFormat } from '@/types/api'
@@ -45,6 +46,9 @@ export function FixtureVisualizer({
   useEffect(() => {
     activeRoundRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }, [])
+  // Hooks must run unconditionally on every render, so this is read up front even though
+  // only the groups/Swiss branch below actually uses it.
+  const [stageTab, setStageTab] = useUrlParam('stage', format === 'GROUP_KNOCKOUT' ? 'groups' : 'swiss')
 
   if (matches.length === 0) {
     return (
@@ -151,15 +155,19 @@ export function FixtureVisualizer({
     )
   }
 
+  if (format === 'KNOCKOUT') {
+    return <BracketTree matches={knockoutMatches} playersById={playersById} courtsById={courtsById} />
+  }
+
   return (
-    <Tabs defaultValue={format === 'GROUP_KNOCKOUT' ? 'groups' : 'swiss'} className="space-y-5">
+    <Tabs value={stageTab} onValueChange={setStageTab} className="space-y-5">
       <TabsList className="grid w-full grid-cols-2 gap-0 bg-white/10 p-1">
         {format === 'GROUP_KNOCKOUT' ? (
           <TabsTrigger
             value="groups"
             className="font-sans text-sm font-semibold text-court-cream/55 shadow-none data-[state=active]:bg-navy-950 data-[state=active]:text-court-cream data-[state=active]:shadow-none"
           >
-            <Network className="mr-1.5 size-3.5 inline" />
+            <Network className="mr-1.5 size-3.5 inline" aria-hidden="true" />
             Group stage
           </TabsTrigger>
         ) : (
@@ -167,7 +175,7 @@ export function FixtureVisualizer({
             value="swiss"
             className="font-sans text-sm font-semibold text-court-cream/55 shadow-none data-[state=active]:bg-navy-950 data-[state=active]:text-court-cream data-[state=active]:shadow-none"
           >
-            <Network className="mr-1.5 size-3.5 inline" />
+            <Network className="mr-1.5 size-3.5 inline" aria-hidden="true" />
             Swiss rounds
           </TabsTrigger>
         )}
@@ -175,7 +183,7 @@ export function FixtureVisualizer({
           value="knockout"
           className="font-sans text-sm font-semibold text-court-cream/55 shadow-none data-[state=active]:bg-navy-950 data-[state=active]:text-court-cream data-[state=active]:shadow-none"
         >
-          <GitBranch className="mr-1.5 size-3.5 inline" />
+          <GitBranch className="mr-1.5 size-3.5 inline" aria-hidden="true" />
           Knockout
         </TabsTrigger>
       </TabsList>
@@ -243,8 +251,9 @@ function GroupStageView({
 }) {
   const groups = useMemo(() => groupMatchesByGroupId(matches), [matches])
   const groupIds = useMemo(() => Array.from(groups.keys()).sort(), [groups])
-  const [activeGroup, setActiveGroup] = useState(groupIds[0])
-  const [activeRound, setActiveRound] = useState(() => currentRoundOf(groups.get(groupIds[0]) ?? []))
+  const [rawActiveGroup, setActiveGroup] = useUrlParam('group', groupIds[0] ?? '')
+  const activeGroup = groupIds.includes(rawActiveGroup) ? rawActiveGroup : groupIds[0]
+  const [rawActiveRound, setActiveRound] = useUrlParam('round', String(currentRoundOf(groups.get(groupIds[0]) ?? [])))
 
   if (groupIds.length === 0) {
     return <EmptyState icon={Network} title="No group matches yet" />
@@ -252,11 +261,12 @@ function GroupStageView({
 
   function selectGroup(gid: string) {
     setActiveGroup(gid)
-    setActiveRound(currentRoundOf(groups.get(gid) ?? []))
+    setActiveRound(String(currentRoundOf(groups.get(gid) ?? [])))
   }
 
   const groupMatches = groups.get(activeGroup) ?? groups.get(groupIds[0])!
   const rounds = Array.from(new Set(groupMatches.map((m) => m.round_num))).sort((a, b) => a - b)
+  const activeRound = rounds.includes(Number(rawActiveRound)) ? Number(rawActiveRound) : rounds[rounds.length - 1]
   const roundMatches = groupMatches.filter((m) => m.round_num === activeRound).sort(compareByScheduledTime)
   const sortedGroupMatches = [...groupMatches].sort((a, b) => a.round_num - b.round_num || compareByScheduledTime(a, b))
   const matchNumberById = new Map(sortedGroupMatches.map((m, i) => [m.id, i + 1]))
@@ -289,9 +299,9 @@ function GroupStageView({
             <button
               key={round}
               type="button"
-              onClick={() => setActiveRound(round)}
+              onClick={() => setActiveRound(String(round))}
               className={cn(
-                'flex-1 rounded-lg px-3 py-2.5 font-display text-lg transition-colors',
+                'flex-1 rounded-lg px-3 py-2.5 font-display text-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-500 focus-visible:ring-offset-2 focus-visible:ring-offset-ink',
                 round === activeRound ? 'bg-ember-500 text-ink' : 'bg-white/10 text-court-cream/55 hover:text-court-cream/85'
               )}
             >

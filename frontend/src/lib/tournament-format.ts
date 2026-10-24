@@ -1,4 +1,4 @@
-import { Shuffle, Swords, Users } from 'lucide-react'
+import { GitBranch, Shuffle, Swords, Users } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import type { TournamentFormat } from '@/types/api'
 
@@ -13,6 +13,14 @@ export interface FormatMeta {
 }
 
 export const formatMeta: Record<TournamentFormat, FormatMeta> = {
+  KNOCKOUT: {
+    label: 'Knockout',
+    icon: GitBranch,
+    barClassName: 'bg-ember-500',
+    howItWorks:
+      'Teams or players are placed into a single-elimination bracket. Win to advance; a loss ends the run.',
+    standings: 'There is no standings table in a knockout tournament. The bracket determines the champion.',
+  },
   GROUP_KNOCKOUT: {
     label: 'Group + Knockout',
     icon: Swords,

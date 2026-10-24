@@ -330,3 +330,107 @@ def test_full_team_friendly_lifecycle_updates_career_stats(client, db_session, m
     assert b1_athlete.matches_played == 2
     assert b1_athlete.matches_won == 0
     assert b1_athlete.matches_lost == 2
+
+
+# =====================================================================
+# MIXED DOUBLES TEAM-TIE SLOT/LINEUP TESTS
+# =====================================================================
+CORPORATE = models.TournamentCategory.CORPORATE
+
+
+def _tournament(db_session, **kwargs):
+    kwargs.setdefault("format", models.TournamentFormat.GROUP_KNOCKOUT)
+    kwargs.setdefault("status", models.TournamentStatus.IN_PROGRESS)
+    tournament = models.Tournament(name="Test Open", **kwargs)
+    db_session.add(tournament)
+    db_session.commit()
+    db_session.refresh(tournament)
+    return tournament
+
+
+def _athlete(db_session, name, **kwargs):
+    athlete = models.Athlete(name=name, **kwargs)
+    db_session.add(athlete)
+    db_session.commit()
+    db_session.refresh(athlete)
+    return athlete
+
+
+def _player(db_session, tournament_id, athlete, **kwargs):
+    player = models.Player(tournament_id=tournament_id, athlete_id=athlete.id, name=athlete.name, **kwargs)
+    db_session.add(player)
+    db_session.commit()
+    db_session.refresh(player)
+    return player
+
+
+def test_team_tie_config_accepts_a_mixed_doubles_slot():
+    from app.schemas.tournament import TeamTieConfig
+
+    config = TeamTieConfig(
+        singles_matches=1, doubles_matches=0, mixed_doubles_matches=1,
+        max_singles_per_player=1, max_doubles_per_player=0, max_mixed_doubles_per_player=1,
+        match_order=["SINGLES", "MIXED_DOUBLES"],
+    )
+    assert config.mixed_doubles_matches == 1
+
+
+def test_team_tie_config_rejects_match_order_missing_configured_mixed_doubles():
+    from pydantic import ValidationError
+    from app.schemas.tournament import TeamTieConfig
+
+    with pytest.raises(ValidationError):
+        TeamTieConfig(
+            singles_matches=1, doubles_matches=0, mixed_doubles_matches=1,
+            max_singles_per_player=1, max_doubles_per_player=0, max_mixed_doubles_per_player=1,
+            match_order=["SINGLES"],
+        )
+
+
+def test_lineup_rejects_player_exceeding_mixed_doubles_cap(db_session):
+    from fastapi import HTTPException
+    from app.api.routes_team_ties import _validate_lineup
+    from app.schemas.team_tie import TeamGameLineup, TeamLineupSubmission
+
+    tournament = _tournament(
+        db_session, tournament_type=models.TournamentType.TEAM,
+        format=models.TournamentFormat.KNOCKOUT, category=CORPORATE,
+        team_config={
+            "singles_matches": 0, "doubles_matches": 0, "mixed_doubles_matches": 2,
+            "max_singles_per_player": 0, "max_doubles_per_player": 0, "max_mixed_doubles_per_player": 1,
+            "match_order": ["MIXED_DOUBLES", "MIXED_DOUBLES"], "completion_mode": "MAJORITY",
+        },
+    )
+    team1 = models.TournamentTeam(tournament_id=tournament.id, name="Team A", seed=1)
+    team2 = models.TournamentTeam(tournament_id=tournament.id, name="Team B", seed=2)
+    db_session.add_all([team1, team2])
+    db_session.commit()
+
+    athletes = [_athlete(db_session, f"P{i}") for i in range(1, 5)]
+    players = [
+        _player(db_session, tournament.id, athletes[i], team_id=(team1.id if i < 2 else team2.id))
+        for i in range(4)
+    ]
+
+    tie = models.TeamTie(
+        tournament_id=tournament.id, stage=models.MatchStage.KNOCKOUT, round_num=1,
+        team1_id=team1.id, team2_id=team2.id,
+    )
+    db_session.add(tie)
+    db_session.commit()
+
+    game1 = models.TeamTieGame(tie_id=tie.id, order_num=1, match_type="MIXED_DOUBLES")
+    game2 = models.TeamTieGame(tie_id=tie.id, order_num=2, match_type="MIXED_DOUBLES")
+    db_session.add_all([game1, game2])
+    db_session.commit()
+    db_session.refresh(tie)
+
+    submission = TeamLineupSubmission(games=[
+        TeamGameLineup(game_id=game1.id, player_ids=[players[0].id, players[1].id]),
+        TeamGameLineup(game_id=game2.id, player_ids=[players[0].id, players[1].id]),
+    ])
+
+    with pytest.raises(HTTPException) as exc_info:
+        _validate_lineup(tie, team1.id, submission, db_session)
+    assert exc_info.value.status_code == 400
+    assert "mixed doubles" in exc_info.value.detail.lower()

@@ -70,7 +70,9 @@ export function FixtureMatchRow({
           ) : (
             <>
               <span className="relative flex size-1.5 shrink-0">
-                {isLive && <span className="absolute inline-flex size-full animate-ping rounded-full bg-ember-500 opacity-75" />}
+                {isLive && (
+                  <span className="absolute inline-flex size-full animate-ping rounded-full bg-ember-500 opacity-75 motion-reduce:animate-none" />
+                )}
                 <span
                   className={cn(
                     'relative inline-flex size-1.5 rounded-full',
@@ -92,7 +94,7 @@ export function FixtureMatchRow({
 
           {!isLive && !isCompleted && match.scheduled_start_time && (
             <Badge variant="warning" className="shrink-0 gap-1 px-2 py-0.5 text-[11px]">
-              <Clock className="size-3" />~{formatTime(match.scheduled_start_time)}
+              <Clock className="size-3" aria-hidden="true" />~{formatTime(match.scheduled_start_time)}
             </Badge>
           )}
 
@@ -114,14 +116,14 @@ export function FixtureMatchRow({
 
           {isCompleted && durationMinutes !== null && (
             <span className="inline-flex shrink-0 items-center gap-1 font-sans text-[11px] font-medium text-court-cream/55">
-              <Clock className="size-3" />
+              <Clock className="size-3" aria-hidden="true" />
               {formatDuration(durationMinutes)}
             </span>
           )}
 
           {courtName && (
             <Badge variant="outline" className="ml-auto shrink-0 gap-1 border-white/15 px-2 py-0.5 text-[11px] text-court-cream/80">
-              <MapPin className="size-3 text-ember-400" />
+              <MapPin className="size-3 text-ember-400" aria-hidden="true" />
               {courtName}
             </Badge>
           )}
@@ -156,7 +158,7 @@ export function FixtureMatchRow({
 
         {!match.is_completed && match.scheduled_start_time && (
           <span className="inline-flex shrink-0 items-center gap-1 font-sans text-[11px] font-medium text-court-cream/55">
-            <Clock className="size-3" />
+            <Clock className="size-3" aria-hidden="true" />
             {formatTime(match.scheduled_start_time)}
           </span>
         )}
@@ -179,14 +181,14 @@ export function FixtureMatchRow({
 
         {durationMinutes !== null && (
           <span className="inline-flex shrink-0 items-center gap-1 font-sans text-[11px] font-medium text-court-cream/55">
-            <Clock className="size-3" />
+            <Clock className="size-3" aria-hidden="true" />
             {formatDuration(durationMinutes)}
           </span>
         )}
 
         {courtName && (
           <span className="ml-auto inline-flex min-w-0 shrink-0 items-center gap-1 font-sans text-[11px] font-medium text-court-cream/55">
-            <MapPin className="size-3" />
+            <MapPin className="size-3" aria-hidden="true" />
             {courtName}
           </span>
         )}
@@ -221,10 +223,15 @@ function Name({
           isPlaceholder ? 'italic text-court-cream/45' : isWinner ? 'text-ember-600' : 'text-court-cream'
         )}
       >
-        {isWinner && align === 'left' && <Check className="size-3.5 shrink-0" strokeWidth={3} />}
+        {isWinner && align === 'left' && <Check className="size-3.5 shrink-0" strokeWidth={3} aria-hidden="true" />}
         <span className="min-w-0 truncate">{label}</span>
-        {isWithdrawn && <UserX className="size-3 shrink-0 text-danger" />}
-        {isWinner && align === 'right' && <Check className="size-3.5 shrink-0" strokeWidth={3} />}
+        {isWithdrawn && (
+          <>
+            <UserX className="size-3 shrink-0 text-danger" aria-hidden="true" />
+            <span className="sr-only"> (withdrawn)</span>
+          </>
+        )}
+        {isWinner && align === 'right' && <Check className="size-3.5 shrink-0" strokeWidth={3} aria-hidden="true" />}
       </span>
       {team && (
         <span className="font-sans text-[9px] font-bold uppercase tracking-wide text-court-cream/45">Team {team}</span>

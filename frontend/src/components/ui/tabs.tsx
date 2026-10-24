@@ -20,8 +20,9 @@ export function TabsTrigger({ className, ...props }: React.ComponentPropsWithout
   return (
     <TabsPrimitive.Trigger
       className={cn(
-        'whitespace-nowrap rounded-full px-3.5 py-2 text-sm font-semibold text-court-cream/55 transition-all',
+        'whitespace-nowrap rounded-full px-3.5 py-2 text-sm font-semibold text-court-cream/55 transition-[background-color,color,box-shadow]',
         'hover:text-court-cream/85',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-500 focus-visible:ring-offset-2 focus-visible:ring-offset-ink',
         'data-[state=active]:bg-navy-900 data-[state=active]:text-cream-50 data-[state=active]:shadow-sm',
         className
       )}
@@ -33,7 +34,10 @@ export function TabsTrigger({ className, ...props }: React.ComponentPropsWithout
 export function TabsContent({ className, ...props }: React.ComponentPropsWithoutRef<typeof TabsPrimitive.Content>) {
   return (
     <TabsPrimitive.Content
-      className={cn('mt-5 focus-visible:outline-none animate-fade-up', className)}
+      className={cn(
+        'mt-5 animate-fade-up focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember-500 focus-visible:ring-offset-2 focus-visible:ring-offset-ink rounded-lg',
+        className
+      )}
       {...props}
     />
   )

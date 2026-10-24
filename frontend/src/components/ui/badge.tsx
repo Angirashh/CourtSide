@@ -34,7 +34,7 @@ export function Badge({ className, variant, dot, pulse, children, ...props }: Ba
     <span className={cn(badgeVariants({ variant }), className)} {...props}>
       {pulse ? (
         <span className="relative flex size-1.5">
-          <span className="absolute inline-flex size-full animate-ping rounded-full bg-current opacity-75" />
+          <span className="absolute inline-flex size-full animate-ping rounded-full bg-current opacity-75 motion-reduce:animate-none" />
           <span className="relative inline-flex size-1.5 rounded-full bg-current" />
         </span>
       ) : (

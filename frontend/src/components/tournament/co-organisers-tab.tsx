@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 import { Mail, Phone, Plus, UserMinus, Users } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { FieldError, Input, Label } from '@/components/ui/input'
 import { EmptyState } from '@/components/ui/empty-state'
@@ -22,6 +23,7 @@ const addSchema = z.object({
 export function CoOrganisersTab({ tournamentId }: { tournamentId: string }) {
   const { data: coOrganisers, isLoading } = useCoOrganisers(tournamentId)
   const [open, setOpen] = useState(false)
+  const [removeTarget, setRemoveTarget] = useState<CoOrganiser | null>(null)
   const add = useAddCoOrganiser(tournamentId)
   const remove = useRemoveCoOrganiser(tournamentId)
 
@@ -40,9 +42,13 @@ export function CoOrganisersTab({ tournamentId }: { tournamentId: string }) {
     })
   })
 
-  function handleRemove(co: CoOrganiser) {
-    remove.mutate(co.organiser_id, {
-      onSuccess: () => toast.success(`${co.name} removed.`),
+  function handleRemove() {
+    if (!removeTarget) return
+    remove.mutate(removeTarget.organiser_id, {
+      onSuccess: () => {
+        toast.success(`${removeTarget.name} removed.`)
+        setRemoveTarget(null)
+      },
       onError: (err) => toast.error(extractErrorMessage(err)),
     })
   }
@@ -51,7 +57,7 @@ export function CoOrganisersTab({ tournamentId }: { tournamentId: string }) {
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-court-cream/55">
-          Give another organiser's account full access to this tournament — same as your own.
+          Give another organiser’s account full access to this tournament — same as your own.
         </p>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
@@ -68,7 +74,7 @@ export function CoOrganisersTab({ tournamentId }: { tournamentId: string }) {
             <form onSubmit={onSubmit} className="space-y-3.5">
               <div className="space-y-1.5">
                 <Label>Email or phone</Label>
-                <Input placeholder="they@club.com" {...register('identifier')} />
+                <Input placeholder="they@club.com" autoComplete="off" {...register('identifier')} />
                 <FieldError>{errors.identifier?.message}</FieldError>
               </div>
               <DialogFooter>
@@ -116,16 +122,26 @@ export function CoOrganisersTab({ tournamentId }: { tournamentId: string }) {
                   <p className="text-[11px] text-court-cream/45">Added {formatDate(co.added_at)}</p>
                 </div>
               </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="self-start text-danger hover:bg-danger-bg sm:self-center"
-                disabled={remove.isPending}
-                onClick={() => handleRemove(co)}
-              >
-                <UserMinus className="size-3.5" />
-                Remove
-              </Button>
+              <ConfirmDialog
+                open={removeTarget?.organiser_id === co.organiser_id}
+                onOpenChange={(next) => setRemoveTarget(next ? co : null)}
+                trigger={
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="self-start text-danger hover:bg-danger-bg sm:self-center"
+                    disabled={remove.isPending}
+                  >
+                    <UserMinus className="size-3.5" aria-hidden="true" />
+                    Remove
+                  </Button>
+                }
+                title={`Remove ${co.name}?`}
+                description="They’ll lose full access to manage this tournament right away."
+                confirmLabel="Remove"
+                pending={remove.isPending}
+                onConfirm={handleRemove}
+              />
             </Card>
           ))}
         </div>

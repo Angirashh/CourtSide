@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 from sqlalchemy import or_
 
-from app.api.dependencies import CurrentUser, get_db, require_player
+from app.api.dependencies import CurrentUser, get_db, require_organiser, require_player
 from app.db import models
 from app.schemas.athlete import (
     AthleteCreate,
@@ -96,8 +96,15 @@ def list_athletes(
 
 
 @router.post("", response_model=AthleteResponse, status_code=status.HTTP_201_CREATED)
-def create_athlete(payload: AthleteCreate, db: Session = Depends(get_db)):
-    """Registers a new global athlete profile."""
+def create_athlete(
+    payload: AthleteCreate,
+    current_user: CurrentUser = Depends(require_organiser),
+    db: Session = Depends(get_db),
+):
+    """Registers a new global athlete profile. Organiser-only: this creates a row that
+    `_claim_or_create_athlete` (routes_player_auth.py) later matches signups against by
+    email/phone, so an anonymous caller could otherwise seed contact info that hijacks a
+    future player's account-linking."""
     # Check for existing email or phone conflicts
     if payload.email:
         existing_email = db.query(models.Athlete).filter(models.Athlete.email == payload.email).first()
@@ -273,8 +280,18 @@ def get_athlete_profile(athlete_id: str, db: Session = Depends(get_db)):
 
 
 @router.patch("/{athlete_id}", response_model=AthleteResponse)
-def update_athlete(athlete_id: str, payload: AthleteUpdate, db: Session = Depends(get_db)):
-    """Updates basic athlete biographical details."""
+def update_athlete(
+    athlete_id: str,
+    payload: AthleteUpdate,
+    current_user: CurrentUser = Depends(require_organiser),
+    db: Session = Depends(get_db),
+):
+    """Updates basic athlete biographical details. Organiser-only: this is the endpoint that
+    edits email/phone, which `_claim_or_create_athlete` (routes_player_auth.py) uses to match
+    a Google/phone signup onto an existing Athlete record -- an unauthenticated caller could
+    rewrite a victim's contact info and get a new login bound to that victim's competitive
+    history. Self-service profile edits go through the separate, ownership-scoped
+    `PATCH /athletes/me`."""
     athlete = db.query(models.Athlete).filter(models.Athlete.id == athlete_id).first()
     if not athlete:
         raise HTTPException(status_code=404, detail="Athlete not found")

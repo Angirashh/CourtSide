@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { Canvas, useThree } from '@react-three/fiber'
 import { OrbitControls } from '@react-three/drei'
 import type { OrthographicCamera } from 'three'
+import { usePrefersReducedMotion } from '@/hooks/use-reduced-motion'
 
 // Real doubles-court dimensions (metres), per BWF law.
 const LENGTH = 13.4
@@ -101,7 +102,7 @@ function ResponsiveZoom({ worldWidth = 10 }: { worldWidth?: number }) {
   return null
 }
 
-function Scene() {
+function Scene({ autoRotate }: { autoRotate: boolean }) {
   return (
     <>
       <ambientLight intensity={0.7} />
@@ -115,7 +116,7 @@ function Scene() {
       <OrbitControls
         enableDamping
         dampingFactor={0.08}
-        autoRotate
+        autoRotate={autoRotate}
         autoRotateSpeed={0.6}
         minZoom={12}
         maxZoom={140}
@@ -127,16 +128,20 @@ function Scene() {
   )
 }
 
-export default function BadmintonCourt3D() {
+export default function BadmintonCourt3D({ spinning = true }: { spinning?: boolean }) {
+  const prefersReducedMotion = usePrefersReducedMotion()
+  const autoRotate = spinning && !prefersReducedMotion
+
   return (
     <Canvas
+      aria-hidden="true"
       className="badminton-court-canvas"
       dpr={[1, 2]}
       orthographic
       camera={{ position: [9, 9, 9], zoom: 118, near: 0.1, far: 100 }}
       gl={{ antialias: true, alpha: true }}
     >
-      <Scene />
+      <Scene autoRotate={autoRotate} />
     </Canvas>
   )
 }

@@ -63,7 +63,9 @@ function NextMatchBarContent({ nextMatch, className }: { nextMatch: NextMatch; c
   return (
     <div className={cn('flex items-center gap-2', className)}>
       <span className="relative flex size-1.5 shrink-0">
-        {isLive && <span className="absolute inline-flex size-full animate-ping rounded-full bg-ember-500 opacity-75" />}
+        {isLive && (
+          <span className="absolute inline-flex size-full animate-ping rounded-full bg-ember-500 opacity-75 motion-reduce:animate-none" />
+        )}
         <span
           className={cn(
             'relative inline-flex size-1.5 rounded-full',
@@ -73,14 +75,14 @@ function NextMatchBarContent({ nextMatch, className }: { nextMatch: NextMatch; c
       </span>
 
       <span className={cn('shrink-0 font-sans text-[11px] font-bold uppercase tracking-wide', isLive ? 'text-ember-400' : 'text-warning')}>
-        {isLive ? "You're on court now" : 'Up next'}
+        {isLive ? 'You’re on court now' : 'Up next'}
       </span>
 
       {!isLive && nextMatch.scheduled_start_time && (
         <>
           <Separator />
           <Badge variant="warning" className="shrink-0 gap-1 px-2 py-0.5 text-[11px]">
-            <Clock className="size-3" />~{formatTime(nextMatch.scheduled_start_time)}
+            <Clock className="size-3" aria-hidden="true" />~{formatTime(nextMatch.scheduled_start_time)}
           </Badge>
         </>
       )}
@@ -95,7 +97,7 @@ function NextMatchBarContent({ nextMatch, className }: { nextMatch: NextMatch; c
         <>
           <Separator />
           <Badge variant="outline" className="shrink-0 gap-1 border-white/15 px-2 py-0.5 text-[11px] text-court-cream/80">
-            <MapPin className="size-3 text-ember-400" />
+            <MapPin className="size-3 text-ember-400" aria-hidden="true" />
             {nextMatch.court_name}
           </Badge>
         </>

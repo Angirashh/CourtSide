@@ -1,6 +1,12 @@
 import { api } from './client'
 import type { NextMatch, Player, WithdrawResponse } from '@/types/api'
 
+export type PlayerTeamAssignment = {
+  player_id: string
+  team_id?: string | null
+  team?: 'A' | 'B' | null
+}
+
 export const playersApi = {
   list: (tournamentId: string, includePlaceholders = true) =>
     api
@@ -9,7 +15,7 @@ export const playersApi = {
       })
       .then((r) => r.data),
 
-  register: (tournamentId: string, payload: { name: string; seed?: number; email?: string }) =>
+  register: (tournamentId: string, payload: { name: string; seed?: number; email?: string; team_id?: string }) =>
     api.post<Player>(`/tournaments/${tournamentId}/players`, payload).then((r) => r.data),
 
   registerBatch: (tournamentId: string, players: { name: string }[]) =>
@@ -37,7 +43,7 @@ export const playersApi = {
       .post<WithdrawResponse>(`/tournaments/${tournamentId}/players/${playerId}/withdraw`, { reason })
       .then((r) => r.data),
 
-  update: (tournamentId: string, playerId: string, payload: { team?: 'A' | 'B' }) =>
+  update: (tournamentId: string, playerId: string, payload: { team?: 'A' | 'B'; team_id?: string | null }) =>
     api.patch<Player>(`/tournaments/${tournamentId}/players/${playerId}`, payload).then((r) => r.data),
 
   updateTeamAssignments: (
@@ -46,6 +52,11 @@ export const playersApi = {
   ) =>
     api
       .patch<Player[]>(`/tournaments/${tournamentId}/players/team-assignments`, { assignments })
+      .then((r) => r.data),
+
+  updatePlayerTeamAssignments: (tournamentId: string, assignments: PlayerTeamAssignment[]) =>
+    api
+      .patch<Player[]>(`/tournaments/${tournamentId}/players/team-id-assignments`, { assignments })
       .then((r) => r.data),
 
   selfRegister: (tournamentId: string) =>

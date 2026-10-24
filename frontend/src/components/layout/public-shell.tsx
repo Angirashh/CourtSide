@@ -1,10 +1,11 @@
 import { useRef } from 'react'
-import { NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { Link, NavLink, Outlet } from 'react-router-dom'
 import { Info, LayoutGrid, Trophy, UserRound, Users } from 'lucide-react'
 import { usePublicTournaments } from '@/hooks/use-public'
 import { useScrollToTop } from '@/hooks/use-scroll-to-top'
-import { BrandMark, BrandWordmark } from '@/components/brand/logo'
+import { BrandMark, BrandWatermark, BrandWordmark } from '@/components/brand/logo'
 import { StickyNextMatchBar } from '@/components/public/sticky-next-match-bar'
+import { SkipToContent } from '@/components/ui/skip-to-content'
 import { cn } from '@/lib/utils'
 
 const publicNav = [
@@ -24,6 +25,7 @@ export function PublicShell() {
     // the elastic rubber-band bounce (nice to keep!) while stopping it from ever
     // dragging our `position: fixed` sidebar/bottom-nav chrome along with it.
     <div className="fixed inset-0 bg-paper text-court-cream">
+      <SkipToContent />
       <Sidebar />
       <div
         ref={scrollRef}
@@ -32,7 +34,7 @@ export function PublicShell() {
       >
         <Topbar />
         <StickyNextMatchBar />
-        <main className="px-4 py-7 sm:px-6 lg:px-10 lg:py-9">
+        <main id="main-content" className="px-4 py-7 sm:px-6 lg:px-10 lg:py-9">
           <Outlet />
         </main>
         <Footer />
@@ -57,15 +59,19 @@ function BottomNav() {
             end={item.end}
             className={({ isActive }) =>
               cn(
-                'relative flex h-[68px] flex-col items-center justify-center gap-1 font-sans text-[9px] font-bold uppercase tracking-wider transition-colors active:bg-navy-800/60',
+                'flex h-[68px] flex-col items-center justify-center gap-1 font-sans text-[9px] font-bold uppercase tracking-wider transition-colors active:scale-[0.98]',
                 isActive ? 'text-ember-500' : 'text-court-cream/45'
               )
             }
           >
             {({ isActive }) => (
               <>
-                {isActive && <span className="absolute inset-x-6 top-0 h-0.5 bg-ember-500" />}
-                <item.icon className={cn('size-5', isActive && 'text-ember-500')} />
+                {/* Pill behind the icon on the active tab -- same active-state language as the
+                    sidebar nav above and the organiser shell, instead of the underline-tab
+                    indicator this bar used to borrow from desktop tab bars. */}
+                <span className={cn('flex size-8 items-center justify-center rounded-full transition-colors', isActive && 'bg-ember-500/15')}>
+                  <item.icon className="size-5" />
+                </span>
                 {item.label}
               </>
             )}
@@ -97,11 +103,9 @@ function Footer() {
   return (
     <footer className="bg-ink-deep px-4 py-10 text-cream-50 sm:px-6 lg:px-10">
       <div className="flex flex-col justify-between gap-10 lg:flex-row lg:gap-8">
-        <div className="max-w-sm">
-          <div className="flex items-center gap-2.5">
-            <BrandMark />
-            <BrandWordmark className="text-xl text-cream-50" />
-          </div>
+        <div className="relative max-w-sm">
+          <BrandWatermark size={140} className="-left-6 -top-10" />
+          <BrandWordmark size={30} className="-ml-1.5" />
           <p className="mt-4 text-sm leading-relaxed text-court-cream/35">
             The home for tournaments across corporates, colleges and juniors. Every bracket, every route, one place
             to run it from.
@@ -115,9 +119,9 @@ function Footer() {
               <ul className="mt-3 space-y-2.5">
                 {col.links.map((link) => (
                   <li key={link.label}>
-                    <a href={link.to} className="text-sm text-court-cream/35 underline transition-colors hover:text-cream-50">
+                    <Link to={link.to} className="text-sm text-court-cream/35 underline transition-colors hover:text-cream-50">
                       {link.label}
-                    </a>
+                    </Link>
                   </li>
                 ))}
               </ul>
@@ -162,23 +166,25 @@ function Sidebar() {
 }
 
 function Topbar() {
-  const navigate = useNavigate()
   const { data: tournaments } = usePublicTournaments()
   const liveCount = (tournaments ?? []).filter((t) => t.status === 'IN_PROGRESS').length
 
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-white/10 bg-ink/96 px-4 backdrop-blur-sm sm:px-6 lg:h-[72px] lg:px-10">
-      <NavLink to="/" className="flex items-center gap-2.5 lg:hidden" aria-label="Courtside home">
+      <NavLink to="/" className="flex items-end lg:hidden" aria-label="Courtside home">
         <BrandMark />
-        <BrandWordmark className="text-xl text-court-cream" />
+        <BrandWordmark size={26} className="-ml-2.5" />
       </NavLink>
-      <BrandWordmark className="hidden text-xl text-court-cream lg:block" />
+      <div className="hidden items-end lg:flex">
+        <BrandMark />
+        <BrandWordmark size={26} className="-ml-2.5" />
+      </div>
 
       <div className="flex items-center gap-3">
         {liveCount > 0 && (
           <div className="flex items-center gap-1.5 text-xs font-bold text-signal">
             <span className="relative flex size-2">
-              <span className="absolute inline-flex size-full animate-ping rounded-full bg-signal opacity-60" />
+              <span className="absolute inline-flex size-full animate-ping rounded-full bg-signal opacity-60 motion-reduce:animate-none" />
               <span className="relative inline-flex size-2 rounded-full bg-signal" />
             </span>
             <span className="font-sans uppercase tracking-wide">
@@ -186,13 +192,13 @@ function Topbar() {
             </span>
           </div>
         )}
-        <button
-          onClick={() => navigate('/login?role=operator')}
+        <Link
+          to="/login?role=operator"
           className="inline-flex items-center gap-2 border border-white/15 bg-white/5 px-3.5 py-2 font-sans text-xs font-bold text-court-cream transition hover:border-signal"
         >
-          <Users className="size-4" />
+          <Users className="size-4" aria-hidden="true" />
           <span className="hidden sm:inline">Join as operator</span>
-        </button>
+        </Link>
       </div>
     </header>
   )
@@ -200,9 +206,9 @@ function Topbar() {
 
 function Brand() {
   return (
-    <NavLink to="/" className="flex items-center gap-2.5">
+    <NavLink to="/" className="flex items-end">
       <BrandMark />
-      <BrandWordmark className="text-xl text-cream-50" />
+      <BrandWordmark size={26} className="-ml-2.5" />
     </NavLink>
   )
 }

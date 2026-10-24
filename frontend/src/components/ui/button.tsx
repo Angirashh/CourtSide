@@ -5,7 +5,7 @@ import { Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const buttonVariants = cva(
-  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full font-display text-base transition-all duration-150 disabled:pointer-events-none disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-ink active:scale-[0.98]',
+  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full font-display text-base transition-[background-color,color,box-shadow,transform,opacity] duration-150 disabled:pointer-events-none disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-ink active:scale-[0.98]',
   {
     variants: {
       variant: {
@@ -53,7 +53,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         disabled={disabled || loading}
         {...props}
       >
-        {loading && <Loader2 className="size-4 animate-spin" />}
+        {loading && <Loader2 className="size-4 animate-spin" aria-hidden="true" />}
         {children}
       </button>
     )

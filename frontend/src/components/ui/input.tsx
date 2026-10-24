@@ -37,6 +37,7 @@ export const PhoneInput = React.forwardRef<HTMLInputElement, Omit<React.InputHTM
           inputMode="numeric"
           maxLength={10}
           placeholder="98765 43210"
+          autoComplete="tel-national"
           ref={ref}
           className={cn(
             'min-w-0 flex-1 bg-transparent px-3.5 text-base text-court-cream sm:text-sm placeholder:text-court-cream/45',
@@ -64,5 +65,9 @@ Label.displayName = 'Label'
 
 export function FieldError({ children }: { children?: string }) {
   if (!children) return null
-  return <p className="text-xs font-medium text-danger">{children}</p>
+  return (
+    <p className="text-xs font-medium text-danger" aria-live="polite">
+      {children}
+    </p>
+  )
 }
