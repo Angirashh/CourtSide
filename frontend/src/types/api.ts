@@ -33,14 +33,14 @@ export interface PendingOrganiser {
   created_at: string
 }
 
-export type TournamentFormat = 'GROUP_KNOCKOUT' | 'SWISS_KNOCKOUT' | 'KNOCKOUT' | 'TEAM_FRIENDLY'
+export type TournamentFormat = 'GROUP_KNOCKOUT' | 'SWISS_KNOCKOUT' | 'KNOCKOUT' | 'TEAM_FRIENDLY' | 'ROUND_ROBIN'
 export type TournamentType = 'INDIVIDUAL' | 'TEAM'
-export type EventFormat = Exclude<TournamentFormat, 'TEAM_FRIENDLY'>
+export type EventFormat = Exclude<TournamentFormat, 'TEAM_FRIENDLY' | 'ROUND_ROBIN'>
 export type TournamentEvent = 'singles' | 'doubles'
 export type TeamMatchType = 'SINGLES' | 'DOUBLES' | 'MIXED_DOUBLES'
 export type TournamentCategory = 'CORPORATE' | 'COLLEGE' | 'JUNIOR' | 'FRIENDLY'
 export type TournamentStatus = 'DRAFT' | 'SCHEDULING' | 'IN_PROGRESS' | 'COMPLETED'
-export type MatchStage = 'GROUP' | 'SWISS' | 'KNOCKOUT' | 'CROSSOVER'
+export type MatchStage = 'GROUP' | 'SWISS' | 'KNOCKOUT' | 'CROSSOVER' | 'ROUND_ROBIN'
 export type MatchStatus = 'SCHEDULED' | 'IN_PROGRESS' | 'COMPLETED'
 export type RegistrationStatus = 'NOT_OPEN' | 'OPEN' | 'CLOSED'
 

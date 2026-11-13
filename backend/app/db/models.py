@@ -27,6 +27,7 @@ class TournamentFormat(enum.Enum):
     SWISS_KNOCKOUT = "SWISS_KNOCKOUT"
     KNOCKOUT = "KNOCKOUT"
     TEAM_FRIENDLY = "TEAM_FRIENDLY"
+    ROUND_ROBIN = "ROUND_ROBIN"
 
 
 class TournamentType(str, enum.Enum):
@@ -53,6 +54,7 @@ class MatchStage(enum.Enum):
     SWISS = "SWISS"
     KNOCKOUT = "KNOCKOUT"
     CROSSOVER = "CROSSOVER"
+    ROUND_ROBIN = "ROUND_ROBIN"
 
 
 class MatchStatus(enum.Enum):

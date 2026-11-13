@@ -40,6 +40,11 @@ export function StandingsView({ format, matches, players }: { format: Tournament
     )
   }
 
+  if (format === 'ROUND_ROBIN') {
+    const rows = computeStandings(players.filter((p) => !p.is_placeholder), feederMatches)
+    return <GroupStandingsTable title="Standings" rows={rows} qualifySlots={0} />
+  }
+
   if (format !== 'GROUP_KNOCKOUT') {
     const rows = computeStandings(players.filter((p) => !p.is_placeholder), feederMatches)
     return <GroupStandingsTable title="Swiss standings" rows={rows} qualifySlots={4} />

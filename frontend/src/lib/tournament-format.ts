@@ -1,4 +1,4 @@
-import { GitBranch, Shuffle, Swords, Users } from 'lucide-react'
+import { GitBranch, Repeat, Shuffle, Swords, Users } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import type { TournamentFormat } from '@/types/api'
 
@@ -47,5 +47,14 @@ export const formatMeta: Record<TournamentFormat, FormatMeta> = {
       "The roster is split into two teams. Every player plays the same number of singles matches against players from the other team — never a teammate — making this a casual, mixer-style format rather than a bracket.",
     standings:
       "Individual standings rank players by matches won, then game difference and rally point difference. Team standings simply total each team's match wins across all of its players — whichever team's players collectively win more matches is ahead.",
+  },
+  ROUND_ROBIN: {
+    label: 'Round Robin',
+    icon: Repeat,
+    barClassName: 'bg-ember-400',
+    howItWorks:
+      "Every player plays the same, organiser-chosen number of matches against random distinct opponents drawn from the whole roster — not necessarily everyone playing everyone. There's no bracket; it's a flexible, casual league.",
+    standings:
+      'Standings rank players by matches won, then game difference and rally point difference.',
   },
 }

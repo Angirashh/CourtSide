@@ -12,6 +12,7 @@ from app.db.migrations import (
     ensure_player_name_columns,
     ensure_team_friendly_columns,
     ensure_team_friendly_enum_values,
+    ensure_round_robin_enum_values,
     ensure_player_role_enum_value,
     ensure_normalized_phone_numbers,
     ensure_court_available_from_column,
@@ -37,6 +38,7 @@ async def lifespan(app: FastAPI):
     ensure_player_name_columns(engine)
     ensure_team_friendly_columns(engine)
     ensure_team_friendly_enum_values(engine)
+    ensure_round_robin_enum_values(engine)
     ensure_player_role_enum_value(engine)
     ensure_normalized_phone_numbers(engine)
     ensure_court_available_from_column(engine)

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
-import { ArrowLeft, ArrowRight, CalendarDays, CheckCircle2, GitBranch, MapPin, Network, Trophy, UserX, Users } from 'lucide-react'
+import { ArrowLeft, ArrowRight, CalendarDays, CheckCircle2, GitBranch, MapPin, Network, Repeat, Trophy, UserX, Users } from 'lucide-react'
 import { usePublicStandings, usePublicTournament } from '@/hooks/use-public'
 import { useCourtChangeAlerts } from '@/hooks/use-court-change-alerts'
 import { useMyRegistrations } from '@/hooks/use-player-auth'
@@ -88,6 +88,7 @@ export function TournamentLivePage() {
   // group format) — computed client-side from the same matches/players already on the
   // page, identically to the organiser-side StandingsView, so the two never disagree.
   const isTeamFriendly = tournament.format === 'TEAM_FRIENDLY'
+  const isRoundRobin = tournament.format === 'ROUND_ROBIN'
   const isTeamTournament = tournament.tournament_type === 'TEAM'
   const realPlayers = tournament.players.filter((p) => !p.is_placeholder)
   const crossoverMatches = tournament.matches.filter((m) => m.stage === 'CROSSOVER')
@@ -96,6 +97,10 @@ export function TournamentLivePage() {
   // Mirrors the knockout podium's "show it the moment it's decided" behavior below —
   // the whole roster can finish its matches before the organiser clicks "End tournament".
   const allCrossoverMatchesDecided = crossoverMatches.length > 0 && crossoverMatches.every((m) => m.is_completed)
+  // Round Robin has no backend standings endpoint either (not a ranked bracket/group format) —
+  // computed client-side identically to Team Friendly above, individual-only (no team split).
+  const roundRobinMatches = tournament.matches.filter((m) => m.stage === 'ROUND_ROBIN')
+  const roundRobinRows = isRoundRobin ? computeStandings(realPlayers, roundRobinMatches) : []
   // Fixtures/standings only mean anything once a schedule has actually been generated
   // (matches exist) — a DRAFT tournament has neither yet.
   const hasSchedule = tournament.matches.length > 0 || tournament.team_ties.length > 0
@@ -236,6 +241,26 @@ export function TournamentLivePage() {
                           <h2 className="mb-3 font-display text-2xl leading-none text-court-cream">Team rosters</h2>
                           <TeamRosterCard players={realPlayers} />
                         </div>
+                      ) : isRoundRobin ? (
+                        <div className="space-y-3">
+                          <div>
+                            <Eyebrow>Every point counts</Eyebrow>
+                            <h2 className="font-display text-2xl leading-none text-court-cream">Standings at a glance</h2>
+                          </div>
+                          {roundRobinRows.length > 0 ? (
+                            <GroupStandingsTable title="Standings" rows={roundRobinRows.slice(0, 5)} qualifySlots={0} />
+                          ) : (
+                            <EmptyState icon={Trophy} title="No standings yet" description="Standings appear once matches are completed." />
+                          )}
+                          {roundRobinRows.length > 0 && (
+                            <Link
+                              to={tabHref('standings')}
+                              className="flex w-full items-center justify-center gap-1.5 py-2 font-display text-lg text-court-cream transition-colors hover:text-ember-600"
+                            >
+                              All standings <ArrowRight className="size-4" />
+                            </Link>
+                          )}
+                        </div>
                       ) : (
                         <div className="space-y-3">
                           <div>
@@ -273,7 +298,7 @@ export function TournamentLivePage() {
               <div>
                 <Eyebrow>Every point counts</Eyebrow>
                 <h2 className="font-display text-2xl leading-none text-court-cream">
-                  {isTeamTournament ? 'Team standings' : isTeamFriendly ? 'Team & individual standings' : 'Group standings'}
+                  {isTeamTournament ? 'Team standings' : isTeamFriendly ? 'Team & individual standings' : isRoundRobin ? 'Standings' : 'Group standings'}
                 </h2>
               </div>
               {isTeamTournament ? <TeamStandingsView tournamentId={tournament.id} format={tournament.format} /> : isTeamFriendly ? (
@@ -284,6 +309,12 @@ export function TournamentLivePage() {
                     <TeamStandingsCard rows={teamFriendlyTeamRows} />
                     <GroupStandingsTable title="Individual standings" rows={teamFriendlyIndividualRows} qualifySlots={0} />
                   </>
+                )
+              ) : isRoundRobin ? (
+                roundRobinMatches.length === 0 ? (
+                  <EmptyState icon={Trophy} title="No standings yet" description="Standings appear once matches are completed." />
+                ) : (
+                  <GroupStandingsTable title="Standings" rows={roundRobinRows} qualifySlots={0} />
                 )
               ) : groupEntries.length === 0 ? (
                 <EmptyState icon={Trophy} title="No standings yet" description="Standings appear once matches are completed." />
@@ -344,6 +375,14 @@ function FormatStrip({
 
   if (format === 'KNOCKOUT') {
     return <div className="rounded-2xl border border-white/10 bg-ink-card p-5"><StepBlock n="01" icon={GitBranch} title="Knockout bracket" subtitle="Win to advance · loss means elimination" /></div>
+  }
+
+  if (format === 'ROUND_ROBIN') {
+    return (
+      <div className="rounded-2xl border border-white/10 bg-ink-card p-5">
+        <StepBlock n="01" icon={Repeat} title="Round robin matches" subtitle="Everyone plays an equal, random set of opponents" />
+      </div>
+    )
   }
 
   const [step1, step2] =

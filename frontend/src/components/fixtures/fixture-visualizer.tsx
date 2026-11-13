@@ -60,7 +60,7 @@ export function FixtureVisualizer({
     )
   }
 
-  if (format === 'TEAM_FRIENDLY') {
+  if (format === 'TEAM_FRIENDLY' || format === 'ROUND_ROBIN') {
     // Grouped by each court's own chronological position (its 1st match, 2nd match, ...)
     // rather than by exact scheduled time. Exact-time grouping reads fine when every court
     // kicks off together, but breaks down the moment they don't: a court that opens later

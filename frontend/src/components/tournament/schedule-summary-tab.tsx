@@ -32,6 +32,7 @@ const stageLabel: Record<Match['stage'], string> = {
   SWISS: 'Swiss',
   KNOCKOUT: 'Knockout',
   CROSSOVER: 'Crossover',
+  ROUND_ROBIN: 'Round Robin',
 }
 
 export function ScheduleSummaryTab({ tournament }: { tournament: TournamentDetail }) {

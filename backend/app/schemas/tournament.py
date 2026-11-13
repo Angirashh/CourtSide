@@ -124,25 +124,25 @@ class TournamentCreate(TournamentBase):
     @model_validator(mode="after")
     def validate_competition_setup(self):
         if self.tournament_type == TournamentType.TEAM:
-            if self.format == TournamentFormat.TEAM_FRIENDLY:
+            if self.format in (TournamentFormat.TEAM_FRIENDLY, TournamentFormat.ROUND_ROBIN):
                 raise ValueError("Team tournaments require a team competition format.")
             if self.team_config is None:
                 raise ValueError("Configure the singles and doubles matches for each team tie.")
             if self.event_formats:
                 raise ValueError("Team tournaments use one competition format for teams.")
-        elif self.format == TournamentFormat.TEAM_FRIENDLY:
+        elif self.format in (TournamentFormat.TEAM_FRIENDLY, TournamentFormat.ROUND_ROBIN):
             if self.event_formats:
-                raise ValueError("Team Friendly keeps its existing setup.")
+                raise ValueError(f"{self.format.value} keeps its existing setup.")
             if self.team_config is not None:
-                raise ValueError("Team Friendly keeps its existing setup.")
+                raise ValueError(f"{self.format.value} keeps its existing setup.")
         else:
             if self.team_config is not None:
                 raise ValueError("Team tie settings are only available for team tournaments.")
             if self.event_formats:
                 if set(self.event_formats) - {"singles", "doubles"}:
                     raise ValueError("Event formats can only be set for singles and doubles.")
-                if TournamentFormat.TEAM_FRIENDLY in self.event_formats.values():
-                    raise ValueError("Team Friendly cannot be selected as an individual event format.")
+                if {TournamentFormat.TEAM_FRIENDLY, TournamentFormat.ROUND_ROBIN} & set(self.event_formats.values()):
+                    raise ValueError("Team Friendly and Round Robin cannot be selected as an individual event format.")
         return self
 
 
@@ -205,8 +205,10 @@ class ScheduleGenerationRequest(BaseModel):
     matches_per_player: Optional[int] = Field(
         default=None,
         ge=1,
-        description="Required if format is TEAM_FRIENDLY. Every player plays exactly this many "
-                     "distinct cross-team opponents, so both teams must be the same size."
+        description="Required if format is TEAM_FRIENDLY or ROUND_ROBIN. Every player plays "
+                     "exactly this many distinct opponents — for TEAM_FRIENDLY these must be "
+                     "cross-team (so both teams must be the same size); for ROUND_ROBIN they're "
+                     "drawn at random from the whole roster."
     )
 
 

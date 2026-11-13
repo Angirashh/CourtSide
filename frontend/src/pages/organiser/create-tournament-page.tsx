@@ -18,8 +18,9 @@ import { cn } from '@/lib/utils'
 const schema = z.object({
   name: z.string().min(3, 'Give your tournament a name'),
   tournament_type: z.enum(['INDIVIDUAL', 'TEAM']),
-  format: z.enum(['GROUP_KNOCKOUT', 'SWISS_KNOCKOUT', 'KNOCKOUT', 'TEAM_FRIENDLY']),
+  format: z.enum(['GROUP_KNOCKOUT', 'SWISS_KNOCKOUT', 'KNOCKOUT', 'TEAM_FRIENDLY', 'ROUND_ROBIN']),
   legacy_team_friendly: z.boolean(),
+  round_robin: z.boolean(),
   event_selection: z.enum(['singles', 'doubles', 'both']),
   singles_format: z.enum(['GROUP_KNOCKOUT', 'SWISS_KNOCKOUT', 'KNOCKOUT']),
   doubles_format: z.enum(['GROUP_KNOCKOUT', 'SWISS_KNOCKOUT', 'KNOCKOUT']),
@@ -91,6 +92,7 @@ export function CreateTournamentPage() {
       tournament_type: 'INDIVIDUAL',
       format: 'GROUP_KNOCKOUT',
       legacy_team_friendly: false,
+      round_robin: false,
       event_selection: 'singles',
       singles_format: 'GROUP_KNOCKOUT',
       doubles_format: 'GROUP_KNOCKOUT',
@@ -132,6 +134,7 @@ export function CreateTournamentPage() {
   const format = watch('format')
   const tournamentType = watch('tournament_type')
   const legacyTeamFriendly = watch('legacy_team_friendly')
+  const roundRobin = watch('round_robin')
   const eventSelection = watch('event_selection')
   const matchOrder = watch('match_order')
   const category = watch('category')
@@ -162,14 +165,15 @@ export function CreateTournamentPage() {
   }
 
   const onSubmit = handleSubmit((values) => {
-    const eventFormats = values.tournament_type === 'INDIVIDUAL' && !values.legacy_team_friendly
+    const eventFormats = values.tournament_type === 'INDIVIDUAL' && !values.legacy_team_friendly && !values.round_robin
       ? {
           ...(values.event_selection !== 'doubles' ? { singles: values.singles_format } : {}),
           ...(values.event_selection !== 'singles' ? { doubles: values.doubles_format } : {}),
         }
       : undefined
     const primaryFormat = values.tournament_type === 'TEAM'
-      ? values.format === 'TEAM_FRIENDLY' ? 'GROUP_KNOCKOUT' : values.format
+      ? values.format === 'TEAM_FRIENDLY' || values.format === 'ROUND_ROBIN' ? 'GROUP_KNOCKOUT' : values.format
+      : values.round_robin ? 'ROUND_ROBIN'
       : values.legacy_team_friendly ? 'TEAM_FRIENDLY' : eventFormats?.singles ?? eventFormats?.doubles ?? 'GROUP_KNOCKOUT'
     const teamConfig = values.tournament_type === 'TEAM'
       ? {
@@ -252,7 +256,7 @@ export function CreateTournamentPage() {
                       value={tournamentType}
                       onValueChange={(value) => {
                         setValue('tournament_type', value as 'INDIVIDUAL' | 'TEAM')
-                        if (value === 'TEAM' && format === 'TEAM_FRIENDLY') setValue('format', 'GROUP_KNOCKOUT')
+                        if (value === 'TEAM' && (format === 'TEAM_FRIENDLY' || format === 'ROUND_ROBIN')) setValue('format', 'GROUP_KNOCKOUT')
                       }}
                     >
                       <TabsList className="grid w-full grid-cols-2">
@@ -269,7 +273,7 @@ export function CreateTournamentPage() {
 
                   {tournamentType === 'INDIVIDUAL' ? (
                     <div className="space-y-4">
-                      {!legacyTeamFriendly ? (
+                      {!legacyTeamFriendly && !roundRobin ? (
                         <>
                           <FieldGroup label="Events">
                             <Tabs
@@ -292,8 +296,10 @@ export function CreateTournamentPage() {
                             )}
                           </div>
                         </>
-                      ) : (
+                      ) : legacyTeamFriendly ? (
                         <p className="text-sm text-court-cream/65">Team Friendly uses its existing crossover singles setup.</p>
+                      ) : (
+                        <p className="text-sm text-court-cream/65">Every player plays an equal, random set of opponents — set how many matches per player once you build your roster.</p>
                       )}
 
                       <div className="flex flex-wrap items-center gap-3 border-t border-white/10 pt-4">
@@ -301,12 +307,33 @@ export function CreateTournamentPage() {
                           type="button"
                           size="sm"
                           variant={legacyTeamFriendly ? 'primary' : 'outline'}
-                          onClick={() => setValue('legacy_team_friendly', !legacyTeamFriendly)}
+                          onClick={() => {
+                            setValue('legacy_team_friendly', !legacyTeamFriendly)
+                            if (!legacyTeamFriendly) setValue('round_robin', false)
+                          }}
                         >
                           {legacyTeamFriendly && <Check className="size-3.5" />}
                           Team Friendly
                         </Button>
-                        <p className="text-xs text-court-cream/50">Existing two-side cross-team singles format</p>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant={roundRobin ? 'primary' : 'outline'}
+                          onClick={() => {
+                            setValue('round_robin', !roundRobin)
+                            if (!roundRobin) setValue('legacy_team_friendly', false)
+                          }}
+                        >
+                          {roundRobin && <Check className="size-3.5" />}
+                          Round Robin
+                        </Button>
+                        <p className="text-xs text-court-cream/50">
+                          {legacyTeamFriendly
+                            ? 'Existing two-side cross-team singles format'
+                            : roundRobin
+                              ? 'Flexible matches-per-player format, no bracket'
+                              : 'Pick a casual format instead of a bracket'}
+                        </p>
                       </div>
                     </div>
                   ) : (

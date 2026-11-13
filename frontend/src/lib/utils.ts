@@ -160,7 +160,7 @@ export function matchRoundLabel(match: RoundLabelMatch, allMatches: RoundLabelMa
 }
 
 interface PodiumMatch {
-  stage: 'GROUP' | 'SWISS' | 'KNOCKOUT' | 'CROSSOVER'
+  stage: 'GROUP' | 'SWISS' | 'KNOCKOUT' | 'CROSSOVER' | 'ROUND_ROBIN'
   round_num: number
   is_completed: boolean
   is_bye: boolean
