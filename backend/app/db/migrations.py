@@ -101,6 +101,19 @@ def ensure_team_friendly_enum_values(engine: Engine) -> None:
         conn.execute(text("ALTER TYPE matchstage ADD VALUE IF NOT EXISTS 'CROSSOVER'"))
 
 
+def ensure_round_robin_enum_values(engine: Engine) -> None:
+    """
+    Same class of issue as ensure_team_friendly_enum_values above: ROUND_ROBIN was added to both
+    TournamentFormat and MatchStage after production's `tournamentformat`/`matchstage` types
+    already existed.
+    """
+    if engine.dialect.name != "postgresql":
+        return
+    with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
+        conn.execute(text("ALTER TYPE tournamentformat ADD VALUE IF NOT EXISTS 'ROUND_ROBIN'"))
+        conn.execute(text("ALTER TYPE matchstage ADD VALUE IF NOT EXISTS 'ROUND_ROBIN'"))
+
+
 def ensure_player_role_enum_value(engine: Engine) -> None:
     """
     Same class of issue as ensure_team_friendly_enum_values above: PLAYER was added to the

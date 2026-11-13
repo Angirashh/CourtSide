@@ -1,3 +1,4 @@
+import itertools
 from collections import defaultdict
 
 import pytest
@@ -6,6 +7,11 @@ from app.core.security import create_access_token
 from app.db import models
 
 API = "/api/v1"
+_phone_seq = itertools.count(1)
+
+
+def _unique_phone() -> str:
+    return f"90001{next(_phone_seq):05d}"
 
 
 @pytest.fixture
@@ -53,7 +59,11 @@ def _create_team_friendly_tournament(db_session):
 
 
 def _add_player(client, headers, tournament_id, name, team=None):
-    resp = client.post(f"{API}/tournaments/{tournament_id}/players", json={"name": name}, headers=headers)
+    resp = client.post(
+        f"{API}/tournaments/{tournament_id}/players",
+        json={"name": name, "phone": _unique_phone()},
+        headers=headers,
+    )
     assert resp.status_code == 201, resp.text
     player = resp.json()
 

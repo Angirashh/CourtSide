@@ -24,6 +24,7 @@ from app.services.fixture_engine.datatypes import (
 )
 from app.services.fixture_engine.fixture_engine import FixtureEngine
 from app.services.fixture_engine.generators.team_friendly import TeamFriendlyGenerator, InfeasibleQuotaError
+from app.services.fixture_engine.generators.flexible_round_robin import FlexibleRoundRobinGenerator
 from app.services.match_progression import finalize_athlete_career_stats
 from app.services.team_competition import complete_team_tie
 from app.services.team_progression import finalize_team_tie
@@ -635,6 +636,44 @@ def _build_team_friendly_template_matches(
         raise HTTPException(status_code=400, detail=e.detail)
 
 
+def _build_round_robin_template_matches(
+    real_db_players: List[models.Player],
+    matches_per_player: Optional[int],
+) -> List[EngineMatch]:
+    """
+    Validates the roster is ready for the ROUND_ROBIN format and generates a quota-based
+    pairing: every player gets exactly `matches_per_player` matches against distinct random
+    opponents drawn from the whole roster (not necessarily everyone-plays-everyone).
+    Raises HTTPException(400) with a message naming the problem, so the organiser gets a clear
+    fix-it instruction rather than a solver error.
+    """
+    if not matches_per_player or matches_per_player < 1:
+        raise HTTPException(status_code=400, detail="Set how many matches each player should play.")
+
+    if matches_per_player > len(real_db_players) - 1:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"{matches_per_player} matches per player isn't possible with "
+                f"{len(real_db_players)} players — opponents can't repeat."
+            )
+        )
+
+    engine_players = [EnginePlayer(id=p.id, name=p.name, seed=p.seed or 1) for p in real_db_players]
+
+    try:
+        return FlexibleRoundRobinGenerator.generate_quota_matches(engine_players, matches_per_player)
+    except InfeasibleQuotaError:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"{len(real_db_players)} players × {matches_per_player} matches each isn't a "
+                "valid schedule — that total must be an even number, since every match counts "
+                "toward two players at once. Try an adjacent match count."
+            )
+        )
+
+
 @router.post("/{tournament_id}/generate-schedule", response_model=ScheduleGenerationResponse)
 def generate_tournament_schedule(
     tournament_id: str,
@@ -740,6 +779,11 @@ def generate_tournament_schedule(
         # RNG draw fresh randomness each call, so "Regenerate schedule" naturally produces a
         # different valid draw every time without needing a new request field for this format.
         template_matches = _build_team_friendly_template_matches(
+            real_db_players=real_players,
+            matches_per_player=payload.matches_per_player,
+        )
+    elif tournament.format == models.TournamentFormat.ROUND_ROBIN:
+        template_matches = _build_round_robin_template_matches(
             real_db_players=real_players,
             matches_per_player=payload.matches_per_player,
         )

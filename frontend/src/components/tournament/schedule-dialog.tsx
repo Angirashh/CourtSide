@@ -35,7 +35,8 @@ export function ScheduleDialog({
   const roundsValue = swissRounds === '' ? recommendedRounds : swissRounds
   const roundsInvalid = format === 'SWISS_KNOCKOUT' && (roundsValue < 1 || roundsValue > maxRounds)
   const [matchesPerPlayer, setMatchesPerPlayer] = useState<number | ''>(3)
-  const matchesPerPlayerInvalid = format === 'TEAM_FRIENDLY' && (matchesPerPlayer === '' || matchesPerPlayer < 1)
+  const usesMatchesPerPlayer = format === 'TEAM_FRIENDLY' || format === 'ROUND_ROBIN'
+  const matchesPerPlayerInvalid = usesMatchesPerPlayer && (matchesPerPlayer === '' || matchesPerPlayer < 1)
   const generate = useGenerateSchedule(tournamentId)
 
   function handleSubmit() {
@@ -47,7 +48,7 @@ export function ScheduleDialog({
         start_time: `${date}T${startTime}:00`,
         num_groups: format === 'GROUP_KNOCKOUT' ? numGroups : undefined,
         num_swiss_rounds: format === 'SWISS_KNOCKOUT' ? roundsValue : undefined,
-        matches_per_player: format === 'TEAM_FRIENDLY' && matchesPerPlayer !== '' ? matchesPerPlayer : undefined,
+        matches_per_player: usesMatchesPerPlayer && matchesPerPlayer !== '' ? matchesPerPlayer : undefined,
       },
       {
         onSuccess: (res) => {
@@ -122,7 +123,7 @@ export function ScheduleDialog({
               <Input type="number" min={1} value={numGroups} onChange={(e) => setNumGroups(Number(e.target.value))} />
             </div>
           )}
-          {format === 'TEAM_FRIENDLY' && (
+          {usesMatchesPerPlayer && (
             <div className="space-y-1.5">
               <Label>Matches per player</Label>
               <Input
@@ -132,7 +133,9 @@ export function ScheduleDialog({
                 onChange={(e) => setMatchesPerPlayer(e.target.value === '' ? '' : Number(e.target.value))}
               />
               <p className="text-xs text-court-cream/45">
-                Every player gets this many distinct cross-team opponents — Team A and Team B must be the same size.
+                {format === 'TEAM_FRIENDLY'
+                  ? 'Every player gets this many distinct cross-team opponents — Team A and Team B must be the same size.'
+                  : 'Every player gets this many distinct opponents, drawn at random from the whole roster.'}
               </p>
             </div>
           )}

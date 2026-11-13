@@ -1,6 +1,7 @@
 from datetime import date, datetime
 from typing import Optional, List, Literal
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict, field_validator
+from app.core.phone import normalize_indian_phone
 from app.db.models import MatchStatus, TournamentFormat, TournamentStatus
 from app.schemas.match import MatchResponse
 
@@ -16,9 +17,24 @@ class PlayerBase(BaseModel):
 
 class PlayerCreate(PlayerBase):
     # Optional — when given, links this roster slot to the global athlete registry (matched or
-    # created by email), the same as a CSV roster upload does.
+    # created by phone/email), the same as a CSV roster upload does. Required by the
+    # organiser-facing "new player" endpoint (register_player) unless athlete_id is given
+    # instead -- kept Optional here, rather than required, so this same schema still works for
+    # linking an existing athlete (which already has its own phone on file) and for the batch/
+    # placeholder paths that don't collect it.
     email: Optional[str] = Field(None, max_length=150, examples=["viktor@example.com"])
+    phone: Optional[str] = Field(None, examples=["9876543210"])
     team_id: Optional[str] = None
+    # Optional — when given (from the roster's "find an existing player" search), links this
+    # roster slot directly to that athlete instead of matching/creating one by phone/email.
+    athlete_id: Optional[str] = Field(None, examples=["ATH_abc123"])
+
+    @field_validator("phone")
+    @classmethod
+    def _normalize_phone(cls, v: Optional[str]) -> Optional[str]:
+        if not v:
+            return None
+        return normalize_indian_phone(v)
 
 
 class PlayerUpdate(BaseModel):

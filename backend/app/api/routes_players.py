@@ -3,12 +3,14 @@ import io
 import uuid
 from datetime import datetime
 from typing import List, Dict, Any, Optional
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, Query, status, UploadFile, File
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import CurrentUser, ensure_tournament_access, get_db, require_operator_or_organiser, require_organiser, require_player
 from app.core.phone import normalize_indian_phone
 from app.db import models
+from app.schemas.athlete import AthleteSearchResult
 from app.schemas.player import (
     PlayerCreate,
     PlayerBatchCreate,
@@ -48,17 +50,91 @@ def _auto_close_registration_if_full(db: Session, tournament: models.Tournament)
         tournament.registration_status = models.RegistrationStatus.CLOSED
 
 
-def _find_or_create_athlete(db: Session, name: str, email: Optional[str]) -> Optional[models.Athlete]:
-    """Matches an existing global athlete by email, or creates one — same dedup the CSV roster
-    upload does. Returns None when no email is given (the player just isn't linked globally)."""
-    if not email:
+def _find_or_create_athlete(
+    db: Session, name: str, email: Optional[str], phone: Optional[str] = None
+) -> Optional[models.Athlete]:
+    """Matches an existing global athlete by phone first, falling back to email, or creates one
+    if neither matches -- same phone-first order the player self-registration flow already uses
+    (_claim_or_create_athlete in routes_player_auth.py), so an organiser retyping a repeat
+    player's phone links to their existing record instead of creating a duplicate. Returns None
+    when neither phone nor email is given (the player just isn't linked globally)."""
+    athlete = None
+    if phone:
+        athlete = db.query(models.Athlete).filter(models.Athlete.phone == phone).first()
+    if not athlete and email:
+        athlete = db.query(models.Athlete).filter(models.Athlete.email == email).first()
+
+    if athlete:
+        if phone and not athlete.phone:
+            athlete.phone = phone
+        if email and not athlete.email:
+            athlete.email = email
+        return athlete
+
+    if not phone and not email:
         return None
-    athlete = db.query(models.Athlete).filter(models.Athlete.email == email).first()
-    if not athlete:
-        athlete = models.Athlete(name=name, email=email)
-        db.add(athlete)
-        db.flush()
+    athlete = models.Athlete(name=name, email=email, phone=phone)
+    db.add(athlete)
+    db.flush()
     return athlete
+
+
+@router.get("/search-existing", response_model=List[AthleteSearchResult])
+def search_existing_players(
+    tournament_id: str,
+    q: str = Query(..., min_length=2),
+    current_user: CurrentUser = Depends(require_organiser),
+    db: Session = Depends(get_db),
+):
+    """
+    Lets an organiser find a player who has already played in one of THEIR tournaments (owned,
+    co-organised, or legacy ownerless) and add them straight from this search, instead of
+    retyping a repeat player's details. Deliberately scoped this way rather than reusing the
+    open, unauthenticated GET /athletes search -- that would let any organiser browse by
+    name/phone for an athlete who only ever played for a completely unrelated organiser.
+    """
+    tournament = db.query(models.Tournament).filter(models.Tournament.id == tournament_id).first()
+    if not tournament:
+        raise HTTPException(status_code=404, detail="Tournament not found")
+    ensure_tournament_access(tournament, current_user, db)
+
+    # Same three conditions ensure_tournament_access checks, applied to every tournament this
+    # organiser could have added a player to, not just the one being searched from.
+    visible_tournament_ids = db.query(models.Tournament.id).filter(
+        or_(
+            models.Tournament.organiser_id == current_user.id,
+            models.Tournament.organiser_id.is_(None),
+            models.Tournament.id.in_(
+                db.query(models.TournamentCoOrganiser.tournament_id).filter(
+                    models.TournamentCoOrganiser.organiser_id == current_user.id
+                )
+            ),
+        )
+    )
+    visible_athlete_ids = db.query(models.Player.athlete_id).filter(
+        models.Player.athlete_id.isnot(None),
+        models.Player.tournament_id.in_(visible_tournament_ids),
+    )
+    already_rostered_athlete_ids = db.query(models.Player.athlete_id).filter(
+        models.Player.tournament_id == tournament_id,
+        models.Player.athlete_id.isnot(None),
+    )
+
+    search_fmt = f"%{q.strip()}%"
+    return (
+        db.query(models.Athlete)
+        .filter(
+            models.Athlete.id.in_(visible_athlete_ids),
+            models.Athlete.id.notin_(already_rostered_athlete_ids),
+            or_(
+                models.Athlete.name.ilike(search_fmt),
+                models.Athlete.phone.ilike(search_fmt),
+            ),
+        )
+        .order_by(models.Athlete.name.asc())
+        .limit(20)
+        .all()
+    )
 
 
 @router.post("", response_model=PlayerResponse, status_code=status.HTTP_201_CREATED)
@@ -92,7 +168,14 @@ def register_player(
         if not team_exists:
             raise HTTPException(status_code=400, detail="Choose a team from this tournament.")
 
-    athlete = _find_or_create_athlete(db, payload.name, payload.email)
+    if payload.athlete_id:
+        athlete = db.query(models.Athlete).filter(models.Athlete.id == payload.athlete_id).first()
+        if not athlete:
+            raise HTTPException(status_code=404, detail="Athlete not found.")
+    else:
+        if not payload.phone:
+            raise HTTPException(status_code=400, detail="Enter a phone number for this player.")
+        athlete = _find_or_create_athlete(db, payload.name, payload.email, payload.phone)
     if athlete:
         existing_entry = db.query(models.Player).filter(
             models.Player.tournament_id == tournament_id,
@@ -261,7 +344,7 @@ def register_players_batch(
 
     created_players = []
     for p_in in payload.players:
-        athlete = _find_or_create_athlete(db, p_in.name, p_in.email)
+        athlete = _find_or_create_athlete(db, p_in.name, p_in.email, p_in.phone)
         player = models.Player(
             id=f"P_{uuid.uuid4().hex[:8]}",
             tournament_id=tournament_id,
@@ -472,6 +555,62 @@ def update_player(
     db.commit()
     db.refresh(player)
     return player
+
+
+@router.delete("/{player_id}")
+def delete_player(
+    tournament_id: str,
+    player_id: str,
+    current_user: CurrentUser = Depends(require_organiser),
+    db: Session = Depends(get_db)
+):
+    """
+    Removes a single player from the roster entirely -- distinct from withdraw, which marks a
+    player Out and walks over their pending matches. Only safe before this player has been
+    drawn into any fixture (a dangling match reference would otherwise be left behind, or
+    silently nulled by the DB's ON DELETE SET NULL), so this is blocked once any match
+    references them; use withdraw instead once a schedule already includes them.
+    """
+    tournament = db.query(models.Tournament).filter(models.Tournament.id == tournament_id).first()
+    if not tournament:
+        raise HTTPException(status_code=404, detail="Tournament not found")
+    ensure_tournament_access(tournament, current_user, db)
+
+    player = db.query(models.Player).filter(
+        models.Player.id == player_id, models.Player.tournament_id == tournament_id
+    ).first()
+    if not player:
+        raise HTTPException(status_code=404, detail="Player not found")
+
+    if tournament.status not in (models.TournamentStatus.DRAFT, models.TournamentStatus.SCHEDULING):
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot remove players once the tournament is in progress or completed."
+        )
+
+    has_fixture = db.query(models.Match).filter(
+        models.Match.tournament_id == tournament_id,
+        or_(
+            models.Match.player1_id == player_id,
+            models.Match.player2_id == player_id,
+            models.Match.winner_id == player_id,
+        ),
+    ).first()
+    if has_fixture:
+        raise HTTPException(
+            status_code=400,
+            detail="This player already has fixtures — withdraw them instead, or regenerate the schedule first."
+        )
+
+    for team in db.query(models.TournamentTeam).filter(
+        models.TournamentTeam.tournament_id == tournament_id,
+        models.TournamentTeam.captain_player_id == player_id,
+    ):
+        team.captain_player_id = None
+
+    db.delete(player)
+    db.commit()
+    return {"message": "Player removed.", "player_id": player_id}
 
 
 @router.delete("")

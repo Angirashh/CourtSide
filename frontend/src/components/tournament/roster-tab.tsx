@@ -4,18 +4,21 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { toast } from 'sonner'
-import { Crown, FileUp, Info, Pencil, Plus, Shuffle, Trash2, Upload, UserX, Users } from 'lucide-react'
+import { Crown, FileUp, Info, Pencil, Plus, Search, Shuffle, Trash2, Upload, UserX, Users } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog'
-import { FieldError, Input, Label } from '@/components/ui/input'
+import { FieldError, Input, Label, PhoneInput } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { EmptyState } from '@/components/ui/empty-state'
 import { InitialsAvatar } from '@/components/ui/avatar'
 import {
   useDeleteAllPlayers,
+  useDeletePlayer,
   useRegisterPlayer,
+  useSearchExistingPlayers,
   useUpdatePlayerTeamAssignments,
   useUpdateTeamAssignments,
   useUploadRoster,
@@ -24,7 +27,7 @@ import {
 import { useAddTournamentTeam, useFinalizeSeeding, useUpdateTournamentTeam } from '@/hooks/use-tournaments'
 import { extractErrorMessage } from '@/lib/api/client'
 import { cn } from '@/lib/utils'
-import type { Player, TeamTieConfig, TournamentFormat, TournamentStatus, TournamentTeam, TournamentType } from '@/types/api'
+import type { AthleteSearchResult, Player, TeamTieConfig, TournamentFormat, TournamentStatus, TournamentTeam, TournamentType } from '@/types/api'
 
 export function RosterTab({
   tournamentId,
@@ -149,6 +152,7 @@ export function RosterTab({
                   return next
                 })}
                 canWithdraw={status !== 'DRAFT' && status !== 'COMPLETED' && !player.is_withdrawn}
+                canDelete={canEditRoster && !player.is_withdrawn}
               />
             ))}
           </ul>
@@ -390,6 +394,7 @@ function PlayerRow({
   savingTeamAssignments,
   onTeamAssignmentChange,
   canWithdraw,
+  canDelete,
 }: {
   player: Player
   tournamentId: string
@@ -399,10 +404,13 @@ function PlayerRow({
   savingTeamAssignments: boolean
   onTeamAssignmentChange: (teamId: string | null) => void
   canWithdraw: boolean
+  canDelete: boolean
 }) {
   const withdraw = useWithdrawPlayer(tournamentId)
+  const deletePlayer = useDeletePlayer(tournamentId)
   const [open, setOpen] = useState(false)
   const [reason, setReason] = useState('')
+  const [deleteOpen, setDeleteOpen] = useState(false)
 
   return (
     <li className={cn('flex items-center gap-3 px-4 py-3', allowTeamAssignment && 'flex-wrap sm:flex-nowrap', player.is_withdrawn && 'bg-danger-bg/30')}>
@@ -436,57 +444,100 @@ function PlayerRow({
           <UserX className="size-3" />
           Out
         </Badge>
-      ) : canWithdraw ? (
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button variant="ghost" size="sm" className="text-danger hover:bg-danger-bg">
-              Withdraw
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Withdraw {player.name}?</DialogTitle>
-              <DialogDescription>
-                Any pending match with a known opponent is immediately walked over. This can’t be undone.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-1.5">
-              <Label>Reason (optional)</Label>
-              <Input placeholder="e.g. Ankle injury" value={reason} onChange={(e) => setReason(e.target.value)} />
-            </div>
-            <DialogFooter>
-              <Button variant="ghost" onClick={() => setOpen(false)}>
-                Cancel
-              </Button>
-              <Button
-                variant="danger"
-                loading={withdraw.isPending}
-                onClick={() =>
-                  withdraw.mutate(
-                    { playerId: player.id, reason: reason || undefined },
-                    {
-                      onSuccess: (res) => {
-                        toast.success(`${player.name} withdrawn — ${res.walkover_matches.length} match(es) walked over.`)
-                        setOpen(false)
-                        setReason('')
-                      },
-                      onError: (err) => toast.error(extractErrorMessage(err)),
+      ) : (
+        <div className="flex items-center gap-1">
+          {canWithdraw && (
+            <Dialog open={open} onOpenChange={setOpen}>
+              <DialogTrigger asChild>
+                <Button variant="ghost" size="sm" className="text-danger hover:bg-danger-bg">
+                  Withdraw
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Withdraw {player.name}?</DialogTitle>
+                  <DialogDescription>
+                    Any pending match with a known opponent is immediately walked over. This can’t be undone.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-1.5">
+                  <Label>Reason (optional)</Label>
+                  <Input placeholder="e.g. Ankle injury" value={reason} onChange={(e) => setReason(e.target.value)} />
+                </div>
+                <DialogFooter>
+                  <Button variant="ghost" onClick={() => setOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button
+                    variant="danger"
+                    loading={withdraw.isPending}
+                    onClick={() =>
+                      withdraw.mutate(
+                        { playerId: player.id, reason: reason || undefined },
+                        {
+                          onSuccess: (res) => {
+                            toast.success(`${player.name} withdrawn — ${res.walkover_matches.length} match(es) walked over.`)
+                            setOpen(false)
+                            setReason('')
+                          },
+                          onError: (err) => toast.error(extractErrorMessage(err)),
+                        }
+                      )
                     }
-                  )
-                }
-              >
-                Confirm withdrawal
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      ) : null}
+                  >
+                    Confirm withdrawal
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          )}
+          {canDelete && (
+            <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+              <DialogTrigger asChild>
+                <Button variant="ghost" size="sm" className="text-danger hover:bg-danger-bg">
+                  <Trash2 className="size-3.5" />
+                  Remove
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Remove {player.name} from the roster?</DialogTitle>
+                  <DialogDescription>
+                    This removes them entirely, not just marks them withdrawn. This can’t be undone.
+                  </DialogDescription>
+                </DialogHeader>
+                <DialogFooter>
+                  <Button variant="ghost" onClick={() => setDeleteOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button
+                    variant="danger"
+                    loading={deletePlayer.isPending}
+                    onClick={() =>
+                      deletePlayer.mutate(player.id, {
+                        onSuccess: () => {
+                          toast.success(`${player.name} removed from the roster.`)
+                          setDeleteOpen(false)
+                        },
+                        onError: (err) => toast.error(extractErrorMessage(err)),
+                      })
+                    }
+                  >
+                    Remove player
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          )}
+        </div>
+      )}
     </li>
   )
 }
 
 const addPlayerSchema = z.object({
   name: z.string().min(1, 'Enter a name'),
+  phone: z.string().regex(/^[6-9]\d{9}$/, 'Enter a valid 10-digit mobile number'),
   email: z.preprocess(
     (v) => (v === '' || v === null || v === undefined ? undefined : v),
     z.string().email('Enter a valid email').optional()
@@ -519,6 +570,16 @@ function AddPlayerDialog({ tournamentId, teamId, teamName }: { tournamentId: str
     })
   })
 
+  function addExisting(result: AthleteSearchResult) {
+    register.mutate({ name: result.name, athlete_id: result.id, ...(teamId ? { team_id: teamId } : {}) }, {
+      onSuccess: () => {
+        toast.success(teamName ? `${result.name} added to ${teamName}.` : `${result.name} added to the roster.`)
+        setOpen(false)
+      },
+      onError: (err) => toast.error(extractErrorMessage(err)),
+    })
+  }
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
@@ -532,32 +593,112 @@ function AddPlayerDialog({ tournamentId, teamId, teamName }: { tournamentId: str
           <DialogTitle>{teamName ? `Add a player to ${teamName}` : 'Add a player'}</DialogTitle>
           {teamName && <DialogDescription>This player will also be added to the tournament roster.</DialogDescription>}
         </DialogHeader>
-        <form onSubmit={onSubmit} className="space-y-3.5">
-          <div className="space-y-1.5">
-            <Label>Name</Label>
-            <Input placeholder="Player name" {...bind('name')} />
-            <FieldError>{errors.name?.message}</FieldError>
-          </div>
-          <div className="space-y-1.5">
-            <Label>Email (optional)</Label>
-            <Input type="email" placeholder="player@example.com" {...bind('email')} />
-            <FieldError>{errors.email?.message}</FieldError>
-          </div>
-          <div className="space-y-1.5">
-            <Label>Seed (optional)</Label>
-            <Input type="number" placeholder="Leave blank to auto-seed later" {...bind('seed')} />
-          </div>
-          <DialogFooter>
-            <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
-              Cancel
-            </Button>
-            <Button type="submit" loading={register.isPending}>
-              Add player
-            </Button>
-          </DialogFooter>
-        </form>
+        <Tabs defaultValue="new">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="new">New player</TabsTrigger>
+            <TabsTrigger value="existing">Find existing</TabsTrigger>
+          </TabsList>
+          <TabsContent value="new">
+            <form onSubmit={onSubmit} className="space-y-3.5 pt-3.5">
+              <div className="space-y-1.5">
+                <Label>Name</Label>
+                <Input placeholder="Player name" {...bind('name')} />
+                <FieldError>{errors.name?.message}</FieldError>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Phone</Label>
+                <PhoneInput {...bind('phone')} />
+                <FieldError>{errors.phone?.message}</FieldError>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Email (optional)</Label>
+                <Input type="email" placeholder="player@example.com" {...bind('email')} />
+                <FieldError>{errors.email?.message}</FieldError>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Seed (optional)</Label>
+                <Input type="number" placeholder="Leave blank to auto-seed later" {...bind('seed')} />
+              </div>
+              <DialogFooter>
+                <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit" loading={register.isPending}>
+                  Add player
+                </Button>
+              </DialogFooter>
+            </form>
+          </TabsContent>
+          <TabsContent value="existing" className="pt-3.5">
+            <ExistingPlayerSearch tournamentId={tournamentId} onAdd={addExisting} adding={register.isPending} />
+            <DialogFooter className="mt-3.5">
+              <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
+                Close
+              </Button>
+            </DialogFooter>
+          </TabsContent>
+        </Tabs>
       </DialogContent>
     </Dialog>
+  )
+}
+
+function ExistingPlayerSearch({
+  tournamentId,
+  onAdd,
+  adding,
+}: {
+  tournamentId: string
+  onAdd: (result: AthleteSearchResult) => void
+  adding: boolean
+}) {
+  const [input, setInput] = useState('')
+  const [query, setQuery] = useState('')
+  useEffect(() => {
+    const timeout = setTimeout(() => setQuery(input), 300)
+    return () => clearTimeout(timeout)
+  }, [input])
+  const { data: results, isFetching } = useSearchExistingPlayers(tournamentId, query)
+
+  return (
+    <div className="space-y-3">
+      <div className="space-y-1.5">
+        <Label>Search by name or phone</Label>
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-court-cream/40" />
+          <Input
+            className="pl-8"
+            placeholder="Someone who's played in your tournaments before"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+          />
+        </div>
+      </div>
+      {query.trim().length < 2 ? (
+        <p className="px-1 text-xs text-court-cream/45">Type at least 2 characters to search.</p>
+      ) : isFetching ? (
+        <p className="px-1 text-xs text-court-cream/45">Searching…</p>
+      ) : !results || results.length === 0 ? (
+        <p className="px-1 text-xs text-court-cream/45">No matching players found among your past rosters.</p>
+      ) : (
+        <ul className="max-h-64 space-y-1.5 overflow-y-auto">
+          {results.map((r) => (
+            <li key={r.id} className="flex items-center gap-2.5 rounded-lg border border-white/10 bg-white/[0.03] px-2.5 py-2">
+              <InitialsAvatar name={r.name} seed={r.id} size="sm" />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-semibold text-court-cream">{r.name}</p>
+                <p className="truncate text-xs text-court-cream/45">
+                  {[r.phone, r.club_or_city].filter(Boolean).join(' · ') || `${r.tournaments_played} tournaments played`}
+                </p>
+              </div>
+              <Button type="button" size="sm" variant="outline" loading={adding} onClick={() => onAdd(r)}>
+                Add
+              </Button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   )
 }
 

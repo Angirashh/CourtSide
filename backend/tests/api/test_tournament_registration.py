@@ -157,7 +157,7 @@ def test_organiser_adding_player_also_auto_closes_at_capacity(client, db_session
 
     resp = client.post(
         f"{API}/tournaments/{tournament.id}/players",
-        json={"name": "Walk-in Player"},
+        json={"name": "Walk-in Player", "phone": "9876500001"},
         headers={"Authorization": f"Bearer {token}"},
     )
     assert resp.status_code == 201, resp.text

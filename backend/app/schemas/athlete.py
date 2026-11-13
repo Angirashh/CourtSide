@@ -69,6 +69,23 @@ class AthleteProfileUpdate(BaseModel):
     bio: Optional[str] = Field(None, max_length=300)
 
 
+class AthleteSearchResult(BaseModel):
+    """
+    A deliberately small slice of AthleteResponse for the organiser roster's "find an existing
+    player" search — just enough to disambiguate between same-named people in a dropdown, not
+    the full profile.
+    """
+    id: str
+    name: str
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    club_or_city: Optional[str] = None
+    tournaments_played: int
+    matches_won: int
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class AthleteLeaderboardEntry(BaseModel):
     rank: int
     id: str

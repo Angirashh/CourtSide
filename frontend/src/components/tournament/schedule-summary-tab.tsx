@@ -32,6 +32,7 @@ const stageLabel: Record<Match['stage'], string> = {
   SWISS: 'Swiss',
   KNOCKOUT: 'Knockout',
   CROSSOVER: 'Crossover',
+  ROUND_ROBIN: 'Round Robin',
 }
 
 export function ScheduleSummaryTab({ tournament }: { tournament: TournamentDetail }) {
@@ -210,7 +211,10 @@ function CourtScheduleCard({
                   {formatTime(m.scheduled_start_time)} – {formatTime(m.scheduled_end_time)}
                 </div>
                 <Badge variant="outline" className="shrink-0">
-                  {isTeam ? `${m.stage} · ${m.game_label}` : stageLabel[m.stage as Match['stage']]} R{m.round_num}
+                  {isTeam ? `${m.stage} · ${m.game_label}` : stageLabel[m.stage as Match['stage']]}
+                  {/* CROSSOVER/ROUND_ROBIN have no real rounds -- round_num is always 1, so
+                      showing "R1" on every match would just be redundant noise. */}
+                  {m.stage !== 'CROSSOVER' && m.stage !== 'ROUND_ROBIN' && ` R${m.round_num}`}
                 </Badge>
                 <MatchStatusBadge status={m.status} className="ml-auto sm:hidden" />
               </div>

@@ -33,14 +33,14 @@ export interface PendingOrganiser {
   created_at: string
 }
 
-export type TournamentFormat = 'GROUP_KNOCKOUT' | 'SWISS_KNOCKOUT' | 'KNOCKOUT' | 'TEAM_FRIENDLY'
+export type TournamentFormat = 'GROUP_KNOCKOUT' | 'SWISS_KNOCKOUT' | 'KNOCKOUT' | 'TEAM_FRIENDLY' | 'ROUND_ROBIN'
 export type TournamentType = 'INDIVIDUAL' | 'TEAM'
-export type EventFormat = Exclude<TournamentFormat, 'TEAM_FRIENDLY'>
+export type EventFormat = Exclude<TournamentFormat, 'TEAM_FRIENDLY' | 'ROUND_ROBIN'>
 export type TournamentEvent = 'singles' | 'doubles'
 export type TeamMatchType = 'SINGLES' | 'DOUBLES' | 'MIXED_DOUBLES'
 export type TournamentCategory = 'CORPORATE' | 'COLLEGE' | 'JUNIOR' | 'FRIENDLY'
 export type TournamentStatus = 'DRAFT' | 'SCHEDULING' | 'IN_PROGRESS' | 'COMPLETED'
-export type MatchStage = 'GROUP' | 'SWISS' | 'KNOCKOUT' | 'CROSSOVER'
+export type MatchStage = 'GROUP' | 'SWISS' | 'KNOCKOUT' | 'CROSSOVER' | 'ROUND_ROBIN'
 export type MatchStatus = 'SCHEDULED' | 'IN_PROGRESS' | 'COMPLETED'
 export type RegistrationStatus = 'NOT_OPEN' | 'OPEN' | 'CLOSED'
 
@@ -65,6 +65,16 @@ export interface Player {
   team: 'A' | 'B' | null
   is_captain: boolean
   team_id: string | null
+}
+
+export interface AthleteSearchResult {
+  id: string
+  name: string
+  phone: string | null
+  email: string | null
+  club_or_city: string | null
+  tournaments_played: number
+  matches_won: number
 }
 
 export interface Match {

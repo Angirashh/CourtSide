@@ -8,6 +8,7 @@ class MatchStage(str, Enum):
     SWISS = "SWISS"
     KNOCKOUT = "KNOCKOUT"
     CROSSOVER = "CROSSOVER"
+    ROUND_ROBIN = "ROUND_ROBIN"
 
 @dataclass
 class Player:
