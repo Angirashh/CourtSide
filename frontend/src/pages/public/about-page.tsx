@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { ArrowRight, Award, Briefcase, CalendarSearch, GraduationCap, Handshake, Pause, Play, Swords, Trophy } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { usePublicHubStats, usePublicTournaments } from '@/hooks/use-public'
+import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 
 const BadmintonCourt3D = lazy(() => import('@/components/three/badminton-court-3d'))
@@ -40,12 +41,11 @@ export function AboutPage() {
             <p className="mt-4 font-mono text-xs uppercase tracking-[.14em] text-white/50">
               Play more. Track everything.
             </p>
-            <Link
-              to="/tournaments"
-              className="pointer-events-auto mt-6 inline-flex items-center gap-2 rounded-full bg-ember-500 px-5 py-3.5 font-display text-sm text-ink transition hover:bg-ember-600"
-            >
-              Find your next tournament <ArrowRight className="size-4" />
-            </Link>
+            <Button asChild size="lg" className="pointer-events-auto mt-6 w-fit">
+              <Link to="/tournaments">
+                Find your next tournament <ArrowRight className="size-4" />
+              </Link>
+            </Button>
           </div>
 
           <div className="pointer-events-auto absolute bottom-4 right-4 flex items-center gap-2 sm:bottom-6 sm:right-6">
