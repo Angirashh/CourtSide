@@ -15,8 +15,10 @@ export const playersApi = {
       })
       .then((r) => r.data),
 
-  register: (tournamentId: string, payload: { name: string; seed?: number; email?: string; team_id?: string; athlete_id?: string }) =>
-    api.post<Player>(`/tournaments/${tournamentId}/players`, payload).then((r) => r.data),
+  register: (
+    tournamentId: string,
+    payload: { name: string; seed?: number; email?: string; phone?: string; team_id?: string; athlete_id?: string }
+  ) => api.post<Player>(`/tournaments/${tournamentId}/players`, payload).then((r) => r.data),
 
   searchExisting: (tournamentId: string, q: string) =>
     api

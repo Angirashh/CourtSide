@@ -1,3 +1,5 @@
+import itertools
+
 import pytest
 from pydantic import ValidationError
 
@@ -6,6 +8,11 @@ from app.db import models
 from app.schemas.tournament import TournamentCreate
 
 API = "/api/v1"
+_phone_seq = itertools.count(1)
+
+
+def _unique_phone() -> str:
+    return f"90000{next(_phone_seq):05d}"
 
 
 def _organiser_token(db_session):
@@ -31,7 +38,11 @@ def _create_round_robin_tournament(db_session):
 
 
 def _add_player(client, headers, tournament_id, name):
-    resp = client.post(f"{API}/tournaments/{tournament_id}/players", json={"name": name}, headers=headers)
+    resp = client.post(
+        f"{API}/tournaments/{tournament_id}/players",
+        json={"name": name, "phone": _unique_phone()},
+        headers=headers,
+    )
     assert resp.status_code == 201, resp.text
     return resp.json()
 

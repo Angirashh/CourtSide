@@ -116,3 +116,35 @@ def test_register_with_athlete_id_links_existing_athlete(client, db_session):
         headers=headers,
     )
     assert dup.status_code == 400, dup.text
+
+
+def test_register_new_player_requires_phone(client, db_session):
+    org = _organiser(db_session)
+    headers = {"Authorization": f"Bearer {_token(org)}"}
+    target = _tournament(db_session, organiser_id=org.id, name="New Open")
+
+    resp = client.post(
+        f"{API}/tournaments/{target.id}/players",
+        json={"name": "Walk-in Player"},
+        headers=headers,
+    )
+    assert resp.status_code == 400, resp.text
+    assert "phone" in resp.json()["detail"].lower()
+
+
+def test_register_new_player_with_matching_phone_links_existing_athlete(client, db_session):
+    org = _organiser(db_session)
+    headers = {"Authorization": f"Bearer {_token(org)}"}
+    past = _tournament(db_session, organiser_id=org.id, name="Past Open")
+    target = _tournament(db_session, organiser_id=org.id, name="New Open")
+    athlete = _athlete(db_session, "Jane Doe", phone="+919123456780")
+    _add_player(db_session, past.id, athlete)
+
+    resp = client.post(
+        f"{API}/tournaments/{target.id}/players",
+        json={"name": "Jane Doe", "phone": "9123456780"},
+        headers=headers,
+    )
+    assert resp.status_code == 201, resp.text
+    assert resp.json()["athlete_id"] == athlete.id
+    assert db_session.query(models.Athlete).filter(models.Athlete.phone == "+919123456780").count() == 1

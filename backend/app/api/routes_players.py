@@ -50,16 +50,32 @@ def _auto_close_registration_if_full(db: Session, tournament: models.Tournament)
         tournament.registration_status = models.RegistrationStatus.CLOSED
 
 
-def _find_or_create_athlete(db: Session, name: str, email: Optional[str]) -> Optional[models.Athlete]:
-    """Matches an existing global athlete by email, or creates one — same dedup the CSV roster
-    upload does. Returns None when no email is given (the player just isn't linked globally)."""
-    if not email:
+def _find_or_create_athlete(
+    db: Session, name: str, email: Optional[str], phone: Optional[str] = None
+) -> Optional[models.Athlete]:
+    """Matches an existing global athlete by phone first, falling back to email, or creates one
+    if neither matches -- same phone-first order the player self-registration flow already uses
+    (_claim_or_create_athlete in routes_player_auth.py), so an organiser retyping a repeat
+    player's phone links to their existing record instead of creating a duplicate. Returns None
+    when neither phone nor email is given (the player just isn't linked globally)."""
+    athlete = None
+    if phone:
+        athlete = db.query(models.Athlete).filter(models.Athlete.phone == phone).first()
+    if not athlete and email:
+        athlete = db.query(models.Athlete).filter(models.Athlete.email == email).first()
+
+    if athlete:
+        if phone and not athlete.phone:
+            athlete.phone = phone
+        if email and not athlete.email:
+            athlete.email = email
+        return athlete
+
+    if not phone and not email:
         return None
-    athlete = db.query(models.Athlete).filter(models.Athlete.email == email).first()
-    if not athlete:
-        athlete = models.Athlete(name=name, email=email)
-        db.add(athlete)
-        db.flush()
+    athlete = models.Athlete(name=name, email=email, phone=phone)
+    db.add(athlete)
+    db.flush()
     return athlete
 
 
@@ -157,7 +173,9 @@ def register_player(
         if not athlete:
             raise HTTPException(status_code=404, detail="Athlete not found.")
     else:
-        athlete = _find_or_create_athlete(db, payload.name, payload.email)
+        if not payload.phone:
+            raise HTTPException(status_code=400, detail="Enter a phone number for this player.")
+        athlete = _find_or_create_athlete(db, payload.name, payload.email, payload.phone)
     if athlete:
         existing_entry = db.query(models.Player).filter(
             models.Player.tournament_id == tournament_id,
@@ -326,7 +344,7 @@ def register_players_batch(
 
     created_players = []
     for p_in in payload.players:
-        athlete = _find_or_create_athlete(db, p_in.name, p_in.email)
+        athlete = _find_or_create_athlete(db, p_in.name, p_in.email, p_in.phone)
         player = models.Player(
             id=f"P_{uuid.uuid4().hex[:8]}",
             tournament_id=tournament_id,

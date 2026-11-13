@@ -8,7 +8,7 @@ import { Crown, FileUp, Info, Pencil, Plus, Search, Shuffle, Trash2, Upload, Use
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog'
-import { FieldError, Input, Label } from '@/components/ui/input'
+import { FieldError, Input, Label, PhoneInput } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
@@ -489,6 +489,7 @@ function PlayerRow({
 
 const addPlayerSchema = z.object({
   name: z.string().min(1, 'Enter a name'),
+  phone: z.string().regex(/^[6-9]\d{9}$/, 'Enter a valid 10-digit mobile number'),
   email: z.preprocess(
     (v) => (v === '' || v === null || v === undefined ? undefined : v),
     z.string().email('Enter a valid email').optional()
@@ -555,6 +556,11 @@ function AddPlayerDialog({ tournamentId, teamId, teamName }: { tournamentId: str
                 <Label>Name</Label>
                 <Input placeholder="Player name" {...bind('name')} />
                 <FieldError>{errors.name?.message}</FieldError>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Phone</Label>
+                <PhoneInput {...bind('phone')} />
+                <FieldError>{errors.phone?.message}</FieldError>
               </div>
               <div className="space-y-1.5">
                 <Label>Email (optional)</Label>

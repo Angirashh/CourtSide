@@ -51,7 +51,9 @@ def test_generate_schedule_honours_per_court_available_from(client, db_session):
     assert patch_resp.json()["available_from_minutes"] == 30
 
     for i in range(8):
-        r = client.post(f"{API}/tournaments/{tid}/players", json={"name": f"P{i}"}, headers=headers)
+        r = client.post(
+            f"{API}/tournaments/{tid}/players", json={"name": f"P{i}", "phone": f"90000000{i:02d}"}, headers=headers
+        )
         assert r.status_code == 201, r.text
 
     gen = client.post(
