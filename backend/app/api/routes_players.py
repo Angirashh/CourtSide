@@ -557,6 +557,62 @@ def update_player(
     return player
 
 
+@router.delete("/{player_id}")
+def delete_player(
+    tournament_id: str,
+    player_id: str,
+    current_user: CurrentUser = Depends(require_organiser),
+    db: Session = Depends(get_db)
+):
+    """
+    Removes a single player from the roster entirely -- distinct from withdraw, which marks a
+    player Out and walks over their pending matches. Only safe before this player has been
+    drawn into any fixture (a dangling match reference would otherwise be left behind, or
+    silently nulled by the DB's ON DELETE SET NULL), so this is blocked once any match
+    references them; use withdraw instead once a schedule already includes them.
+    """
+    tournament = db.query(models.Tournament).filter(models.Tournament.id == tournament_id).first()
+    if not tournament:
+        raise HTTPException(status_code=404, detail="Tournament not found")
+    ensure_tournament_access(tournament, current_user, db)
+
+    player = db.query(models.Player).filter(
+        models.Player.id == player_id, models.Player.tournament_id == tournament_id
+    ).first()
+    if not player:
+        raise HTTPException(status_code=404, detail="Player not found")
+
+    if tournament.status not in (models.TournamentStatus.DRAFT, models.TournamentStatus.SCHEDULING):
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot remove players once the tournament is in progress or completed."
+        )
+
+    has_fixture = db.query(models.Match).filter(
+        models.Match.tournament_id == tournament_id,
+        or_(
+            models.Match.player1_id == player_id,
+            models.Match.player2_id == player_id,
+            models.Match.winner_id == player_id,
+        ),
+    ).first()
+    if has_fixture:
+        raise HTTPException(
+            status_code=400,
+            detail="This player already has fixtures — withdraw them instead, or regenerate the schedule first."
+        )
+
+    for team in db.query(models.TournamentTeam).filter(
+        models.TournamentTeam.tournament_id == tournament_id,
+        models.TournamentTeam.captain_player_id == player_id,
+    ):
+        team.captain_player_id = None
+
+    db.delete(player)
+    db.commit()
+    return {"message": "Player removed.", "player_id": player_id}
+
+
 @router.delete("")
 def delete_all_players(
     tournament_id: str,

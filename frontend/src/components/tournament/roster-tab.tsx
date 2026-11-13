@@ -16,6 +16,7 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { InitialsAvatar } from '@/components/ui/avatar'
 import {
   useDeleteAllPlayers,
+  useDeletePlayer,
   useRegisterPlayer,
   useSearchExistingPlayers,
   useUpdatePlayerTeamAssignments,
@@ -151,6 +152,7 @@ export function RosterTab({
                   return next
                 })}
                 canWithdraw={status !== 'DRAFT' && status !== 'COMPLETED' && !player.is_withdrawn}
+                canDelete={canEditRoster && !player.is_withdrawn}
               />
             ))}
           </ul>
@@ -392,6 +394,7 @@ function PlayerRow({
   savingTeamAssignments,
   onTeamAssignmentChange,
   canWithdraw,
+  canDelete,
 }: {
   player: Player
   tournamentId: string
@@ -401,10 +404,13 @@ function PlayerRow({
   savingTeamAssignments: boolean
   onTeamAssignmentChange: (teamId: string | null) => void
   canWithdraw: boolean
+  canDelete: boolean
 }) {
   const withdraw = useWithdrawPlayer(tournamentId)
+  const deletePlayer = useDeletePlayer(tournamentId)
   const [open, setOpen] = useState(false)
   const [reason, setReason] = useState('')
+  const [deleteOpen, setDeleteOpen] = useState(false)
 
   return (
     <li className={cn('flex items-center gap-3 px-4 py-3', allowTeamAssignment && 'flex-wrap sm:flex-nowrap', player.is_withdrawn && 'bg-danger-bg/30')}>
@@ -438,51 +444,93 @@ function PlayerRow({
           <UserX className="size-3" />
           Out
         </Badge>
-      ) : canWithdraw ? (
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button variant="ghost" size="sm" className="text-danger hover:bg-danger-bg">
-              Withdraw
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Withdraw {player.name}?</DialogTitle>
-              <DialogDescription>
-                Any pending match with a known opponent is immediately walked over. This can’t be undone.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-1.5">
-              <Label>Reason (optional)</Label>
-              <Input placeholder="e.g. Ankle injury" value={reason} onChange={(e) => setReason(e.target.value)} />
-            </div>
-            <DialogFooter>
-              <Button variant="ghost" onClick={() => setOpen(false)}>
-                Cancel
-              </Button>
-              <Button
-                variant="danger"
-                loading={withdraw.isPending}
-                onClick={() =>
-                  withdraw.mutate(
-                    { playerId: player.id, reason: reason || undefined },
-                    {
-                      onSuccess: (res) => {
-                        toast.success(`${player.name} withdrawn — ${res.walkover_matches.length} match(es) walked over.`)
-                        setOpen(false)
-                        setReason('')
-                      },
-                      onError: (err) => toast.error(extractErrorMessage(err)),
+      ) : (
+        <div className="flex items-center gap-1">
+          {canWithdraw && (
+            <Dialog open={open} onOpenChange={setOpen}>
+              <DialogTrigger asChild>
+                <Button variant="ghost" size="sm" className="text-danger hover:bg-danger-bg">
+                  Withdraw
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Withdraw {player.name}?</DialogTitle>
+                  <DialogDescription>
+                    Any pending match with a known opponent is immediately walked over. This can’t be undone.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-1.5">
+                  <Label>Reason (optional)</Label>
+                  <Input placeholder="e.g. Ankle injury" value={reason} onChange={(e) => setReason(e.target.value)} />
+                </div>
+                <DialogFooter>
+                  <Button variant="ghost" onClick={() => setOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button
+                    variant="danger"
+                    loading={withdraw.isPending}
+                    onClick={() =>
+                      withdraw.mutate(
+                        { playerId: player.id, reason: reason || undefined },
+                        {
+                          onSuccess: (res) => {
+                            toast.success(`${player.name} withdrawn — ${res.walkover_matches.length} match(es) walked over.`)
+                            setOpen(false)
+                            setReason('')
+                          },
+                          onError: (err) => toast.error(extractErrorMessage(err)),
+                        }
+                      )
                     }
-                  )
-                }
-              >
-                Confirm withdrawal
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      ) : null}
+                  >
+                    Confirm withdrawal
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          )}
+          {canDelete && (
+            <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+              <DialogTrigger asChild>
+                <Button variant="ghost" size="sm" className="text-danger hover:bg-danger-bg">
+                  <Trash2 className="size-3.5" />
+                  Remove
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Remove {player.name} from the roster?</DialogTitle>
+                  <DialogDescription>
+                    This removes them entirely, not just marks them withdrawn. This can’t be undone.
+                  </DialogDescription>
+                </DialogHeader>
+                <DialogFooter>
+                  <Button variant="ghost" onClick={() => setDeleteOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button
+                    variant="danger"
+                    loading={deletePlayer.isPending}
+                    onClick={() =>
+                      deletePlayer.mutate(player.id, {
+                        onSuccess: () => {
+                          toast.success(`${player.name} removed from the roster.`)
+                          setDeleteOpen(false)
+                        },
+                        onError: (err) => toast.error(extractErrorMessage(err)),
+                      })
+                    }
+                  >
+                    Remove player
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          )}
+        </div>
+      )}
     </li>
   )
 }

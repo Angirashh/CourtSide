@@ -55,6 +55,14 @@ export function useDeleteAllPlayers(tournamentId: string) {
   })
 }
 
+export function useDeletePlayer(tournamentId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (playerId: string) => playersApi.delete(tournamentId, playerId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: tournamentKeys.detail(tournamentId) }),
+  })
+}
+
 export function useWithdrawPlayer(tournamentId: string) {
   const qc = useQueryClient()
   return useMutation({

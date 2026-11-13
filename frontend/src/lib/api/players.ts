@@ -45,6 +45,11 @@ export const playersApi = {
   deleteAll: (tournamentId: string) =>
     api.delete<{ message: string; deleted_count: number }>(`/tournaments/${tournamentId}/players`).then((r) => r.data),
 
+  delete: (tournamentId: string, playerId: string) =>
+    api
+      .delete<{ message: string; player_id: string }>(`/tournaments/${tournamentId}/players/${playerId}`)
+      .then((r) => r.data),
+
   withdraw: (tournamentId: string, playerId: string, reason?: string) =>
     api
       .post<WithdrawResponse>(`/tournaments/${tournamentId}/players/${playerId}/withdraw`, { reason })
