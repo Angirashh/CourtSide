@@ -101,10 +101,10 @@ export function FixtureVisualizer({
     return (
       <div>
         {slots.map((slotMatches, idx) => {
-          // Only show a single time in the round header when every match in it actually
+          // Only show a single time in the slot header when every match in it actually
           // shares one — once a court's staggered opening puts its match at a different
-          // clock time than the rest of the round, each match row already shows its own
-          // time, so a single header time would just be wrong for part of the round.
+          // clock time than the rest of the slot, each match row already shows its own
+          // time, so a single header time would just be wrong for part of the slot.
           const firstTime = slotMatches[0].scheduled_start_time
           const commonTime = slotMatches.every((m) => m.scheduled_start_time === firstTime) ? firstTime : null
           const isLast = idx === slots.length - 1
@@ -125,7 +125,7 @@ export function FixtureVisualizer({
               <div className="min-w-0 flex-1 pb-6">
                 <div className="mb-2 flex items-center justify-between pt-1">
                   <h4 className="font-display text-sm text-court-cream">
-                    {firstTime ? `Round ${idx + 1}` : 'Unscheduled'}
+                    {firstTime ? `Slot ${idx + 1}` : 'Unscheduled'}
                   </h4>
                   {commonTime && (
                     <span className="text-[10px] font-semibold uppercase tracking-wide text-court-cream/45">
