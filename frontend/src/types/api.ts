@@ -67,6 +67,16 @@ export interface Player {
   team_id: string | null
 }
 
+export interface AthleteSearchResult {
+  id: string
+  name: string
+  phone: string | null
+  email: string | null
+  club_or_city: string | null
+  tournaments_played: number
+  matches_won: number
+}
+
 export interface Match {
   id: string
   tournament_id: string

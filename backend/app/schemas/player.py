@@ -19,6 +19,9 @@ class PlayerCreate(PlayerBase):
     # created by email), the same as a CSV roster upload does.
     email: Optional[str] = Field(None, max_length=150, examples=["viktor@example.com"])
     team_id: Optional[str] = None
+    # Optional — when given (from the roster's "find an existing player" search), links this
+    # roster slot directly to that athlete instead of matching/creating one by email.
+    athlete_id: Optional[str] = Field(None, examples=["ATH_abc123"])
 
 
 class PlayerUpdate(BaseModel):

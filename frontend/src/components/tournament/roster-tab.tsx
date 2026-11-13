@@ -4,18 +4,20 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { toast } from 'sonner'
-import { Crown, FileUp, Info, Pencil, Plus, Shuffle, Trash2, Upload, UserX, Users } from 'lucide-react'
+import { Crown, FileUp, Info, Pencil, Plus, Search, Shuffle, Trash2, Upload, UserX, Users } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog'
 import { FieldError, Input, Label } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { EmptyState } from '@/components/ui/empty-state'
 import { InitialsAvatar } from '@/components/ui/avatar'
 import {
   useDeleteAllPlayers,
   useRegisterPlayer,
+  useSearchExistingPlayers,
   useUpdatePlayerTeamAssignments,
   useUpdateTeamAssignments,
   useUploadRoster,
@@ -24,7 +26,7 @@ import {
 import { useAddTournamentTeam, useFinalizeSeeding, useUpdateTournamentTeam } from '@/hooks/use-tournaments'
 import { extractErrorMessage } from '@/lib/api/client'
 import { cn } from '@/lib/utils'
-import type { Player, TeamTieConfig, TournamentFormat, TournamentStatus, TournamentTeam, TournamentType } from '@/types/api'
+import type { AthleteSearchResult, Player, TeamTieConfig, TournamentFormat, TournamentStatus, TournamentTeam, TournamentType } from '@/types/api'
 
 export function RosterTab({
   tournamentId,
@@ -519,6 +521,16 @@ function AddPlayerDialog({ tournamentId, teamId, teamName }: { tournamentId: str
     })
   })
 
+  function addExisting(result: AthleteSearchResult) {
+    register.mutate({ name: result.name, athlete_id: result.id, ...(teamId ? { team_id: teamId } : {}) }, {
+      onSuccess: () => {
+        toast.success(teamName ? `${result.name} added to ${teamName}.` : `${result.name} added to the roster.`)
+        setOpen(false)
+      },
+      onError: (err) => toast.error(extractErrorMessage(err)),
+    })
+  }
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
@@ -532,32 +544,107 @@ function AddPlayerDialog({ tournamentId, teamId, teamName }: { tournamentId: str
           <DialogTitle>{teamName ? `Add a player to ${teamName}` : 'Add a player'}</DialogTitle>
           {teamName && <DialogDescription>This player will also be added to the tournament roster.</DialogDescription>}
         </DialogHeader>
-        <form onSubmit={onSubmit} className="space-y-3.5">
-          <div className="space-y-1.5">
-            <Label>Name</Label>
-            <Input placeholder="Player name" {...bind('name')} />
-            <FieldError>{errors.name?.message}</FieldError>
-          </div>
-          <div className="space-y-1.5">
-            <Label>Email (optional)</Label>
-            <Input type="email" placeholder="player@example.com" {...bind('email')} />
-            <FieldError>{errors.email?.message}</FieldError>
-          </div>
-          <div className="space-y-1.5">
-            <Label>Seed (optional)</Label>
-            <Input type="number" placeholder="Leave blank to auto-seed later" {...bind('seed')} />
-          </div>
-          <DialogFooter>
-            <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
-              Cancel
-            </Button>
-            <Button type="submit" loading={register.isPending}>
-              Add player
-            </Button>
-          </DialogFooter>
-        </form>
+        <Tabs defaultValue="new">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="new">New player</TabsTrigger>
+            <TabsTrigger value="existing">Find existing</TabsTrigger>
+          </TabsList>
+          <TabsContent value="new">
+            <form onSubmit={onSubmit} className="space-y-3.5 pt-3.5">
+              <div className="space-y-1.5">
+                <Label>Name</Label>
+                <Input placeholder="Player name" {...bind('name')} />
+                <FieldError>{errors.name?.message}</FieldError>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Email (optional)</Label>
+                <Input type="email" placeholder="player@example.com" {...bind('email')} />
+                <FieldError>{errors.email?.message}</FieldError>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Seed (optional)</Label>
+                <Input type="number" placeholder="Leave blank to auto-seed later" {...bind('seed')} />
+              </div>
+              <DialogFooter>
+                <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit" loading={register.isPending}>
+                  Add player
+                </Button>
+              </DialogFooter>
+            </form>
+          </TabsContent>
+          <TabsContent value="existing" className="pt-3.5">
+            <ExistingPlayerSearch tournamentId={tournamentId} onAdd={addExisting} adding={register.isPending} />
+            <DialogFooter className="mt-3.5">
+              <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
+                Close
+              </Button>
+            </DialogFooter>
+          </TabsContent>
+        </Tabs>
       </DialogContent>
     </Dialog>
+  )
+}
+
+function ExistingPlayerSearch({
+  tournamentId,
+  onAdd,
+  adding,
+}: {
+  tournamentId: string
+  onAdd: (result: AthleteSearchResult) => void
+  adding: boolean
+}) {
+  const [input, setInput] = useState('')
+  const [query, setQuery] = useState('')
+  useEffect(() => {
+    const timeout = setTimeout(() => setQuery(input), 300)
+    return () => clearTimeout(timeout)
+  }, [input])
+  const { data: results, isFetching } = useSearchExistingPlayers(tournamentId, query)
+
+  return (
+    <div className="space-y-3">
+      <div className="space-y-1.5">
+        <Label>Search by name or phone</Label>
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-court-cream/40" />
+          <Input
+            className="pl-8"
+            placeholder="Someone who's played in your tournaments before"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+          />
+        </div>
+      </div>
+      {query.trim().length < 2 ? (
+        <p className="px-1 text-xs text-court-cream/45">Type at least 2 characters to search.</p>
+      ) : isFetching ? (
+        <p className="px-1 text-xs text-court-cream/45">Searching…</p>
+      ) : !results || results.length === 0 ? (
+        <p className="px-1 text-xs text-court-cream/45">No matching players found among your past rosters.</p>
+      ) : (
+        <ul className="max-h-64 space-y-1.5 overflow-y-auto">
+          {results.map((r) => (
+            <li key={r.id} className="flex items-center gap-2.5 rounded-lg border border-white/10 bg-white/[0.03] px-2.5 py-2">
+              <InitialsAvatar name={r.name} seed={r.id} size="sm" />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-semibold text-court-cream">{r.name}</p>
+                <p className="truncate text-xs text-court-cream/45">
+                  {[r.phone, r.club_or_city].filter(Boolean).join(' · ') || `${r.tournaments_played} tournaments played`}
+                </p>
+              </div>
+              <Button type="button" size="sm" variant="outline" loading={adding} onClick={() => onAdd(r)}>
+                Add
+              </Button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   )
 }
 

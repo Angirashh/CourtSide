@@ -3,12 +3,14 @@ import io
 import uuid
 from datetime import datetime
 from typing import List, Dict, Any, Optional
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, Query, status, UploadFile, File
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import CurrentUser, ensure_tournament_access, get_db, require_operator_or_organiser, require_organiser, require_player
 from app.core.phone import normalize_indian_phone
 from app.db import models
+from app.schemas.athlete import AthleteSearchResult
 from app.schemas.player import (
     PlayerCreate,
     PlayerBatchCreate,
@@ -61,6 +63,64 @@ def _find_or_create_athlete(db: Session, name: str, email: Optional[str]) -> Opt
     return athlete
 
 
+@router.get("/search-existing", response_model=List[AthleteSearchResult])
+def search_existing_players(
+    tournament_id: str,
+    q: str = Query(..., min_length=2),
+    current_user: CurrentUser = Depends(require_organiser),
+    db: Session = Depends(get_db),
+):
+    """
+    Lets an organiser find a player who has already played in one of THEIR tournaments (owned,
+    co-organised, or legacy ownerless) and add them straight from this search, instead of
+    retyping a repeat player's details. Deliberately scoped this way rather than reusing the
+    open, unauthenticated GET /athletes search -- that would let any organiser browse by
+    name/phone for an athlete who only ever played for a completely unrelated organiser.
+    """
+    tournament = db.query(models.Tournament).filter(models.Tournament.id == tournament_id).first()
+    if not tournament:
+        raise HTTPException(status_code=404, detail="Tournament not found")
+    ensure_tournament_access(tournament, current_user, db)
+
+    # Same three conditions ensure_tournament_access checks, applied to every tournament this
+    # organiser could have added a player to, not just the one being searched from.
+    visible_tournament_ids = db.query(models.Tournament.id).filter(
+        or_(
+            models.Tournament.organiser_id == current_user.id,
+            models.Tournament.organiser_id.is_(None),
+            models.Tournament.id.in_(
+                db.query(models.TournamentCoOrganiser.tournament_id).filter(
+                    models.TournamentCoOrganiser.organiser_id == current_user.id
+                )
+            ),
+        )
+    )
+    visible_athlete_ids = db.query(models.Player.athlete_id).filter(
+        models.Player.athlete_id.isnot(None),
+        models.Player.tournament_id.in_(visible_tournament_ids),
+    )
+    already_rostered_athlete_ids = db.query(models.Player.athlete_id).filter(
+        models.Player.tournament_id == tournament_id,
+        models.Player.athlete_id.isnot(None),
+    )
+
+    search_fmt = f"%{q.strip()}%"
+    return (
+        db.query(models.Athlete)
+        .filter(
+            models.Athlete.id.in_(visible_athlete_ids),
+            models.Athlete.id.notin_(already_rostered_athlete_ids),
+            or_(
+                models.Athlete.name.ilike(search_fmt),
+                models.Athlete.phone.ilike(search_fmt),
+            ),
+        )
+        .order_by(models.Athlete.name.asc())
+        .limit(20)
+        .all()
+    )
+
+
 @router.post("", response_model=PlayerResponse, status_code=status.HTTP_201_CREATED)
 def register_player(
     tournament_id: str,
@@ -92,7 +152,12 @@ def register_player(
         if not team_exists:
             raise HTTPException(status_code=400, detail="Choose a team from this tournament.")
 
-    athlete = _find_or_create_athlete(db, payload.name, payload.email)
+    if payload.athlete_id:
+        athlete = db.query(models.Athlete).filter(models.Athlete.id == payload.athlete_id).first()
+        if not athlete:
+            raise HTTPException(status_code=404, detail="Athlete not found.")
+    else:
+        athlete = _find_or_create_athlete(db, payload.name, payload.email)
     if athlete:
         existing_entry = db.query(models.Player).filter(
             models.Player.tournament_id == tournament_id,

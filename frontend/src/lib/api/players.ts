@@ -1,5 +1,5 @@
 import { api } from './client'
-import type { NextMatch, Player, WithdrawResponse } from '@/types/api'
+import type { AthleteSearchResult, NextMatch, Player, WithdrawResponse } from '@/types/api'
 
 export type PlayerTeamAssignment = {
   player_id: string
@@ -15,8 +15,13 @@ export const playersApi = {
       })
       .then((r) => r.data),
 
-  register: (tournamentId: string, payload: { name: string; seed?: number; email?: string; team_id?: string }) =>
+  register: (tournamentId: string, payload: { name: string; seed?: number; email?: string; team_id?: string; athlete_id?: string }) =>
     api.post<Player>(`/tournaments/${tournamentId}/players`, payload).then((r) => r.data),
+
+  searchExisting: (tournamentId: string, q: string) =>
+    api
+      .get<AthleteSearchResult[]>(`/tournaments/${tournamentId}/players/search-existing`, { params: { q } })
+      .then((r) => r.data),
 
   registerBatch: (tournamentId: string, players: { name: string }[]) =>
     api
