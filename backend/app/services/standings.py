@@ -54,10 +54,12 @@ class StandingsEngine:
            c. If reduced to two players at any step, head-to-head decides
         4. Tiebreaker fallback: Initial tournament seed
         """
-        # Filter matches for the specific group if specified
+        # Filter matches for the specific group if specified. A no-result match (both
+        # participants no-showed) is excluded entirely -- it shouldn't count as "played"
+        # for either side, not just lack a winner.
         relevant_matches = [
             m for m in matches
-            if m.is_completed and (group_id is None or m.group_id == group_id)
+            if m.is_completed and not m.is_no_result and (group_id is None or m.group_id == group_id)
         ]
 
         player_map = {p.id: p for p in players}

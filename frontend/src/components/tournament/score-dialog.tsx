@@ -3,7 +3,7 @@ import { toast } from 'sonner'
 import { Check, Minus, Plus, Trophy } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { useSubmitScore } from '@/hooks/use-matches'
+import { useCorrectScore, useSubmitScore } from '@/hooks/use-matches'
 import { useSubmitTeamGameScore } from '@/hooks/use-team-ties'
 import { extractErrorMessage } from '@/lib/api/client'
 import { cn, playerLabel } from '@/lib/utils'
@@ -21,6 +21,7 @@ export function ScoreDialog({
   open,
   onOpenChange,
   onSubmitted,
+  correcting = false,
 }: {
   tournamentId: string
   match?: Match
@@ -31,10 +32,18 @@ export function ScoreDialog({
   open: boolean
   onOpenChange: (open: boolean) => void
   onSubmitted?: () => void
+  /** Fixing a mis-entered score on an already-completed match -- the winner is locked to
+      whatever's already recorded, since it may have already advanced into a bracket or
+      Swiss pairing. Match-only (not offered for team games). */
+  correcting?: boolean
 }) {
-  const [pickedWinnerId, setPickedWinnerId] = useState<string | null>(null)
-  const [sets, setSets] = useState<SetScore[]>([{ p1: 0, p2: 0 }])
+  const lockedWinnerId = correcting ? match?.winner_id ?? null : null
+  const [pickedWinnerId, setPickedWinnerId] = useState<string | null>(lockedWinnerId)
+  const [sets, setSets] = useState<SetScore[]>(
+    correcting && match?.scores?.length ? match.scores : [{ p1: 0, p2: 0 }]
+  )
   const submit = useSubmitScore(tournamentId)
+  const correct = useCorrectScore(tournamentId)
   const submitTeam = useSubmitTeamGameScore(tournamentId)
 
   const p1Id = match?.player1_id ?? teamIds?.[0] ?? ''
@@ -45,8 +54,9 @@ export function ScoreDialog({
   const p1Sets = sets.filter((s) => s.p1 > s.p2).length
   const p2Sets = sets.filter((s) => s.p2 > s.p1).length
   // The scoreboard decides the winner; tapping a name only overrides it (e.g. a retirement).
+  // When correcting, the winner is locked to whatever's already recorded -- see lockedWinnerId.
   const scoreWinnerId = p1Sets > p2Sets ? p1Id : p2Sets > p1Sets ? p2Id : null
-  const winnerId = pickedWinnerId ?? scoreWinnerId
+  const winnerId = lockedWinnerId ?? pickedWinnerId ?? scoreWinnerId
 
   function updateSet(idx: number, key: keyof SetScore, value: number) {
     setPickedWinnerId(null)
@@ -54,6 +64,7 @@ export function ScoreDialog({
   }
 
   function pickWinner(id: string | null) {
+    if (correcting) return
     setPickedWinnerId(id)
     // Pre-fill the winner's side of an untouched first set so the score can't start out backwards.
     setSets((prev) =>
@@ -76,9 +87,9 @@ export function ScoreDialog({
     }
     const callbacks = {
         onSuccess: () => {
-          toast.success(`${winnerId === p1Id ? p1Label : p2Label} wins.`)
+          toast.success(correcting ? 'Score corrected.' : `${winnerId === p1Id ? p1Label : p2Label} wins.`)
           onOpenChange(false)
-          setPickedWinnerId(null)
+          setPickedWinnerId(lockedWinnerId)
           setSets([{ p1: 0, p2: 0 }])
           onSubmitted?.()
         },
@@ -86,6 +97,8 @@ export function ScoreDialog({
     }
     if (teamGame) {
       submitTeam.mutate({ gameId: teamGame.id, winnerTeamId: winnerId, scores: sets }, callbacks)
+    } else if (match && correcting) {
+      correct.mutate({ matchId: match.id, winnerId, scores: sets }, callbacks)
     } else if (match) {
       submit.mutate({ matchId: match.id, winnerId, scores: sets }, callbacks)
     }
@@ -95,8 +108,12 @@ export function ScoreDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent sheet>
         <DialogHeader>
-          <DialogTitle>Submit score</DialogTitle>
-          <DialogDescription>Enter each set, or just tap the winner.</DialogDescription>
+          <DialogTitle>{correcting ? 'Correct score' : 'Submit score'}</DialogTitle>
+          <DialogDescription>
+            {correcting
+              ? `Fixing a mis-entered score. The winner stays ${winnerId === p1Id ? p1Label : p2Label} — only the set scores can change.`
+              : 'Enter each set, or just tap the winner.'}
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-5">
@@ -130,8 +147,10 @@ export function ScoreDialog({
             )}
           </div>
 
-          <div>
-            <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-court-cream/45">Winner</p>
+          <div className={cn(correcting && 'pointer-events-none opacity-60')}>
+            <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-court-cream/45">
+              Winner{correcting && ' (locked)'}
+            </p>
             <div className="grid grid-cols-2 gap-2.5">
               <WinnerOption label={p1Label} active={winnerId === p1Id} onClick={() => pickWinner(p1Id)} />
               <WinnerOption label={p2Label} active={winnerId === p2Id} onClick={() => pickWinner(p2Id)} />
@@ -143,9 +162,15 @@ export function ScoreDialog({
           <Button variant="ghost" size="lg" className="sm:h-10 sm:text-sm" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button size="lg" className="sm:h-10 sm:text-sm" loading={submit.isPending || submitTeam.isPending} disabled={!winnerId} onClick={handleSubmit}>
+          <Button
+            size="lg"
+            className="sm:h-10 sm:text-sm"
+            loading={submit.isPending || submitTeam.isPending || correct.isPending}
+            disabled={!winnerId}
+            onClick={handleSubmit}
+          >
             <Check className="size-4" />
-            Confirm result
+            {correcting ? 'Save correction' : 'Confirm result'}
           </Button>
         </div>
       </DialogContent>

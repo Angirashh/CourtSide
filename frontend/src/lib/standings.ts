@@ -40,7 +40,9 @@ export function computeStandings(players: Player[], matches: Match[]): StandingR
   }
 
   for (const m of matches) {
-    if (!m.is_completed) continue
+    // A no-result match (neither player showed up) shouldn't count as "played" for either
+    // side, same as an incomplete match -- just skip it entirely.
+    if (!m.is_completed || m.is_no_result) continue
 
     // A bye credits the lone player a win (matches the backend's StandingsEngine) without a real opponent.
     if (m.is_bye) {

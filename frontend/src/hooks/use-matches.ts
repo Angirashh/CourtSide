@@ -21,6 +21,17 @@ export function useStartMatch(tournamentId: string) {
   })
 }
 
+export function useMarkNoResult(tournamentId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (matchId: string) => matchesApi.markNoResult(matchId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['matches', tournamentId] })
+      qc.invalidateQueries({ queryKey: tournamentKeys.detail(tournamentId) })
+    },
+  })
+}
+
 export function useSubmitScore(tournamentId: string) {
   const qc = useQueryClient()
   return useMutation({
@@ -33,6 +44,25 @@ export function useSubmitScore(tournamentId: string) {
       winnerId: string
       scores: { p1: number; p2: number }[]
     }) => matchesApi.submitScore(matchId, { winner_id: winnerId, scores }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['matches', tournamentId] })
+      qc.invalidateQueries({ queryKey: tournamentKeys.detail(tournamentId) })
+    },
+  })
+}
+
+export function useCorrectScore(tournamentId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      matchId,
+      winnerId,
+      scores,
+    }: {
+      matchId: string
+      winnerId: string
+      scores: { p1: number; p2: number }[]
+    }) => matchesApi.correctScore(matchId, { winner_id: winnerId, scores }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['matches', tournamentId] })
       qc.invalidateQueries({ queryKey: tournamentKeys.detail(tournamentId) })

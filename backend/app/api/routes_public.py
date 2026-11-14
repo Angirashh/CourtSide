@@ -222,6 +222,7 @@ def _to_engine_match(m: models.Match) -> EngineMatch:
         player2_id=m.player2_id,
         winner_id=m.winner_id,
         is_completed=m.is_completed,
+        is_no_result=m.is_no_result,
     )
     engine_match.scores = [(s.get("p1"), s.get("p2")) for s in (m.scores or [])]
     return engine_match
