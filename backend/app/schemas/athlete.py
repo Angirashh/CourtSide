@@ -110,6 +110,9 @@ class AthleteTournamentHistory(BaseModel):
     seed: Optional[int] = None
     final_placement: Optional[int] = None
     points_earned: float
+    matches_played: int = 0
+    matches_won: int = 0
+    win_rate_percentage: float = 0.0
 
     model_config = ConfigDict(from_attributes=True)
 

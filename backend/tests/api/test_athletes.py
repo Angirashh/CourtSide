@@ -109,6 +109,42 @@ def test_get_athlete_by_id_surfaces_profile_fields_without_auth(client, db_sessi
     assert body["bio"] == "Right-handed singles player."
 
 
+def test_me_history_includes_per_tournament_win_rate(client, db_session, mock_phone_verify):
+    token = _signup(client, "9200000006", "profile6@example.com")
+    headers = {"Authorization": f"Bearer {token}"}
+    athlete_id = client.get(f"{API}/athletes/me", headers=headers).json()["id"]
+
+    tournament = models.Tournament(
+        name="History Open", format=models.TournamentFormat.KNOCKOUT, status=models.TournamentStatus.COMPLETED,
+    )
+    db_session.add(tournament)
+    db_session.flush()
+
+    me_player = models.Player(id="P_hist_me", tournament_id=tournament.id, name="Me", athlete_id=athlete_id)
+    opp = models.Player(id="P_hist_opp", tournament_id=tournament.id, name="Opp")
+    db_session.add_all([me_player, opp])
+    db_session.flush()
+
+    won_match = models.Match(
+        id="M_hist_won", tournament_id=tournament.id, stage=models.MatchStage.KNOCKOUT, round_num=1,
+        player1_id=me_player.id, player2_id=opp.id, winner_id=me_player.id, is_completed=True,
+    )
+    # A no-result match shouldn't count as played, same as the standings rule it mirrors.
+    no_result_match = models.Match(
+        id="M_hist_nr", tournament_id=tournament.id, stage=models.MatchStage.ROUND_ROBIN, round_num=1,
+        player1_id=me_player.id, player2_id=opp.id, is_completed=True, is_no_result=True,
+    )
+    db_session.add_all([won_match, no_result_match])
+    db_session.commit()
+
+    resp = client.get(f"{API}/athletes/me", headers=headers)
+    assert resp.status_code == 200, resp.text
+    entry = next(h for h in resp.json()["history"] if h["tournament_id"] == tournament.id)
+    assert entry["matches_played"] == 1
+    assert entry["matches_won"] == 1
+    assert entry["win_rate_percentage"] == 100.0
+
+
 def test_create_athlete_requires_organiser_auth(client):
     resp = client.post(f"{API}/athletes", json={"name": "Anon Athlete"})
     assert resp.status_code == 401, resp.text
