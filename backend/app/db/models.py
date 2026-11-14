@@ -436,6 +436,10 @@ class Match(Base):
     is_completed = Column(Boolean, default=False)
     is_bye = Column(Boolean, default=False)
     is_walkover = Column(Boolean, default=False)  # Auto-resolved because one participant withdrew
+    # Both participants no-showed -- resolved with no winner so it stops blocking tournament
+    # completion, but excluded from standings/career stats entirely (not counted as played).
+    # Only settable on ROUND_ROBIN/CROSSOVER matches, which have no bracket progression to break.
+    is_no_result = Column(Boolean, default=False)
     scores = Column(JSON, nullable=True)  # e.g., [{"p1": 21, "p2": 18}, {"p1": 21, "p2": 15}]
 
     # Whoever tapped "Start match" on court — lets the organiser see which operator

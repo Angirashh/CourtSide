@@ -4,7 +4,7 @@ import { toast } from 'sonner'
 import { CalendarClock, CheckCircle2, MapPin, Play, Radio, Swords, Timer, UserX } from 'lucide-react'
 import { useAuthStore } from '@/stores/auth-store'
 import { useTournament } from '@/hooks/use-tournaments'
-import { useStartMatch } from '@/hooks/use-matches'
+import { useMarkNoResult, useStartMatch } from '@/hooks/use-matches'
 import { useCourtChangeAlerts } from '@/hooks/use-court-change-alerts'
 import { useUrlParam } from '@/hooks/use-url-param'
 import { FullPageSpinner } from '@/components/ui/spinner'
@@ -12,6 +12,7 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { ScoreDialog } from '@/components/tournament/score-dialog'
 import { TeamFixtureVisualizer } from '@/components/fixtures/team-fixture-visualizer'
 import { useStartTeamGame } from '@/hooks/use-team-ties'
@@ -27,7 +28,9 @@ export function OperatorMatchesPage() {
   const tournamentId = id ?? scopedTournamentId
   const { data: tournament, isLoading } = useTournament(tournamentId ?? undefined, { refetchInterval: 10_000 })
   const startMatch = useStartMatch(tournamentId ?? '')
-  const [scoringMatch, setScoringMatch] = useState<Match | null>(null)
+  const markNoResult = useMarkNoResult(tournamentId ?? '')
+  const [scoreTarget, setScoreTarget] = useState<{ match: Match; correcting: boolean } | null>(null)
+  const [noResultMatch, setNoResultMatch] = useState<Match | null>(null)
   const [rawCourtFilter, setCourtFilter] = useUrlParam('court', 'all')
   // '' = "follow the action": show what's live, else what's next, until the operator picks a tab.
   const [rawTab, setRawTab] = useUrlParam('tab', '')
@@ -142,7 +145,9 @@ export function OperatorMatchesPage() {
               nextUp={tab === 'upcoming' && i === 0}
               starting={startingId === m.id}
               onStart={() => handleStart(m)}
-              onScore={() => setScoringMatch(m)}
+              onScore={() => setScoreTarget({ match: m, correcting: false })}
+              onNoResult={() => setNoResultMatch(m)}
+              onEditScore={() => setScoreTarget({ match: m, correcting: true })}
               readOnly={tab === 'completed'}
             />
           ))
@@ -161,16 +166,50 @@ export function OperatorMatchesPage() {
         </div>
       </nav>
 
-      {scoringMatch && (
+      {scoreTarget && (
         <ScoreDialog
           tournamentId={tournament.id}
-          match={scoringMatch}
+          match={scoreTarget.match}
+          correcting={scoreTarget.correcting}
           playersById={playersById}
-          open={!!scoringMatch}
-          onOpenChange={(open) => !open && setScoringMatch(null)}
-          onSubmitted={() => handleScored(scoringMatch)}
+          open={!!scoreTarget}
+          onOpenChange={(open) => !open && setScoreTarget(null)}
+          onSubmitted={() => !scoreTarget.correcting && handleScored(scoreTarget.match)}
         />
       )}
+
+      <Dialog open={!!noResultMatch} onOpenChange={(open) => !open && setNoResultMatch(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Mark as no result?</DialogTitle>
+            <DialogDescription>
+              Use this when neither player showed up to play. It closes out the match with no
+              winner, and it won't count toward either player's record. This can't be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setNoResultMatch(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="danger"
+              loading={markNoResult.isPending}
+              onClick={() => {
+                if (!noResultMatch) return
+                markNoResult.mutate(noResultMatch.id, {
+                  onSuccess: () => {
+                    toast.success('Match marked as no result.')
+                    setNoResultMatch(null)
+                  },
+                  onError: (err) => toast.error(extractErrorMessage(err)),
+                })
+              }}
+            >
+              Mark no result
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
@@ -370,6 +409,8 @@ function OperatorMatchCard({
   starting,
   onStart,
   onScore,
+  onNoResult,
+  onEditScore,
   readOnly,
 }: {
   match: Match
@@ -379,12 +420,20 @@ function OperatorMatchCard({
   starting?: boolean
   onStart: () => void
   onScore: () => void
+  onNoResult: () => void
+  onEditScore: () => void
   readOnly?: boolean
 }) {
   const p1 = match.player1_id ? playersById.get(match.player1_id) : undefined
   const p2 = match.player2_id ? playersById.get(match.player2_id) : undefined
   const court = match.court_id ? courtsById.get(match.court_id) : undefined
   const isLive = match.status === 'IN_PROGRESS' && !match.is_completed
+  // A real scored result -- not a bye/walkover/no-result -- is the only kind with scores
+  // worth correcting.
+  const canEditScore = match.is_completed && !match.is_bye && !match.is_walkover && !match.is_no_result
+  // Only Round Robin/Team Friendly have no bracket progression depending on a winner, so
+  // "no result" (both players no-showed) is only offered there -- see routes_matches.py.
+  const canMarkNoResult = match.stage === 'ROUND_ROBIN' || match.stage === 'CROSSOVER'
 
   return (
     <Card className={cn('p-4', isLive && 'border-ember-300/60 bg-ember-500/10')}>
@@ -401,6 +450,8 @@ function OperatorMatchCard({
             <Badge variant="live" pulse>
               LIVE
             </Badge>
+          ) : match.is_no_result ? (
+            <Badge variant="outline">No result</Badge>
           ) : nextUp ? (
             <Badge variant="dark">Next up</Badge>
           ) : null}
@@ -433,12 +484,27 @@ function OperatorMatchCard({
         </div>
       )}
 
+      {readOnly && canEditScore && (
+        <div className="mt-4">
+          <Button variant="ghost" size="sm" className="h-10 w-full text-court-cream/40 sm:h-10" onClick={onEditScore}>
+            Wrong score? Edit result
+          </Button>
+        </div>
+      )}
+
       {!readOnly && (
         <div className="mt-4 space-y-1.5">
           {isLive ? (
-            <Button size="lg" className="w-full" onClick={onScore}>
-              Enter score
-            </Button>
+            <>
+              <Button size="lg" className="w-full" onClick={onScore}>
+                Enter score
+              </Button>
+              {canMarkNoResult && (
+                <Button variant="ghost" size="sm" className="h-10 w-full text-court-cream/40 sm:h-10" onClick={onNoResult}>
+                  Neither player showed up? No result
+                </Button>
+              )}
+            </>
           ) : (
             <>
               <Button size="lg" className="w-full" loading={starting} onClick={onStart}>
@@ -448,6 +514,11 @@ function OperatorMatchCard({
               <Button variant="ghost" size="sm" className="h-10 w-full text-court-cream/55 sm:h-10" onClick={onScore}>
                 Already played? Enter result
               </Button>
+              {canMarkNoResult && (
+                <Button variant="ghost" size="sm" className="h-10 w-full text-court-cream/40 sm:h-10" onClick={onNoResult}>
+                  Neither player showed up? No result
+                </Button>
+              )}
             </>
           )}
         </div>

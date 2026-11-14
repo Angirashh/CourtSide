@@ -95,6 +95,7 @@ export interface Match {
   is_completed: boolean
   is_bye: boolean
   is_walkover: boolean
+  is_no_result: boolean
   scores: { p1: number; p2: number }[] | null
   operator_role: UserRole | null
 }

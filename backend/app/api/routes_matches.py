@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from app.api.dependencies import CurrentUser, ensure_tournament_access, get_db, require_operator_or_organiser
 from app.db import models
 from app.schemas.match import MatchResponse, MatchScoreSubmission
-from app.services.match_progression import finalize_match_result
+from app.services.match_progression import finalize_match_result, mark_match_no_result
 
 router = APIRouter(tags=["Matches"])
 
@@ -100,6 +100,17 @@ def start_match(
     return match
 
 
+def _ensure_scores_favor_winner(payload: MatchScoreSubmission, match: models.Match) -> None:
+    p1_sets = sum(1 for s in payload.scores if s.p1 > s.p2)
+    p2_sets = sum(1 for s in payload.scores if s.p2 > s.p1)
+    winner_sets, loser_sets = (p1_sets, p2_sets) if payload.winner_id == match.player1_id else (p2_sets, p1_sets)
+    if winner_sets <= loser_sets:
+        raise HTTPException(
+            status_code=400,
+            detail="The scores don't match the selected winner: the winner must win more sets than the opponent."
+        )
+
+
 # =====================================================================
 # SUBMIT SCORE & AUTOMATE PROGRESSION
 # =====================================================================
@@ -131,14 +142,7 @@ def submit_match_score(
             detail=f"Winner {payload.winner_id} is not one of the participants ({match.player1_id}, {match.player2_id})"
         )
 
-    p1_sets = sum(1 for s in payload.scores if s.p1 > s.p2)
-    p2_sets = sum(1 for s in payload.scores if s.p2 > s.p1)
-    winner_sets, loser_sets = (p1_sets, p2_sets) if payload.winner_id == match.player1_id else (p2_sets, p1_sets)
-    if winner_sets <= loser_sets:
-        raise HTTPException(
-            status_code=400,
-            detail="The scores don't match the selected winner: the winner must win more sets than the opponent."
-        )
+    _ensure_scores_favor_winner(payload, match)
 
     # Direct result entry is supported by the shared operator workspace, so record
     # the scorer when the match was not started through the start endpoint.
@@ -152,6 +156,87 @@ def submit_match_score(
         scores=[score.model_dump() for score in payload.scores],
     )
 
+    db.commit()
+    db.refresh(match)
+    return match
+
+
+# =====================================================================
+# NO RESULT (neither player showed up to play it)
+# =====================================================================
+@router.post("/matches/{match_id}/no-result", response_model=MatchResponse)
+def mark_no_result(
+    match_id: str,
+    current_user: CurrentUser = Depends(require_operator_or_organiser),
+    db: Session = Depends(get_db)
+):
+    """
+    Resolves a match that will never be played -- both players no-showed -- without
+    fabricating a winner. Restricted to ROUND_ROBIN/CROSSOVER: those have no bracket
+    progression depending on a winner, unlike Group/Swiss/Knockout, where a winnerless
+    match would leave nothing to advance.
+    """
+    match = db.query(models.Match).filter(models.Match.id == match_id).first()
+    if not match:
+        raise HTTPException(status_code=404, detail="Match not found")
+
+    tournament = db.query(models.Tournament).filter(models.Tournament.id == match.tournament_id).first()
+    ensure_tournament_access(tournament, current_user, db)
+
+    if match.is_completed:
+        raise HTTPException(status_code=400, detail="Match has already been completed.")
+    if match.stage not in (models.MatchStage.ROUND_ROBIN, models.MatchStage.CROSSOVER):
+        raise HTTPException(
+            status_code=400,
+            detail="No result is only available for Round Robin and Team Friendly matches."
+        )
+
+    mark_match_no_result(match, db)
+    db.commit()
+    db.refresh(match)
+    return match
+
+
+# =====================================================================
+# CORRECT A MIS-ENTERED SCORE
+# =====================================================================
+@router.patch("/matches/{match_id}/score", response_model=MatchResponse)
+def correct_match_score(
+    match_id: str,
+    payload: MatchScoreSubmission,
+    current_user: CurrentUser = Depends(require_operator_or_organiser),
+    db: Session = Depends(get_db)
+):
+    """
+    Fixes a mis-entered score on an already-completed match (e.g. a typo'd set score).
+    The winner can't change here: by the time a match is completed, that winner may already
+    have advanced into a bracket, a Swiss pairing, or standings, so flipping it isn't a safe
+    field-level edit -- only the recorded scores can be corrected, same winner as before.
+    """
+    match = db.query(models.Match).filter(models.Match.id == match_id).first()
+    if not match:
+        raise HTTPException(status_code=404, detail="Match not found")
+
+    tournament = db.query(models.Tournament).filter(models.Tournament.id == match.tournament_id).first()
+    ensure_tournament_access(tournament, current_user, db)
+
+    if not match.is_completed:
+        raise HTTPException(status_code=400, detail="This match hasn't been scored yet — submit a result first.")
+    if match.is_bye:
+        raise HTTPException(status_code=400, detail="Bye matches have no score to correct.")
+    if match.is_walkover:
+        raise HTTPException(status_code=400, detail="Walkovers have no recorded score to correct.")
+    if match.is_no_result:
+        raise HTTPException(status_code=400, detail="No-result matches have no recorded score to correct.")
+    if payload.winner_id != match.winner_id:
+        raise HTTPException(
+            status_code=400,
+            detail="The winner can't be changed here — only the recorded scores."
+        )
+
+    _ensure_scores_favor_winner(payload, match)
+
+    match.scores = [score.model_dump() for score in payload.scores]
     db.commit()
     db.refresh(match)
     return match

@@ -39,6 +39,23 @@ def finalize_match_result(
         _check_and_transition_swiss(match.tournament_id, match.round_num, db)
 
 
+def mark_match_no_result(match: models.Match, db: Session) -> None:
+    """
+    Resolves a match where neither player showed up to play it: no winner, no scores,
+    excluded entirely from standings/career stats (see StandingsEngine). Deliberately
+    separate from finalize_match_result rather than threading winner_id=None through it --
+    there's no knockout winner to propagate and no group/Swiss transition to check, since
+    this only ever applies to ROUND_ROBIN/CROSSOVER matches (enforced by the caller).
+    """
+    match.winner_id = None
+    match.scores = None
+    match.is_completed = True
+    match.status = models.MatchStatus.COMPLETED
+    match.actual_end_time = datetime.utcnow()
+    match.is_no_result = True
+    db.flush()
+
+
 def resolve_pending_walkovers(tournament_id: str, db: Session) -> List[models.Match]:
     """
     Auto-completes any pending match where both participants are resolved (non-TBD)
@@ -401,7 +418,7 @@ def finalize_athlete_career_stats(tournament_id: str, db: Session) -> None:
         EngineMatch(
             id=m.id, round_num=m.round_num, stage=EngineMatchStage(m.stage.value),
             group_id=m.group_id, player1_id=m.player1_id, player2_id=m.player2_id,
-            winner_id=m.winner_id, is_completed=m.is_completed,
+            winner_id=m.winner_id, is_completed=m.is_completed, is_no_result=m.is_no_result,
         )
         for m in matches
     ]

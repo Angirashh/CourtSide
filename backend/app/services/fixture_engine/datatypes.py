@@ -37,6 +37,7 @@ class Match:
     group_id: Optional[str] = None
     winner_id: Optional[str] = None
     is_completed: bool = False
+    is_no_result: bool = False
 
     @property
     def is_bye(self) -> bool:

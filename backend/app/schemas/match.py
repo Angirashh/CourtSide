@@ -50,6 +50,7 @@ class MatchResponse(MatchBase):
     is_completed: bool
     is_bye: bool
     is_walkover: bool = False
+    is_no_result: bool = False
     scores: Optional[List[dict]] = None
     operator_role: Optional[UserRole] = None
 

@@ -162,6 +162,19 @@ def ensure_court_available_from_column(engine: Engine) -> None:
             conn.execute(text("ALTER TABLE courts ADD COLUMN available_from_minutes INTEGER NOT NULL DEFAULT 0"))
 
 
+def ensure_match_no_result_column(engine: Engine) -> None:
+    """Same create_all limitation as above, for `is_no_result` on a `matches` table that
+    predates the both-players-no-showed resolution path."""
+    inspector = inspect(engine)
+    if "matches" not in inspector.get_table_names():
+        return
+
+    existing = {col["name"] for col in inspector.get_columns("matches")}
+    if "is_no_result" not in existing:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE matches ADD COLUMN is_no_result BOOLEAN NOT NULL DEFAULT FALSE"))
+
+
 def ensure_tournament_registration_columns(engine: Engine) -> None:
     """Same create_all limitation as above, for the organiser-controlled public-registration
     gate (`registration_open`) and roster cap (`max_players`) on a `tournaments` table that

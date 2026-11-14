@@ -114,6 +114,10 @@ export function FixtureMatchRow({
             <span className="shrink-0 font-sans text-[10px] font-bold uppercase tracking-wide text-court-cream/45">Walkover</span>
           )}
 
+          {isCompleted && match.is_no_result && (
+            <span className="shrink-0 font-sans text-[10px] font-bold uppercase tracking-wide text-court-cream/45">No result</span>
+          )}
+
           {isCompleted && durationMinutes !== null && (
             <span className="inline-flex shrink-0 items-center gap-1 font-sans text-[11px] font-medium text-court-cream/55">
               <Clock className="size-3" aria-hidden="true" />
@@ -177,6 +181,10 @@ export function FixtureMatchRow({
 
         {match.is_walkover && (
           <span className="shrink-0 font-sans text-[10px] font-bold uppercase tracking-wide text-court-cream/45">Walkover</span>
+        )}
+
+        {match.is_no_result && (
+          <span className="shrink-0 font-sans text-[10px] font-bold uppercase tracking-wide text-court-cream/45">No result</span>
         )}
 
         {durationMinutes !== null && (

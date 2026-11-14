@@ -21,4 +21,9 @@ export const matchesApi = {
 
   submitScore: (matchId: string, payload: { winner_id: string; scores: { p1: number; p2: number }[] }) =>
     api.post<Match>(`/matches/${matchId}/score`, payload).then((r) => r.data),
+
+  correctScore: (matchId: string, payload: { winner_id: string; scores: { p1: number; p2: number }[] }) =>
+    api.patch<Match>(`/matches/${matchId}/score`, payload).then((r) => r.data),
+
+  markNoResult: (matchId: string) => api.post<Match>(`/matches/${matchId}/no-result`).then((r) => r.data),
 }
