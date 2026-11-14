@@ -1,6 +1,6 @@
 import { useRef } from 'react'
 import { Link, NavLink, Outlet } from 'react-router-dom'
-import { Info, LayoutGrid, Trophy, UserRound, Users } from 'lucide-react'
+import { Info, LayoutGrid, Trophy, UserCog, UserRound } from 'lucide-react'
 import { usePublicTournaments } from '@/hooks/use-public'
 import { useScrollToTop } from '@/hooks/use-scroll-to-top'
 import { BrandMark, BrandWatermark, BrandWordmark } from '@/components/brand/logo'
@@ -196,7 +196,7 @@ function Topbar() {
           to="/login?role=operator"
           className="inline-flex items-center gap-2 border border-white/15 bg-white/5 px-3.5 py-2 font-sans text-xs font-bold text-court-cream transition hover:border-signal"
         >
-          <Users className="size-4" aria-hidden="true" />
+          <UserCog className="size-4" aria-hidden="true" />
           <span className="hidden sm:inline">Join as operator</span>
         </Link>
       </div>
