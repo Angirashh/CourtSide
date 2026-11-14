@@ -26,7 +26,7 @@ import { CourtLines } from '@/components/public/court-lines'
 // Hidden for now — didn't look good. import { MatchProgressBar } from '@/components/public/match-progress-bar'
 import { extractErrorMessage } from '@/lib/api/client'
 import { computeStandings, computeTeamStandings } from '@/lib/standings'
-import type { TeamStandingRow } from '@/lib/standings'
+import type { StandingRow, TeamStandingRow } from '@/lib/standings'
 import { formatMeta } from '@/lib/tournament-format'
 import { cn, countdownTarget, finalPodium, formatLabel, formatPlainDate, playerLabel } from '@/lib/utils'
 import type { Player, PublicTournamentDetail, TournamentFormat, TournamentStatus } from '@/types/api'
@@ -107,6 +107,9 @@ export function TournamentLivePage() {
   // computed client-side identically to Team Friendly above, individual-only (no team split).
   const roundRobinMatches = tournament.matches.filter((m) => m.stage === 'ROUND_ROBIN')
   const roundRobinRows = isRoundRobin ? computeStandings(realPlayers, roundRobinMatches) : []
+  // Mirrors the Team Friendly podium above -- round robin has no bracket final to key off,
+  // so the champion is simply rank 1 of the standings once every match has a result.
+  const allRoundRobinMatchesDecided = roundRobinMatches.length > 0 && roundRobinMatches.every((m) => m.is_completed)
   // Fixtures/standings only mean anything once a schedule has actually been generated
   // (matches exist) — a DRAFT tournament has neither yet.
   const hasSchedule = tournament.matches.length > 0 || tournament.team_ties.length > 0
@@ -234,6 +237,8 @@ export function TournamentLivePage() {
                     />
                   ) : isTeamFriendly && allCrossoverMatchesDecided ? (
                     <TeamFriendlyResultCard rows={teamFriendlyTeamRows} />
+                  ) : isRoundRobin && allRoundRobinMatchesDecided && roundRobinRows.length > 0 ? (
+                    <RoundRobinResultCard tournament={tournament} rows={roundRobinRows} />
                   ) : (
                     <div className="space-y-6">
                       <FormatOverviewBlock format={tournament.format} isTeam={isTeamTournament} numGroups={numGroups} avgGroupSize={avgGroupSize} swissRounds={swissRounds} />
@@ -605,6 +610,19 @@ function TeamFriendlyResultCard({ rows }: { rows: TeamStandingRow[] }) {
     <Card className="relative overflow-hidden p-6 sm:p-8">
       <MedalPodium eyebrow="Tournament complete" champion={`Team ${winner}`} runnerUp={`Team ${winner === 'A' ? 'B' : 'A'}`} />
       <p className="mt-4 text-center font-sans text-sm text-court-cream/55">{record}</p>
+    </Card>
+  )
+}
+
+function RoundRobinResultCard({ tournament, rows }: { tournament: PublicTournamentDetail; rows: StandingRow[] }) {
+  const [champion, runnerUp] = rows
+  return (
+    <Card className="relative overflow-hidden p-6 sm:p-8">
+      <MedalPodium
+        eyebrow={tournament.status === 'COMPLETED' ? 'Tournament complete' : 'Final standings decided'}
+        champion={champion.name}
+        runnerUp={runnerUp?.name ?? null}
+      />
     </Card>
   )
 }

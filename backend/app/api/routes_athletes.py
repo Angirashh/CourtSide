@@ -185,8 +185,27 @@ def _build_athlete_detail(athlete_id: str, db: Session) -> AthleteDetailResponse
         .all()
     )
 
-    history = [
-        AthleteTournamentHistory(
+    # One query for every completed match across every tournament this athlete has played in,
+    # then grouped per-tournament below — avoids an N+1 query per roster entry.
+    tournament_ids = [tourn.id for _, tourn in roster_entries]
+    player_ids = [player.id for player, _ in roster_entries]
+    matches_by_tournament: Dict[str, List[models.Match]] = {}
+    if tournament_ids:
+        all_matches = db.query(models.Match).filter(
+            models.Match.tournament_id.in_(tournament_ids),
+            models.Match.is_completed == True,
+            models.Match.is_no_result == False,
+            or_(models.Match.player1_id.in_(player_ids), models.Match.player2_id.in_(player_ids)),
+        ).all()
+        for m in all_matches:
+            matches_by_tournament.setdefault(m.tournament_id, []).append(m)
+
+    history = []
+    for player, tourn in roster_entries:
+        relevant = [m for m in matches_by_tournament.get(tourn.id, []) if player.id in (m.player1_id, m.player2_id)]
+        matches_played = len(relevant)
+        matches_won = sum(1 for m in relevant if m.winner_id == player.id)
+        history.append(AthleteTournamentHistory(
             tournament_id=tourn.id,
             tournament_name=tourn.name,
             tournament_date=tourn.created_at,
@@ -195,10 +214,11 @@ def _build_athlete_detail(athlete_id: str, db: Session) -> AthleteDetailResponse
             tournament_status=tourn.status,
             seed=player.seed,
             final_placement=player.final_placement,
-            points_earned=player.ranking_points_earned
-        )
-        for player, tourn in roster_entries
-    ]
+            points_earned=player.ranking_points_earned,
+            matches_played=matches_played,
+            matches_won=matches_won,
+            win_rate_percentage=round((matches_won / matches_played) * 100.0, 1) if matches_played else 0.0,
+        ))
 
     win_rate = (
         round((athlete.matches_won / athlete.matches_played) * 100.0, 1)

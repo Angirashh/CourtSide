@@ -154,16 +154,20 @@ function LoggedInView() {
   return (
     <div className="space-y-8 py-6">
       <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
+        <div className="flex min-w-0 items-center gap-3">
           {user && <InitialsAvatar name={user.name} seed={athleteProfile?.id ?? user.id} size="lg" />}
-          <div>
-            <h1 className="font-display text-3xl tracking-tight text-court-cream">Hey, {user?.name}</h1>
-            <p className="mt-1 text-sm text-court-cream/55">{user?.email}</p>
+          <div className="min-w-0">
+            <h1 className="truncate font-display text-2xl tracking-tight text-court-cream sm:text-3xl">Hey, {user?.name}</h1>
+            <p className="mt-1 truncate text-sm text-court-cream/55">{user?.email}</p>
           </div>
         </div>
-        <Button variant="outline" onClick={clearSession}>
-          <LogOut className="size-4" /> Log out
-        </Button>
+        <button
+          onClick={clearSession}
+          className="flex size-10 shrink-0 items-center justify-center rounded-full bg-white/10 text-court-cream/60 transition-colors hover:bg-white/15 hover:text-court-cream active:scale-95"
+          aria-label="Log out"
+        >
+          <LogOut className="size-4" />
+        </button>
       </div>
 
       {athleteProfile && <ProfileSummary profile={athleteProfile} onEdit={() => setEditingProfile(true)} />}
