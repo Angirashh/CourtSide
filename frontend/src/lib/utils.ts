@@ -84,6 +84,7 @@ export function formatLabel(format: TournamentFormat): string {
   if (format === 'KNOCKOUT') return 'Knockout'
   if (format === 'GROUP_KNOCKOUT') return 'Group + Knockout'
   if (format === 'SWISS_KNOCKOUT') return 'Swiss + Knockout'
+  if (format === 'ROUND_ROBIN') return 'Round Robin'
   return 'Team Friendly'
 }
 
