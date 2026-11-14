@@ -24,7 +24,7 @@ export const formatMeta: Record<TournamentFormat, FormatMeta> = {
   GROUP_KNOCKOUT: {
     label: 'Group + Knockout',
     icon: Swords,
-    barClassName: 'bg-ember-500',
+    barClassName: 'bg-ember-100',
     howItWorks:
       'Players are split into groups and play round-robin within their group — everyone faces every other player in their group once. The top finishers from each group then advance to a single-elimination knockout bracket, which decides the champion.',
     standings:

@@ -418,6 +418,9 @@ export interface AthleteTournamentHistoryEntry {
   seed: number | null
   final_placement: number | null
   points_earned: number
+  matches_played: number
+  matches_won: number
+  win_rate_percentage: number
 }
 
 export interface AthleteCategoryStats {
