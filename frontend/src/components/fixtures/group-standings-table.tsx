@@ -14,6 +14,7 @@ export function GroupStandingsTable({ title, rows, qualifySlots = 2 }: { title: 
           </span>
         )}
       </div>
+      <div className="overflow-x-auto">
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-white/14 text-left font-sans text-[11px] uppercase tracking-wide text-court-cream/55">
@@ -22,7 +23,7 @@ export function GroupStandingsTable({ title, rows, qualifySlots = 2 }: { title: 
             <th className="px-2 py-2 text-center font-semibold">P</th>
             <th className="px-2 py-2 text-center font-semibold">W-L</th>
             <th className="px-2 py-2 text-center font-semibold">Pts</th>
-            <th className="hidden px-2 py-2 text-center font-semibold sm:table-cell">
+            <th className="px-2 py-2 text-center font-semibold">
               Diff
               <span className="sr-only"> (rally point difference)</span>
             </th>
@@ -70,13 +71,14 @@ export function GroupStandingsTable({ title, rows, qualifySlots = 2 }: { title: 
                 {row.won}-{row.lost}
               </td>
               <td className="px-2 py-2.5 text-center font-sans font-bold tabular-nums text-court-cream">{row.points}</td>
-              <td className="hidden px-2 py-2.5 text-center sm:table-cell">
+              <td className="px-2 py-2.5 text-center">
                 <DiffIndicator value={row.pointDiff} />
               </td>
             </motion.tr>
           ))}
         </tbody>
       </table>
+      </div>
     </div>
   )
 }
