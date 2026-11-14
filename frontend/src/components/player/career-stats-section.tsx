@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Trophy } from 'lucide-react'
 // import { Medal } from 'lucide-react' -- only used by the disabled TournamentHistoryChart below
 import { Card } from '@/components/ui/card'
@@ -75,15 +75,42 @@ export function CareerStatsSection({ stats, history }: { stats: CareerStats; his
 /** Chronological (oldest -> newest) win rate per tournament, skipping any entry with zero
     matches played (a withdrawal/no-show) so it can't masquerade as a 0% result. */
 function WinRateTrendChart({ history }: { history: AthleteTournamentHistoryEntry[] }) {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [measuredWidth, setMeasuredWidth] = useState(0)
   const [hoverIdx, setHoverIdx] = useState<number | null>(null)
+
+  // Track the card's actual rendered width so chart units map 1:1 to real pixels at any
+  // screen size -- a fixed viewBox scaled down to fit a narrow phone is why lines, markers,
+  // and text all read as tiny on mobile. This keeps them full-size everywhere instead.
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+    const observer = new ResizeObserver((entries) => {
+      const width = entries[0]?.contentRect.width
+      if (width) setMeasuredWidth(width)
+    })
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
+
+  // Touch has no hover: a tap opens the tooltip and it stays until the reader taps elsewhere,
+  // rather than vanishing the instant their finger lifts.
+  useEffect(() => {
+    function handleOutsideTap(e: PointerEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) setHoverIdx(null)
+    }
+    document.addEventListener('pointerdown', handleOutsideTap)
+    return () => document.removeEventListener('pointerdown', handleOutsideTap)
+  }, [])
+
   const points = [...history].reverse().filter((h) => h.matches_played > 0)
   if (points.length < 2) return null
 
-  const W = 600
-  const H = 260
+  const W = Math.max(measuredWidth, 280)
+  const H = 320
   const padX = 20
-  const padTop = 36
-  const padBottom = 10
+  const padTop = 40
+  const padBottom = 12
   const plotW = W - padX * 2
   const plotH = H - padTop - padBottom
 
@@ -100,14 +127,35 @@ function WinRateTrendChart({ history }: { history: AthleteTournamentHistoryEntry
   const lastPoint = points[points.length - 1]
   const lastCoord = coords[coords.length - 1]
 
+  // A single full-width overlay rather than per-point hit circles -- lets a drag/scrub find
+  // the nearest point at any touch position, instead of requiring a precise tap on a tiny dot.
+  function handlePointer(e: React.PointerEvent<SVGRectElement>) {
+    const svg = e.currentTarget.ownerSVGElement
+    if (!svg) return
+    const rect = svg.getBoundingClientRect()
+    if (rect.width === 0) return
+    const relX = ((e.clientX - rect.left) / rect.width) * W
+    let nearest = 0
+    let minDist = Infinity
+    for (let i = 0; i < coords.length; i++) {
+      const d = Math.abs(coords[i].x - relX)
+      if (d < minDist) {
+        minDist = d
+        nearest = i
+      }
+    }
+    setHoverIdx(nearest)
+  }
+
   return (
     <section>
       <h2 className="mb-3 font-display text-lg text-court-cream">Win rate over time</h2>
       <Card className="relative animate-fade-up p-4 sm:p-5" style={{ animationDelay: '180ms' }}>
-        <div className="relative">
+        <div ref={containerRef} className="relative">
           <svg
             viewBox={`0 0 ${W} ${H}`}
-            className="w-full"
+            className="w-full touch-pan-y"
+            style={{ height: H }}
             role="img"
             aria-label={`Win rate across ${points.length} tournaments, from ${Math.round(points[0].win_rate_percentage)}% to ${Math.round(lastPoint.win_rate_percentage)}%`}
           >
@@ -116,7 +164,7 @@ function WinRateTrendChart({ history }: { history: AthleteTournamentHistoryEntry
               return (
                 <g key={pct}>
                   <line x1={padX} x2={W - padX} y1={y} y2={y} stroke="rgba(255,255,255,0.08)" strokeWidth={1} />
-                  <text x={0} y={y + 3} fill="rgba(247,243,235,0.4)" fontSize={9}>
+                  <text x={0} y={y + 4} fill="rgba(247,243,235,0.4)" fontSize={11}>
                     {pct}%
                   </text>
                 </g>
@@ -124,43 +172,73 @@ function WinRateTrendChart({ history }: { history: AthleteTournamentHistoryEntry
             })}
 
             <path d={areaPath} fill="var(--color-ember-500)" opacity={0.1} stroke="none" />
-            <path d={linePath} fill="none" stroke="var(--color-ember-500)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+            <path d={linePath} fill="none" stroke="var(--color-ember-500)" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
 
-            <text x={lastCoord.x} y={lastCoord.y - 10} textAnchor="end" fill="var(--color-court-cream)" fontSize={11} fontWeight={700}>
+            <text x={lastCoord.x} y={lastCoord.y - 12} textAnchor="end" fill="var(--color-court-cream)" fontSize={13} fontWeight={700}>
               {Math.round(lastPoint.win_rate_percentage)}%
             </text>
 
             {coords.map((c, i) => {
               const won = points[i].final_placement === 1
+              const active = hoverIdx === i
               return (
                 <g key={points[i].tournament_id}>
-                  <circle cx={c.x} cy={c.y} r={4} fill="var(--color-ember-500)" stroke="var(--color-ink-card)" strokeWidth={2} />
-                  {won && (
-                    <Trophy x={c.x - 7} y={c.y - 24} width={14} height={14} className="text-ember-500" aria-hidden="true" />
-                  )}
                   <circle
                     cx={c.x}
                     cy={c.y}
-                    r={12}
+                    r={active ? 8 : 6}
+                    fill="var(--color-ember-500)"
+                    stroke="var(--color-ink-card)"
+                    strokeWidth={2.5}
+                    className="transition-[r] duration-150"
+                  />
+                  {won && (
+                    <Trophy x={c.x - 8} y={c.y - 28} width={16} height={16} className="text-ember-500" aria-hidden="true" />
+                  )}
+                  {/* Keyboard/screen-reader access only -- the overlay rect below handles pointer/touch. */}
+                  <circle
+                    cx={c.x}
+                    cy={c.y}
+                    r={10}
                     fill="transparent"
                     tabIndex={0}
                     role="button"
                     aria-label={`${points[i].tournament_name}: ${Math.round(points[i].win_rate_percentage)}% win rate, ${points[i].matches_won} of ${points[i].matches_played} matches won${won ? ' — champion' : ''}`}
-                    onMouseEnter={() => setHoverIdx(i)}
-                    onMouseLeave={() => setHoverIdx(null)}
                     onFocus={() => setHoverIdx(i)}
                     onBlur={() => setHoverIdx(null)}
-                    className="cursor-pointer outline-none"
+                    className="outline-none"
                   />
                 </g>
               )
             })}
+
+            <rect
+              x={0}
+              y={0}
+              width={W}
+              height={H}
+              fill="transparent"
+              className="cursor-pointer"
+              onPointerDown={handlePointer}
+              onPointerMove={(e) => {
+                if (e.pointerType !== 'touch' || e.buttons > 0 || e.pressure > 0) handlePointer(e)
+              }}
+              onPointerLeave={(e) => {
+                if (e.pointerType !== 'touch') setHoverIdx(null)
+              }}
+            />
           </svg>
 
           {hovered && hoveredCoord && (
             <div
               className="pointer-events-none absolute z-10 w-max max-w-[180px] -translate-x-1/2 -translate-y-full rounded-lg border border-white/10 bg-ink px-2.5 py-1.5 text-xs shadow-lg"
-              style={{ left: `${(hoveredCoord.x / W) * 100}%`, top: `${(hoveredCoord.y / H) * 100}%` }}
+              style={{
+                // Clamped in real pixels (not a plain percentage of the point's X) so the
+                // tooltip's own half-width stays inside the chart even for the first/last
+                // point, instead of sliding off the edge of the screen.
+                left: `${(Math.min(Math.max(hoveredCoord.x, 92), W - 92) / W) * 100}%`,
+                top: `${(hoveredCoord.y / H) * 100}%`,
+              }}
             >
               <p className="flex items-center gap-1 font-semibold text-court-cream">
                 {Math.round(hovered.win_rate_percentage)}%
