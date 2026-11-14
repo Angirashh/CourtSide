@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react'
+import { useMemo } from 'react'
 import { GitBranch, Network } from 'lucide-react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { EmptyState } from '@/components/ui/empty-state'
@@ -39,13 +39,6 @@ export function FixtureVisualizer({
   // Computed over the full tournament-wide `matches` (not just the view currently on screen) --
   // a court's truly-next match might sit in a different round/slide than the one being viewed.
   const nextUpIds = useMemo(() => computeNextUpMatchIds(matches), [matches])
-  // Jumps the page to the current round the moment this tab mounts (Tabs unmounts
-  // inactive content, so this fires fresh every time someone opens Fixtures) — without
-  // it, a player has to scroll past every earlier round to find today's matches.
-  const activeRoundRef = useRef<HTMLDivElement>(null)
-  useEffect(() => {
-    activeRoundRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-  }, [])
   // Hooks must run unconditionally on every render, so this is read up front even though
   // only the groups/Swiss branch below actually uses it.
   const [stageTab, setStageTab] = useUrlParam('stage', format === 'GROUP_KNOCKOUT' ? 'groups' : 'swiss')
@@ -110,7 +103,7 @@ export function FixtureVisualizer({
           const isLast = idx === slots.length - 1
           const isActive = idx === activeIdx
           return (
-            <div key={idx} ref={isActive ? activeRoundRef : undefined} className="flex gap-4">
+            <div key={idx} className="flex gap-4">
               <div className="flex flex-col items-center">
                 <div
                   className={cn(
