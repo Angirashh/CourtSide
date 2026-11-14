@@ -55,6 +55,12 @@ export function TournamentLivePage() {
   const { data: myRegistrations } = useMyRegistrations(isPlayer)
   const myPlayerId = myRegistrations?.find((r) => r.tournament_id === id)?.player_id
   const showMyMatchesTab = !!myPlayerId
+  // A small, static nudge toward the tab rather than the louder animate-ping treatment used
+  // for a genuinely live match elsewhere on this page -- just enough to catch the eye without
+  // demanding it, and only shown when there's actually something unplayed to look at.
+  const hasPendingMyMatch = showMyMatchesTab && (tournament?.matches ?? []).some(
+    (m) => !m.is_completed && (m.player1_id === myPlayerId || m.player2_id === myPlayerId)
+  )
 
   const [searchParams, setSearchParams] = useSearchParams()
   const requestedTab = searchParams.get('tab')
@@ -189,18 +195,21 @@ export function TournamentLivePage() {
                 elsewhere in the app (fixture-visualizer, schedule-summary-tab) rather than a
                 desktop-web underline tab -- this is the page's primary navigation. */}
             <TabsList className={cn('grid w-full gap-1', showMyMatchesTab ? 'grid-cols-4' : 'grid-cols-3')}>
-              <TabsTrigger value="overview" className="truncate">
+              <TabsTrigger value="overview" className="truncate px-1 text-[11px] sm:px-3.5 sm:text-sm">
                 Overview
               </TabsTrigger>
-              <TabsTrigger value="fixtures" className="truncate">
+              <TabsTrigger value="fixtures" className="truncate px-1 text-[11px] sm:px-3.5 sm:text-sm">
                 Fixtures
               </TabsTrigger>
-              <TabsTrigger value="standings" className="truncate">
+              <TabsTrigger value="standings" className="truncate px-1 text-[11px] sm:px-3.5 sm:text-sm">
                 Standings
               </TabsTrigger>
               {showMyMatchesTab && (
-                <TabsTrigger value="mine" className="truncate">
+                <TabsTrigger value="mine" className="relative truncate px-1 text-[11px] sm:px-3.5 sm:text-sm">
                   My matches
+                  {hasPendingMyMatch && tab !== 'mine' && (
+                    <span className="absolute right-1 top-1 size-1.5 rounded-full bg-ember-500 sm:right-1.5 sm:top-1.5" aria-hidden="true" />
+                  )}
                 </TabsTrigger>
               )}
             </TabsList>
