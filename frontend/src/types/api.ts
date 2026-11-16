@@ -263,6 +263,7 @@ export interface PublicTournamentSummary {
   tournament_date: string | null
   earliest_match_start_time: string | null
   players_count: number
+  participant_names: string[]
   courts_count: number
   registration_status: RegistrationStatus
   max_players: number | null
@@ -280,6 +281,7 @@ export interface PublicTournamentDetail {
   id: string
   name: string
   format: TournamentFormat
+  event_formats: Partial<Record<TournamentEvent, EventFormat>> | null
   category: TournamentCategory | null
   status: TournamentStatus
   venue: string | null

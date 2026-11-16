@@ -154,28 +154,19 @@ export function FixtureVisualizer({
 
   return (
     <Tabs value={stageTab} onValueChange={setStageTab} className="space-y-5">
-      <TabsList className="grid w-full grid-cols-2 gap-0 bg-white/10 p-1">
+      <TabsList className="flex w-full items-center gap-1">
         {format === 'GROUP_KNOCKOUT' ? (
-          <TabsTrigger
-            value="groups"
-            className="font-sans text-sm font-semibold text-court-cream/55 shadow-none data-[state=active]:bg-navy-950 data-[state=active]:text-court-cream data-[state=active]:shadow-none"
-          >
+          <TabsTrigger value="groups" className="flex-1">
             <Network className="mr-1.5 size-3.5 inline" aria-hidden="true" />
             Group stage
           </TabsTrigger>
         ) : (
-          <TabsTrigger
-            value="swiss"
-            className="font-sans text-sm font-semibold text-court-cream/55 shadow-none data-[state=active]:bg-navy-950 data-[state=active]:text-court-cream data-[state=active]:shadow-none"
-          >
+          <TabsTrigger value="swiss" className="flex-1">
             <Network className="mr-1.5 size-3.5 inline" aria-hidden="true" />
             Swiss rounds
           </TabsTrigger>
         )}
-        <TabsTrigger
-          value="knockout"
-          className="font-sans text-sm font-semibold text-court-cream/55 shadow-none data-[state=active]:bg-navy-950 data-[state=active]:text-court-cream data-[state=active]:shadow-none"
-        >
+        <TabsTrigger value="knockout" className="flex-1">
           <GitBranch className="mr-1.5 size-3.5 inline" aria-hidden="true" />
           Knockout
         </TabsTrigger>

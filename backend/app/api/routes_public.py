@@ -164,6 +164,11 @@ def _load_public_tournaments(db: Session) -> List[PublicTournamentSummary]:
                 earliest_match_start_time=earliest_match_start_time,
                 tournament_type=t.tournament_type,
                 players_count=len(t.teams) if t.tournament_type == models.TournamentType.TEAM else len([p for p in t.players if not p.is_placeholder]),
+                participant_names=(
+                    [team.name for team in t.teams][:3]
+                    if t.tournament_type == models.TournamentType.TEAM
+                    else [p.name for p in t.players if not p.is_placeholder][:3]
+                ),
                 courts_count=len(t.courts),
                 registration_status=t.registration_status,
                 max_players=t.max_players,

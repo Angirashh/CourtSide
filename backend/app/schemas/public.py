@@ -1,5 +1,5 @@
 from datetime import date, datetime
-from typing import List, Optional
+from typing import Dict, List, Optional
 from pydantic import BaseModel, ConfigDict
 from app.db.models import MatchStatus, RegistrationStatus, TournamentFormat, TournamentStatus, TournamentCategory, TournamentType
 from app.schemas.player import PlayerResponse
@@ -72,6 +72,9 @@ class PublicTournamentSummary(BaseModel):
     # callers fall back to just the date.
     earliest_match_start_time: Optional[datetime] = None
     players_count: int
+    # First few real participants (players, or team names for TEAM tournaments) -- just
+    # enough for a card to render an overlapping avatar-stack preview, not the full roster.
+    participant_names: List[str] = []
     courts_count: int
     registration_status: RegistrationStatus = RegistrationStatus.OPEN
     max_players: Optional[int] = None
@@ -93,6 +96,10 @@ class PublicTournamentDetail(BaseModel):
     name: str
     format: TournamentFormat
     tournament_type: TournamentType = TournamentType.INDIVIDUAL
+    # Set only for individual GROUP_KNOCKOUT/SWISS_KNOCKOUT/KNOCKOUT tournaments split into
+    # singles/doubles sub-brackets -- None for ROUND_ROBIN, TEAM_FRIENDLY, and TEAM tournaments
+    # (the latter's discipline mix lives in team_config.match_order instead).
+    event_formats: Optional[Dict[str, TournamentFormat]] = None
     team_config: Optional[TeamTieConfig] = None
     category: Optional[TournamentCategory] = None
     status: TournamentStatus
