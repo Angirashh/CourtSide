@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
-import { ArrowLeft, ArrowRight, CalendarDays, CheckCircle2, GitBranch, MapPin, Network, Repeat, Trophy, UserX, Users } from 'lucide-react'
+import { ArrowLeft, ArrowRight, CalendarDays, CheckCircle2, GitBranch, MapPin, Network, Repeat, Swords, Trophy, UserX, Users } from 'lucide-react'
 import { usePublicStandings, usePublicTournament } from '@/hooks/use-public'
 import { useCourtChangeAlerts } from '@/hooks/use-court-change-alerts'
 import { useMyRegistrations } from '@/hooks/use-player-auth'
@@ -13,6 +13,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Countdown, COUNTDOWN_WINDOW_MS } from '@/components/ui/countdown'
+import { InfoPill } from '@/components/ui/info-pill'
+import { TournamentStatusBadge } from '@/components/ui/status-badge'
 import { FixtureVisualizer } from '@/components/fixtures/fixture-visualizer'
 import { MyMatchesList } from '@/components/public/my-matches-list'
 import { GroupStandingsTable } from '@/components/fixtures/group-standings-table'
@@ -22,24 +24,37 @@ import { TeamStandingsView } from '@/components/fixtures/team-standings-view'
 import { CaptainLineupPanel } from '@/components/tournament/captain-lineup-panel'
 import { PublicStandingsTable } from '@/components/public/public-standings-table'
 import { MedalPodium } from '@/components/public/medal-podium'
-import { CourtLines } from '@/components/public/court-lines'
 // Hidden for now — didn't look good. import { MatchProgressBar } from '@/components/public/match-progress-bar'
 import { extractErrorMessage } from '@/lib/api/client'
 import { computeStandings, computeTeamStandings } from '@/lib/standings'
 import type { StandingRow, TeamStandingRow } from '@/lib/standings'
 import { formatMeta } from '@/lib/tournament-format'
-import { cn, countdownTarget, finalPodium, formatLabel, formatPlainDate, playerLabel } from '@/lib/utils'
-import type { Player, PublicTournamentDetail, TournamentFormat, TournamentStatus } from '@/types/api'
-
-const statusWord: Record<TournamentStatus, string> = {
-  DRAFT: 'Upcoming',
-  SCHEDULING: 'Upcoming',
-  IN_PROGRESS: 'Live',
-  COMPLETED: 'Completed',
-}
+import { cn, countdownTarget, finalPodium, formatPlainDate, playerLabel } from '@/lib/utils'
+import type { Player, PublicTournamentDetail, TournamentFormat } from '@/types/api'
 
 const TAB_VALUES = ['overview', 'fixtures', 'standings', 'mine'] as const
 type TabValue = (typeof TAB_VALUES)[number]
+
+// ROUND_ROBIN and TEAM_FRIENDLY never set event_formats/team_config (they're always
+// 1v1 singles play), so they fall through to the 'Singles' default below.
+function disciplineLabel(tournament: PublicTournamentDetail, isTeamTournament: boolean): string {
+  if (isTeamTournament) {
+    const order = tournament.team_config?.match_order ?? []
+    const labels: string[] = []
+    if (order.includes('SINGLES')) labels.push('Singles')
+    if (order.includes('DOUBLES')) labels.push('Doubles')
+    if (order.includes('MIXED_DOUBLES')) labels.push('Mixed doubles')
+    return labels.join(' & ') || 'Singles'
+  }
+  const events = tournament.event_formats
+  if (events) {
+    const labels: string[] = []
+    if (events.singles) labels.push('Singles')
+    if (events.doubles) labels.push('Doubles')
+    if (labels.length) return labels.join(' & ')
+  }
+  return 'Singles'
+}
 
 export function TournamentLivePage() {
   const { id } = useParams<{ id: string }>()
@@ -97,6 +112,8 @@ export function TournamentLivePage() {
   const isRoundRobin = tournament.format === 'ROUND_ROBIN'
   const isTeamTournament = tournament.tournament_type === 'TEAM'
   const realPlayers = tournament.players.filter((p) => !p.is_placeholder)
+  const discipline = disciplineLabel(tournament, isTeamTournament)
+  const format = formatMeta[tournament.format]
   const crossoverMatches = tournament.matches.filter((m) => m.stage === 'CROSSOVER')
   const teamFriendlyTeamRows = isTeamFriendly ? computeTeamStandings(realPlayers, crossoverMatches) : []
   const teamFriendlyIndividualRows = isTeamFriendly ? computeStandings(realPlayers, crossoverMatches) : []
@@ -133,11 +150,29 @@ export function TournamentLivePage() {
     ? new Set(tournament.team_ties.filter((tie) => tie.stage === 'SWISS').map((tie) => tie.round_num)).size
     : new Set(tournament.matches.filter((m) => m.stage !== 'KNOCKOUT').map((m) => m.round_num)).size
 
+  // Once a result is decided, the podium/result card takes this slot instead of the teaser
+  // below it -- but FormatOverviewBlock still renders beneath it either way, see the
+  // "Overview" tab JSX below.
+  const winnerCard = isTeamTournament && teamChampion ? (
+    <Card className="relative overflow-hidden p-6 sm:p-8">
+      <MedalPodium
+        horizontal
+        eyebrow={tournament.status === 'COMPLETED' ? 'Tournament complete' : 'Final decided'}
+        champion={teamChampion}
+        runnerUp={teamRunnerUp}
+      />
+    </Card>
+  ) : podium.first ? (
+    <CompletedPodium tournament={tournament} playersById={playersById} podium={{ first: podium.first, second: podium.second }} />
+  ) : isTeamFriendly && allCrossoverMatchesDecided ? (
+    <TeamFriendlyResultCard rows={teamFriendlyTeamRows} />
+  ) : isRoundRobin && allRoundRobinMatchesDecided && roundRobinRows.length > 0 ? (
+    <RoundRobinResultCard tournament={tournament} rows={roundRobinRows} />
+  ) : null
+
   return (
-    <div className="space-y-5">
-      <section className="relative -mx-4 -mt-7 animate-fade-up overflow-hidden bg-ink-card px-4 pb-16 pt-7 text-court-cream sm:-mx-6 sm:px-6 lg:-mx-10 lg:-mt-9 lg:px-10 lg:pb-20 lg:pt-8">
-        <div className="pointer-events-none absolute -right-20 -top-24 z-0 h-72 w-72 rounded-full bg-ember-500/15 blur-3xl" />
-        <CourtLines />
+    <div className="space-y-3">
+      <section className="relative -mx-4 -mt-7 animate-fade-up overflow-hidden bg-ink-deep bg-[radial-gradient(circle_at_18%_15%,rgba(255,101,56,0.22),transparent_38%)] px-4 pb-6 pt-7 text-court-cream sm:-mx-6 sm:px-6 lg:-mx-10 lg:-mt-9 lg:px-10 lg:pb-8 lg:pt-8">
 
         <div className="relative">
           <Link
@@ -148,46 +183,41 @@ export function TournamentLivePage() {
             All tournaments
           </Link>
 
-          <div className="flex flex-wrap items-center gap-2.5">
-            <span
-              className={cn(
-                'flex items-center gap-1.5 font-sans text-[11px] font-bold uppercase tracking-wide',
-                tournament.status === 'IN_PROGRESS' ? 'text-signal' : 'text-court-cream/55'
-              )}
-            >
-              <span className="relative flex size-1.5">
-                {tournament.status === 'IN_PROGRESS' && (
-                  <span className="absolute inline-flex size-full animate-ping rounded-full bg-current opacity-75" />
-                )}
-                <span className="relative inline-flex size-1.5 rounded-full bg-current" />
-              </span>
-              {statusWord[tournament.status]}
-            </span>
-            <span className="font-sans text-[11px] font-bold uppercase tracking-wide text-court-cream/45">
-              {formatLabel(tournament.format)}
+          <div className="flex flex-wrap items-center gap-2">
+            <TournamentStatusBadge status={tournament.status} />
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/10 px-2 py-1 text-[11px] font-bold leading-none text-court-cream backdrop-blur-sm">
+              <format.icon className="size-3" aria-hidden="true" />
+              {format.label}
             </span>
           </div>
 
           <h1 className="mt-2 max-w-[720px] font-display text-[36px] leading-[1.05] tracking-tight text-court-cream">{tournament.name}</h1>
 
-          <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5">
-            <span className="flex items-center gap-1.5 font-sans text-xs font-bold uppercase tracking-wide text-court-cream">
-              <MapPin className="size-3.5 text-ember-400" /> {tournament.venue ?? 'Venue TBD'}
-            </span>
-            <span className="flex items-center gap-1.5 font-sans text-xs font-bold uppercase tracking-wide text-court-cream">
-              <CalendarDays className="size-3.5 text-ember-400" />
-              {tournament.tournament_date ? formatPlainDate(tournament.tournament_date) : 'Date TBD'}
-            </span>
-            <span className="flex items-center gap-1.5 font-sans text-xs font-bold uppercase tracking-wide text-court-cream">
-              <Users className="size-3.5 text-ember-400" /> {isTeamTournament ? `${tournament.teams.length} teams` : `${realPlayers.length} players`}
-            </span>
+          <div className="mt-7 grid max-w-[720px] grid-cols-2 gap-x-3 gap-y-5 rounded-2xl border border-white/10 bg-white/[0.06] p-5 backdrop-blur-md sm:flex sm:flex-wrap sm:items-center sm:gap-3">
+            <InfoPill icon={MapPin} label="Venue" value={tournament.venue ?? 'Venue TBD'} className="min-w-0 sm:min-w-[140px] sm:flex-1" />
+            <div className="hidden h-8 w-px shrink-0 bg-white/10 sm:block" />
+            <InfoPill
+              icon={CalendarDays}
+              label="Date"
+              value={tournament.tournament_date ? formatPlainDate(tournament.tournament_date) : 'Date TBD'}
+              className="min-w-0 sm:min-w-[140px] sm:flex-1"
+            />
+            <div className="hidden h-8 w-px shrink-0 bg-white/10 sm:block" />
+            <InfoPill icon={Swords} label="Discipline" value={discipline} className="min-w-0 sm:min-w-[140px] sm:flex-1" />
+            <div className="hidden h-8 w-px shrink-0 bg-white/10 sm:block" />
+            <InfoPill
+              icon={Users}
+              label={isTeamTournament ? 'Teams' : 'Players'}
+              value={isTeamTournament ? `${tournament.teams.length}` : `${realPlayers.length}`}
+              className="min-w-0 sm:min-w-[100px] sm:flex-1"
+            />
           </div>
 
           {notStarted && !isTeamTournament && <HeroRegistrationBlock tournament={tournament} />}
         </div>
         {/* Fades the hero's grey floor out into the page's black background instead of
             cutting off on a hard edge. */}
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[5] h-20 bg-gradient-to-b from-transparent to-ink" />
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[5] h-10 bg-gradient-to-b from-transparent to-ink" />
       </section>
 
       <div className="mx-auto max-w-[680px] space-y-5">
@@ -196,19 +226,21 @@ export function TournamentLivePage() {
           <Tabs value={tab} onValueChange={setTab}>
             {/* Native-feeling segmented control, matching the sliding-pill tab language used
                 elsewhere in the app (fixture-visualizer, schedule-summary-tab) rather than a
-                desktop-web underline tab -- this is the page's primary navigation. */}
-            <TabsList className={cn('grid w-full gap-1', showMyMatchesTab ? 'grid-cols-4' : 'grid-cols-3')}>
-              <TabsTrigger value="overview" className="truncate px-1 text-[11px] sm:px-3.5 sm:text-sm">
+                desktop-web underline tab -- this is the page's primary navigation. flex-1 fills
+                the row evenly when the tabs fit; once "My matches" pushes past the container's
+                width, the base TabsList's overflow-x-auto takes over instead of squeezing text. */}
+            <TabsList className="flex w-full items-center gap-1">
+              <TabsTrigger value="overview" className="flex-1">
                 Overview
               </TabsTrigger>
-              <TabsTrigger value="fixtures" className="truncate px-1 text-[11px] sm:px-3.5 sm:text-sm">
+              <TabsTrigger value="fixtures" className="flex-1">
                 Fixtures
               </TabsTrigger>
-              <TabsTrigger value="standings" className="truncate px-1 text-[11px] sm:px-3.5 sm:text-sm">
+              <TabsTrigger value="standings" className="flex-1">
                 Standings
               </TabsTrigger>
               {showMyMatchesTab && (
-                <TabsTrigger value="mine" className="relative truncate px-1 text-[11px] sm:px-3.5 sm:text-sm">
+                <TabsTrigger value="mine" className="relative flex-1">
                   My matches
                   {hasPendingMyMatch && tab !== 'mine' && (
                     <span className="absolute right-1 top-1 size-1.5 rounded-full bg-ember-500 sm:right-1.5 sm:top-1.5" aria-hidden="true" />
@@ -224,25 +256,12 @@ export function TournamentLivePage() {
                   {isTeamFriendly && <TeamRosterCard players={realPlayers} />}
                 </>
               ) : (
-                <>
-                  {isTeamTournament && teamChampion ? (
-                    <Card className="relative overflow-hidden p-6 sm:p-8">
-                      <MedalPodium eyebrow={tournament.status === 'COMPLETED' ? 'Tournament complete' : 'Final decided'} champion={teamChampion} runnerUp={teamRunnerUp} />
-                    </Card>
-                  ) : podium.first ? (
-                    <CompletedPodium
-                      tournament={tournament}
-                      playersById={playersById}
-                      podium={{ first: podium.first, second: podium.second }}
-                    />
-                  ) : isTeamFriendly && allCrossoverMatchesDecided ? (
-                    <TeamFriendlyResultCard rows={teamFriendlyTeamRows} />
-                  ) : isRoundRobin && allRoundRobinMatchesDecided && roundRobinRows.length > 0 ? (
-                    <RoundRobinResultCard tournament={tournament} rows={roundRobinRows} />
-                  ) : (
-                    <div className="space-y-6">
-                      <FormatOverviewBlock format={tournament.format} isTeam={isTeamTournament} numGroups={numGroups} avgGroupSize={avgGroupSize} swissRounds={swissRounds} />
+                <div className="space-y-6">
+                  {winnerCard}
+                  <FormatOverviewBlock format={tournament.format} isTeam={isTeamTournament} numGroups={numGroups} avgGroupSize={avgGroupSize} swissRounds={swissRounds} />
 
+                  {!winnerCard && (
+                    <>
                       {isTeamTournament ? (
                         <div>
                           <Eyebrow>Teams</Eyebrow>
@@ -296,9 +315,9 @@ export function TournamentLivePage() {
                           )}
                         </div>
                       )}
-                    </div>
+                    </>
                   )}
-                </>
+                </div>
               )}
             </TabsContent>
 
@@ -575,6 +594,7 @@ function CompletedPodium({
   return (
     <Card className="relative overflow-hidden p-6 sm:p-8">
       <MedalPodium
+        horizontal
         eyebrow={tournament.status === 'COMPLETED' ? 'Tournament complete' : 'Final decided'}
         champion={playerLabel(first, playersById)}
         runnerUp={second ? playerLabel(second, playersById) : null}
@@ -608,7 +628,7 @@ function TeamFriendlyResultCard({ rows }: { rows: TeamStandingRow[] }) {
 
   return (
     <Card className="relative overflow-hidden p-6 sm:p-8">
-      <MedalPodium eyebrow="Tournament complete" champion={`Team ${winner}`} runnerUp={`Team ${winner === 'A' ? 'B' : 'A'}`} />
+      <MedalPodium horizontal eyebrow="Tournament complete" champion={`Team ${winner}`} runnerUp={`Team ${winner === 'A' ? 'B' : 'A'}`} />
       <p className="mt-4 text-center font-sans text-sm text-court-cream/55">{record}</p>
     </Card>
   )
@@ -619,6 +639,7 @@ function RoundRobinResultCard({ tournament, rows }: { tournament: PublicTourname
   return (
     <Card className="relative overflow-hidden p-6 sm:p-8">
       <MedalPodium
+        horizontal
         eyebrow={tournament.status === 'COMPLETED' ? 'Tournament complete' : 'Final standings decided'}
         champion={champion.name}
         runnerUp={runnerUp?.name ?? null}
