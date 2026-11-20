@@ -14,6 +14,8 @@ from app.schemas.athlete import AthleteSearchResult
 from app.schemas.player import (
     PlayerCreate,
     PlayerBatchCreate,
+    PlayerImportRequest,
+    PlayerImportResponse,
     PlayerResponse,
     PlayerUpdate,
     PlayerWithdrawRequest,
@@ -135,6 +137,115 @@ def search_existing_players(
         .limit(20)
         .all()
     )
+
+
+@router.get("/import-candidates", response_model=List[AthleteSearchResult])
+def list_import_candidates(
+    tournament_id: str,
+    source_tournament_id: str = Query(...),
+    current_user: CurrentUser = Depends(require_organiser),
+    db: Session = Depends(get_db),
+):
+    """
+    Lets an organiser bulk-import an entire past roster (e.g. the same club/league group that
+    played a previous tournament) instead of searching and adding one player at a time. Access
+    is checked on BOTH tournaments -- the one being imported into and the one being imported
+    from -- so an organiser can only pull from a roster they actually had rights to.
+    """
+    tournament = db.query(models.Tournament).filter(models.Tournament.id == tournament_id).first()
+    if not tournament:
+        raise HTTPException(status_code=404, detail="Tournament not found")
+    ensure_tournament_access(tournament, current_user, db)
+
+    if source_tournament_id == tournament_id:
+        raise HTTPException(status_code=400, detail="Choose a different tournament to import from.")
+
+    source = db.query(models.Tournament).filter(models.Tournament.id == source_tournament_id).first()
+    if not source:
+        raise HTTPException(status_code=404, detail="Source tournament not found")
+    ensure_tournament_access(source, current_user, db)
+
+    already_rostered_athlete_ids = db.query(models.Player.athlete_id).filter(
+        models.Player.tournament_id == tournament_id,
+        models.Player.athlete_id.isnot(None),
+    )
+
+    source_players = (
+        db.query(models.Player)
+        .filter(
+            models.Player.tournament_id == source_tournament_id,
+            models.Player.is_placeholder == False,
+            models.Player.athlete_id.isnot(None),
+            models.Player.athlete_id.notin_(already_rostered_athlete_ids),
+        )
+        .all()
+    )
+    athletes = [p.athlete for p in source_players if p.athlete]
+    athletes.sort(key=lambda a: a.name)
+    return athletes
+
+
+@router.post("/import", response_model=PlayerImportResponse, status_code=status.HTTP_201_CREATED)
+def import_players(
+    tournament_id: str,
+    payload: PlayerImportRequest,
+    current_user: CurrentUser = Depends(require_organiser),
+    db: Session = Depends(get_db),
+):
+    """Bulk-adds a chosen set of existing athletes (picked from another tournament's roster, via
+    import-candidates above) to this tournament in one request."""
+    tournament = db.query(models.Tournament).filter(models.Tournament.id == tournament_id).first()
+    if not tournament:
+        raise HTTPException(status_code=404, detail="Tournament not found")
+    ensure_tournament_access(tournament, current_user, db)
+
+    if tournament.status not in (models.TournamentStatus.DRAFT, models.TournamentStatus.SCHEDULING):
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot add players once the tournament is in progress or completed."
+        )
+
+    if payload.team_id is not None:
+        if tournament.tournament_type != models.TournamentType.TEAM:
+            raise HTTPException(status_code=400, detail="Players can only be assigned to teams in team tournaments.")
+        team_exists = db.query(models.TournamentTeam.id).filter(
+            models.TournamentTeam.id == payload.team_id,
+            models.TournamentTeam.tournament_id == tournament_id,
+        ).first()
+        if not team_exists:
+            raise HTTPException(status_code=400, detail="Choose a team from this tournament.")
+
+    already_rostered_athlete_ids = {
+        row[0] for row in db.query(models.Player.athlete_id).filter(
+            models.Player.tournament_id == tournament_id,
+            models.Player.athlete_id.isnot(None),
+        )
+    }
+
+    added: List[models.Player] = []
+    skipped_count = 0
+    for athlete_id in payload.athlete_ids:
+        athlete = db.query(models.Athlete).filter(models.Athlete.id == athlete_id).first()
+        if not athlete or athlete.id in already_rostered_athlete_ids:
+            skipped_count += 1
+            continue
+        already_rostered_athlete_ids.add(athlete.id)
+        player = models.Player(
+            id=f"P_{uuid.uuid4().hex[:8]}",
+            tournament_id=tournament_id,
+            athlete_id=athlete.id,
+            name=athlete.name,
+            team_id=payload.team_id,
+        )
+        db.add(player)
+        added.append(player)
+
+    if added:
+        _auto_close_registration_if_full(db, tournament)
+    db.commit()
+    for p in added:
+        db.refresh(p)
+    return PlayerImportResponse(added=added, skipped_count=skipped_count)
 
 
 @router.post("", response_model=PlayerResponse, status_code=status.HTTP_201_CREATED)

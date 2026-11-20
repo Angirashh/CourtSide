@@ -1,5 +1,5 @@
 import time
-from typing import Callable, Dict, List, Optional, TypeVar
+from typing import Callable, Dict, List, Optional, Tuple, TypeVar
 
 from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy.orm import Session, selectinload
@@ -142,7 +142,10 @@ def _load_public_tournaments(db: Session) -> List[PublicTournamentSummary]:
                         team_champion_name = champion.name if champion else None
                         team_runner_up_name = runner_up.name if runner_up else None
             else:
-                champion_id, runner_up_id = compute_podium(t.matches)
+                if t.format == models.TournamentFormat.ROUND_ROBIN:
+                    champion_id, runner_up_id = _compute_round_robin_podium(t)
+                else:
+                    champion_id, runner_up_id = compute_podium(t.matches)
                 champion_name = players_by_id.get(champion_id) if champion_id else None
                 runner_up_name = players_by_id.get(runner_up_id) if runner_up_id else None
                 team_friendly_result = _compute_team_friendly_result(t)
@@ -231,6 +234,27 @@ def _to_engine_match(m: models.Match) -> EngineMatch:
     )
     engine_match.scores = [(s.get("p1"), s.get("p2")) for s in (m.scores or [])]
     return engine_match
+
+
+def _compute_round_robin_podium(tournament: models.Tournament) -> Tuple[Optional[str], Optional[str]]:
+    """None until every ROUND_ROBIN-stage match is decided. ROUND_ROBIN has no final match to
+    read a winner off of (unlike compute_podium's knockout final) -- the champion is whoever
+    tops the standings table, using the same BWF tiebreak order (StandingsEngine) the group
+    stage and the /standings endpoint already use."""
+    rr_matches = [m for m in tournament.matches if m.stage == models.MatchStage.ROUND_ROBIN]
+    if not rr_matches or not all(m.is_completed for m in rr_matches):
+        return None, None
+
+    real_players = [
+        EnginePlayer(id=p.id, name=p.name, seed=p.seed or 99) for p in tournament.players if not p.is_placeholder
+    ]
+    engine_matches = [_to_engine_match(m) for m in rr_matches]
+    standings = StandingsEngine.calculate_group_standings(real_players, engine_matches, group_id=None)
+    if not standings:
+        return None, None
+    champion_id = standings[0].player_id
+    runner_up_id = standings[1].player_id if len(standings) > 1 else None
+    return champion_id, runner_up_id
 
 
 def _compute_team_friendly_result(tournament: models.Tournament) -> Optional[TeamFriendlyResult]:

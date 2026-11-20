@@ -70,6 +70,18 @@ class PlayerBatchCreate(BaseModel):
     players: List[PlayerCreate]
 
 
+class PlayerImportRequest(BaseModel):
+    athlete_ids: List[str] = Field(..., min_length=1)
+    team_id: Optional[str] = None
+
+
+class PlayerImportResponse(BaseModel):
+    added: List[PlayerResponse]
+    # Already on this roster, or no longer a valid athlete -- never an error, since the
+    # organiser picked these from a list that could have changed a moment ago.
+    skipped_count: int = 0
+
+
 class TeamAssignmentItem(BaseModel):
     player_id: str
     team: Optional[Literal["A", "B"]] = None

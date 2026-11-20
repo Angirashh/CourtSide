@@ -1,5 +1,5 @@
 import { api } from './client'
-import type { AthleteSearchResult, NextMatch, Player, WithdrawResponse } from '@/types/api'
+import type { AthleteSearchResult, NextMatch, Player, PlayerImportResult, WithdrawResponse } from '@/types/api'
 
 export type PlayerTeamAssignment = {
   player_id: string
@@ -28,6 +28,18 @@ export const playersApi = {
   registerBatch: (tournamentId: string, players: { name: string }[]) =>
     api
       .post<Player[]>(`/tournaments/${tournamentId}/players/batch`, { players })
+      .then((r) => r.data),
+
+  importCandidates: (tournamentId: string, sourceTournamentId: string) =>
+    api
+      .get<AthleteSearchResult[]>(`/tournaments/${tournamentId}/players/import-candidates`, {
+        params: { source_tournament_id: sourceTournamentId },
+      })
+      .then((r) => r.data),
+
+  importPlayers: (tournamentId: string, payload: { athlete_ids: string[]; team_id?: string }) =>
+    api
+      .post<PlayerImportResult>(`/tournaments/${tournamentId}/players/import`, payload)
       .then((r) => r.data),
 
   upload: (tournamentId: string, file: File) => {
