@@ -7,6 +7,7 @@ from app.api.dependencies import CurrentUser, ensure_tournament_access, get_db, 
 from app.db import models
 from app.schemas.team_tie import TeamGameScoreSubmission, TeamLineupSubmission
 from app.schemas.tournament import TeamTieResponse
+from app.services.live_updates import notify_tournament_changed
 from app.services.team_competition import complete_team_tie
 from app.services.team_progression import finalize_team_tie
 
@@ -266,6 +267,7 @@ def start_team_game(
     game.status = models.MatchStatus.IN_PROGRESS
     game.actual_start_time = datetime.utcnow()
     game.operator_id = current_user.id
+    notify_tournament_changed(db, tie.tournament_id)
     db.commit()
     db.refresh(game)
     return game
@@ -302,6 +304,7 @@ def submit_team_game_score(
     mode = (tie.tournament.team_config or {}).get("completion_mode", "MAJORITY")
     if complete_team_tie(tie, mode):
         finalize_team_tie(tie, db)
+    notify_tournament_changed(db, tie.tournament_id)
     db.commit()
     db.refresh(game)
     return game

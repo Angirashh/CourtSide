@@ -1,11 +1,14 @@
+import asyncio
 import time
-from typing import Callable, Dict, List, Optional, Tuple, TypeVar
+from typing import AsyncIterator, Callable, Dict, List, Optional, Tuple, TypeVar
 
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session, selectinload
 
 from app.api.dependencies import get_db
 from app.db import models
+from app.services.live_listener import subscribe, unsubscribe
 from app.schemas.public import (
     PublicTournamentSummary,
     PublicTournamentDetail,
@@ -215,6 +218,39 @@ def get_public_tournament(tournament_id: str, response: Response, db: Session = 
             game.team1_player_ids = None
             game.team2_player_ids = None
     return response_model
+
+
+@router.get("/tournaments/{tournament_id}/events")
+async def stream_tournament_events(tournament_id: str, request: Request):
+    """
+    Server-Sent Events stream: pings connected spectators the instant something changes for
+    this tournament (see app/services/live_updates.py / live_listener.py), instead of making
+    every client poll on a fixed interval. The event carries no payload -- the frontend just
+    refetches the existing REST endpoints on receiving one, which stay the single source of
+    truth for the actual data.
+    """
+    queue = subscribe(tournament_id)
+
+    async def event_stream() -> AsyncIterator[str]:
+        try:
+            while True:
+                if await request.is_disconnected():
+                    break
+                try:
+                    await asyncio.wait_for(queue.get(), timeout=20)
+                    yield "event: update\ndata: {}\n\n"
+                except asyncio.TimeoutError:
+                    # Keep-alive comment -- keeps intermediary proxies from closing an
+                    # otherwise-idle connection; ignored by EventSource as a non-event.
+                    yield ": keep-alive\n\n"
+        finally:
+            unsubscribe(tournament_id, queue)
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 # =====================================================================

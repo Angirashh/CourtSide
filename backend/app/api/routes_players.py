@@ -24,6 +24,7 @@ from app.schemas.player import (
     NextMatchResponse,
     TeamAssignmentBulkUpdate,
 )
+from app.services.live_updates import notify_tournament_changed
 from app.services.match_progression import resolve_pending_walkovers
 from app.services.round_labels import build_round_label_fn
 
@@ -928,6 +929,7 @@ def withdraw_player(
 
     walkover_matches = resolve_pending_walkovers(tournament_id, db)
 
+    notify_tournament_changed(db, tournament_id)
     db.commit()
     db.refresh(player)
     for m in walkover_matches:

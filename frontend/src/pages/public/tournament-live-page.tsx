@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { ArrowLeft, ArrowRight, CalendarDays, CheckCircle2, GitBranch, MapPin, Network, Repeat, Swords, Trophy, UserX, Users } from 'lucide-react'
-import { usePublicStandings, usePublicTournament } from '@/hooks/use-public'
+import { useLiveTournamentEvents, usePublicStandings, usePublicTournament } from '@/hooks/use-public'
 import { useCourtChangeAlerts } from '@/hooks/use-court-change-alerts'
 import { useMyRegistrations } from '@/hooks/use-player-auth'
 import { useSelfRegister } from '@/hooks/use-players'
@@ -60,6 +60,7 @@ export function TournamentLivePage() {
   const { id } = useParams<{ id: string }>()
   const { data: tournament, isLoading } = usePublicTournament(id)
   const { data: standings } = usePublicStandings(id)
+  useLiveTournamentEvents(id)
   const user = useAuthStore((state) => state.user)
   const isPlayer = user?.role === 'PLAYER'
   useCourtChangeAlerts(tournament?.courts ?? [], tournament?.matches ?? [])
