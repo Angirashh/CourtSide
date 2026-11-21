@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.api.dependencies import CurrentUser, ensure_tournament_access, get_db, require_organiser
 from app.api.routes_tournaments import _derive_schedule_summary
 from app.db import models
+from app.services.live_updates import notify_tournament_changed
 from app.schemas.tournament import (
     CourtBookingWindow,
     CourtCreate,
@@ -240,6 +241,7 @@ def reschedule_court(
     )
     all_courts = db.query(models.Court).filter(models.Court.tournament_id == tournament_id).all()
     tournament.schedule_summary = _derive_schedule_summary(all_matches, all_courts)
+    notify_tournament_changed(db, tournament_id)
     db.commit()
 
     booking = None

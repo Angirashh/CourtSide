@@ -1,8 +1,21 @@
-from contextlib import asynccontextmanager
+import asyncio
+from contextlib import asynccontextmanager, suppress
+import sentry_sdk
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
+
+# Blank DSN (the default) leaves Sentry fully disabled -- every call becomes a no-op, so this
+# is safe to run unconditionally in local dev and tests too.
+if settings.SENTRY_DSN:
+    sentry_sdk.init(
+        dsn=settings.SENTRY_DSN,
+        environment=settings.SENTRY_ENVIRONMENT,
+        # Captures a sample of request traces (latency breakdowns, slow DB spans) alongside
+        # errors -- 10% keeps overhead/cost low while still surfacing systemic slowness.
+        traces_sample_rate=0.1,
+    )
 from app.core.exceptions import TournamentAppException, tournament_exception_handler
 from app.db.models import Base
 from app.db.migrations import (
@@ -25,6 +38,7 @@ from app.db.migrations import (
     ensure_match_no_result_column,
 )
 from app.db.session import engine
+from app.services.live_listener import run_listener
 from app.api import routes_auth, routes_player_auth, routes_tournaments, routes_players, routes_matches, routes_athletes, routes_public, routes_courts, routes_teams, routes_team_ties
 
 
@@ -50,8 +64,13 @@ async def lifespan(app: FastAPI):
     ensure_athlete_profile_columns(engine)
     ensure_player_captain_column(engine)
     ensure_match_no_result_column(engine)
+
+    listener_task = asyncio.create_task(run_listener())
     yield
-    # Shutdown: Clean up resources if needed
+    # Shutdown: stop the live-update listener cleanly rather than leaving it dangling.
+    listener_task.cancel()
+    with suppress(asyncio.CancelledError):
+        await listener_task
 
 
 app = FastAPI(

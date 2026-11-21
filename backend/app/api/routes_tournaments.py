@@ -25,6 +25,7 @@ from app.services.fixture_engine.datatypes import (
 from app.services.fixture_engine.fixture_engine import FixtureEngine
 from app.services.fixture_engine.generators.team_friendly import TeamFriendlyGenerator, InfeasibleQuotaError
 from app.services.fixture_engine.generators.flexible_round_robin import FlexibleRoundRobinGenerator
+from app.services.live_updates import notify_tournament_changed
 from app.services.match_progression import finalize_athlete_career_stats
 from app.services.team_competition import complete_team_tie
 from app.services.team_progression import finalize_team_tie
@@ -557,6 +558,7 @@ def _generate_team_schedule(
         },
     }
     tournament.status = models.TournamentStatus.SCHEDULING
+    notify_tournament_changed(db, tournament.id)
     db.commit()
     response_bookings = {
         court_id: CourtBookingWindow(
@@ -927,6 +929,7 @@ def generate_tournament_schedule(
 
     # 9. Schedule is ready but play hasn't started yet — the organiser starts it explicitly.
     tournament.status = models.TournamentStatus.SCHEDULING
+    notify_tournament_changed(db, tournament_id)
     db.commit()
 
     return ScheduleGenerationResponse(
@@ -991,6 +994,7 @@ def start_tournament(
         )
 
     tournament.status = models.TournamentStatus.IN_PROGRESS
+    notify_tournament_changed(db, tournament_id)
     db.commit()
     db.refresh(tournament)
     return tournament
@@ -1033,6 +1037,7 @@ def end_tournament(
     tournament.status = models.TournamentStatus.COMPLETED
     if tournament.tournament_type == models.TournamentType.INDIVIDUAL:
         finalize_athlete_career_stats(tournament_id, db)
+    notify_tournament_changed(db, tournament_id)
     db.commit()
     db.refresh(tournament)
     return tournament

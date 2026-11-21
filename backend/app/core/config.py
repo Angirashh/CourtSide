@@ -15,6 +15,15 @@ class Settings(BaseSettings):
         description="SQLAlchemy database connection URI (Supabase PostgreSQL / SQLite)"
     )
 
+    # Live-update listener (app/services/live_listener.py). Must be a SESSION-mode Postgres
+    # connection (e.g. Supabase's Supavisor pooler on port 5432, not the transaction-mode
+    # pooler on 6543 that DATABASE_URL uses) -- LISTEN needs one dedicated connection held open,
+    # which transaction pooling can't guarantee. Left blank, the listener simply never starts
+    # (safe default for local SQLite dev and tests) and spectators fall back to polling only.
+    LISTEN_DATABASE_URL: str = Field(
+        default="", description="Session-mode Postgres URL used to LISTEN for live score updates."
+    )
+
     # Celery & Redis
     CELERY_BROKER_URL: str = Field(
         default="redis://localhost:6379/0",
@@ -36,6 +45,11 @@ class Settings(BaseSettings):
     )
     MSG91_AUTH_KEY: str = Field(default="", description="Auth key from the MSG91 dashboard.")
     MSG91_OTP_TEMPLATE_ID: str = Field(default="", description="OTP SMS template ID configured in MSG91.")
+
+    # Error tracking. Left blank, Sentry simply never initializes (see app/main.py) -- safe
+    # default for local dev, so nobody needs a Sentry account just to run the app.
+    SENTRY_DSN: str = Field(default="", description="Sentry project DSN. Blank disables error tracking entirely.")
+    SENTRY_ENVIRONMENT: str = Field(default="development", description="Tag shown on every Sentry event, e.g. 'production'.")
 
     # CORS configuration
     CORS_ORIGINS: List[str] = [

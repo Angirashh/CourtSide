@@ -1,4 +1,5 @@
-import { useQuery } from '@tanstack/react-query'
+import { useEffect } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { publicApi } from '@/lib/api/public'
 
 export const publicKeys = {
@@ -9,14 +10,20 @@ export const publicKeys = {
   stats: ['public', 'stats'] as const,
 }
 
-// Spectator views have no push channel to an operator's score/match-start actions, so
-// they poll instead — same pattern the operator's own match-entry screen already uses
-// (see use-operators.ts). Intervals are matched to the backend's response cache TTLs
-// (routes_public.py) so most polls are served from cache, not a fresh DB query.
+// Spectator views have no push channel to an operator's score/match-start actions for the
+// tournament LIST (this page) or the logged-in player's own next-match reminder, so they still
+// poll on a short interval -- same pattern as before.
 // React Query already pauses this automatically while the tab is in the background.
 export const LIVE_POLL_MS = 5_000
-const STANDINGS_POLL_MS = 8_000
 const STATS_POLL_MS = 10_000
+
+// The single-tournament live page's primary update mechanism is now useLiveTournamentEvents
+// below (SSE, pushed the instant a score/status changes — see backend
+// app/services/live_listener.py). This interval is just the backstop underneath it: a NOTIFY
+// fired while no instance happens to be listening (a brief reconnect window) is simply lost,
+// since Postgres doesn't queue or redeliver it, so slow polling stays on as insurance against a
+// missed push, rather than relying on SSE alone.
+const LIVE_PAGE_BACKSTOP_MS = 45_000
 
 export function usePublicTournaments() {
   return useQuery({
@@ -31,7 +38,7 @@ export function usePublicTournament(id: string | undefined) {
     queryKey: publicKeys.tournament(id ?? ''),
     queryFn: () => publicApi.getTournament(id!),
     enabled: !!id,
-    refetchInterval: LIVE_POLL_MS,
+    refetchInterval: LIVE_PAGE_BACKSTOP_MS,
   })
 }
 
@@ -40,7 +47,7 @@ export function usePublicStandings(id: string | undefined) {
     queryKey: publicKeys.standings(id ?? ''),
     queryFn: () => publicApi.getStandings(id!),
     enabled: !!id,
-    refetchInterval: STANDINGS_POLL_MS,
+    refetchInterval: LIVE_PAGE_BACKSTOP_MS,
   })
 }
 
@@ -49,7 +56,7 @@ export function usePublicTeamStandings(id: string | undefined) {
     queryKey: publicKeys.teamStandings(id ?? ''),
     queryFn: () => publicApi.getTeamStandings(id!),
     enabled: !!id,
-    refetchInterval: STANDINGS_POLL_MS,
+    refetchInterval: LIVE_PAGE_BACKSTOP_MS,
   })
 }
 
@@ -59,4 +66,24 @@ export function usePublicHubStats() {
     queryFn: publicApi.getStats,
     refetchInterval: STATS_POLL_MS,
   })
+}
+
+// Opens one Server-Sent Events connection per tournament and invalidates the three queries
+// above the instant the backend signals a change (see GET /public/tournaments/{id}/events,
+// backend/app/api/routes_public.py) -- the event itself carries no data, it's just a wake-up;
+// the existing REST endpoints above stay the single source of truth for the actual payload.
+// EventSource reconnects automatically on its own if the connection drops.
+export function useLiveTournamentEvents(id: string | undefined) {
+  const queryClient = useQueryClient()
+
+  useEffect(() => {
+    if (!id) return
+    const source = new EventSource(`/api/v1/public/tournaments/${id}/events`)
+    source.addEventListener('update', () => {
+      queryClient.invalidateQueries({ queryKey: publicKeys.tournament(id) })
+      queryClient.invalidateQueries({ queryKey: publicKeys.standings(id) })
+      queryClient.invalidateQueries({ queryKey: publicKeys.teamStandings(id) })
+    })
+    return () => source.close()
+  }, [id, queryClient])
 }

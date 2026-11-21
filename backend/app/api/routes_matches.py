@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.api.dependencies import CurrentUser, ensure_tournament_access, get_db, require_operator_or_organiser
 from app.db import models
 from app.schemas.match import MatchResponse, MatchScoreSubmission
+from app.services.live_updates import notify_tournament_changed
 from app.services.match_progression import finalize_match_result, mark_match_no_result
 
 router = APIRouter(tags=["Matches"])
@@ -95,6 +96,7 @@ def start_match(
     match.status = models.MatchStatus.IN_PROGRESS
     match.actual_start_time = datetime.utcnow()
     match.operator_id = current_user.id
+    notify_tournament_changed(db, match.tournament_id)
     db.commit()
     db.refresh(match)
     return match
@@ -156,6 +158,7 @@ def submit_match_score(
         scores=[score.model_dump() for score in payload.scores],
     )
 
+    notify_tournament_changed(db, match.tournament_id)
     db.commit()
     db.refresh(match)
     return match
@@ -192,6 +195,7 @@ def mark_no_result(
         )
 
     mark_match_no_result(match, db)
+    notify_tournament_changed(db, match.tournament_id)
     db.commit()
     db.refresh(match)
     return match
@@ -237,6 +241,7 @@ def correct_match_score(
     _ensure_scores_favor_winner(payload, match)
 
     match.scores = [score.model_dump() for score in payload.scores]
+    notify_tournament_changed(db, match.tournament_id)
     db.commit()
     db.refresh(match)
     return match

@@ -25,3 +25,13 @@ services:
         sync: false
       - key: DEBUG
         value: "false"
+      # Sentry project DSN (https://sentry.io) -- enter it in the dashboard. Left unset, error
+      # tracking simply stays off (see app/main.py), so this is optional but recommended.
+      - key: SENTRY_DSN
+        sync: false
+      - key: SENTRY_ENVIRONMENT
+        value: "production"
+      # Session-mode Postgres URL (Supabase Supavisor pooler, port 5432) for live score push --
+      # enter it in the dashboard. Left unset, spectators fall back to polling only.
+      - key: LISTEN_DATABASE_URL
+        sync: false
