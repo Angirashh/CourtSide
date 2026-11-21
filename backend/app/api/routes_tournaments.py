@@ -585,10 +585,11 @@ def _build_team_friendly_template_matches(
 ) -> List[EngineMatch]:
     """
     Validates the roster is ready for the TEAM_FRIENDLY format and generates the cross-team
-    singles schedule. Every player plays the SAME number of matches (one tournament-wide number,
-    not set per player) — since each match contributes one opponent to a player on each side, a
-    uniform count is only realizable when both teams are the same size, so that's enforced here
-    too rather than left for the solver to reject opaquely.
+    singles schedule. Teams don't need to be the same size: `matches_per_player` sets the exact
+    match count for every player on the SMALLER team, and the larger team's players split that
+    same total among themselves as evenly as possible (differing by at most one match each) —
+    since every match has exactly one player from each side, this is the only way to keep both
+    teams' totals equal, which is required for a valid assignment to exist.
     Raises HTTPException(400) with a message naming the problem, so the organiser gets a clear
     fix-it instruction rather than a solver error.
     """
@@ -609,26 +610,28 @@ def _build_team_friendly_template_matches(
             status_code=400,
             detail="Each team needs at least 2 players for a cross-team friendly schedule."
         )
-    if len(team_a_db) != len(team_b_db):
+
+    smaller_db, larger_db = (
+        (team_a_db, team_b_db) if len(team_a_db) <= len(team_b_db) else (team_b_db, team_a_db)
+    )
+    n_small, n_large = len(smaller_db), len(larger_db)
+    if matches_per_player > n_large:
         raise HTTPException(
             status_code=400,
             detail=(
-                f"Teams must be the same size for everyone to play an equal number of matches — "
-                f"Team A has {len(team_a_db)} players, Team B has {len(team_b_db)}."
-            )
-        )
-    if matches_per_player > len(team_b_db):
-        raise HTTPException(
-            status_code=400,
-            detail=(
-                f"{matches_per_player} matches per player isn't possible with {len(team_b_db)} "
+                f"{matches_per_player} matches per player isn't possible with {n_large} "
                 "players on the other team — opponents can't repeat."
             )
         )
 
     team_a = [EnginePlayer(id=p.id, name=p.name, seed=p.seed or 1) for p in team_a_db]
     team_b = [EnginePlayer(id=p.id, name=p.name, seed=p.seed or 1) for p in team_b_db]
-    quotas = {p.id: matches_per_player for p in real_db_players}
+
+    quotas = {p.id: matches_per_player for p in smaller_db}
+    total_matches = matches_per_player * n_small
+    base, remainder = divmod(total_matches, n_large)
+    for idx, p in enumerate(larger_db):
+        quotas[p.id] = base + (1 if idx < remainder else 0)
 
     try:
         return TeamFriendlyGenerator.generate_crossover_matches(team_a, team_b, quotas)

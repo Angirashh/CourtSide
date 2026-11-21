@@ -122,11 +122,12 @@ export function PublicTournamentCard({ tournament, delayMs = 0 }: { tournament: 
                       name={name}
                       seed={name}
                       size="sm"
+                      variant="mono"
                       className={cn('ring-2 ring-[#100C0B]', i > 0 && '-ml-2.5')}
                     />
                   ))}
                   {tournament.players_count > tournament.participant_names.length && (
-                    <div className="-ml-2.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-white/10 text-[11px] font-bold text-court-cream ring-2 ring-[#100C0B]">
+                    <div className="-ml-2.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-ember-600 text-[11px] font-bold text-white ring-2 ring-[#100C0B]">
                       +{tournament.players_count - tournament.participant_names.length}
                     </div>
                   )}

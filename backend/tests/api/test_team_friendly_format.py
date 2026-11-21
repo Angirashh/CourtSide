@@ -205,7 +205,7 @@ def test_generate_schedule_rejects_too_few_players_per_team(client, db_session):
     assert "at least 2 players" in resp.json()["detail"].lower()
 
 
-def test_generate_schedule_rejects_unequal_team_sizes(client, db_session):
+def test_generate_schedule_allows_unequal_team_sizes(client, db_session):
     tournament = _create_team_friendly_tournament(db_session)
     headers = {"Authorization": f"Bearer {_organiser_token(db_session)}"}
     for name in ["A1", "A2", "A3"]:
@@ -213,9 +213,26 @@ def test_generate_schedule_rejects_unequal_team_sizes(client, db_session):
     for name in ["B1", "B2"]:
         _add_player(client, headers, tournament.id, name, team="B")
 
+    # Smaller team (B, 2 players) gets exactly `matches_per_player` each; the larger team (A, 3
+    # players) splits that same total (4) as evenly as possible: one A player plays 2, two play 1.
     resp = _generate(client, tournament.id, headers, matches_per_player=2)
-    assert resp.status_code == 400
-    assert "same size" in resp.json()["detail"].lower()
+    assert resp.status_code == 200, resp.text
+
+    matches = db_session.query(models.Match).filter(models.Match.tournament_id == tournament.id).all()
+    assert len(matches) == 4
+
+    players = db_session.query(models.Player).filter(models.Player.tournament_id == tournament.id).all()
+    team_by_id = {p.id: p.team for p in players}
+    opponents = defaultdict(set)
+    for m in matches:
+        assert team_by_id[m.player1_id] != team_by_id[m.player2_id]
+        opponents[m.player1_id].add(m.player2_id)
+        opponents[m.player2_id].add(m.player1_id)
+
+    b_counts = sorted(len(opponents[p.id]) for p in players if p.team == "B")
+    a_counts = sorted(len(opponents[p.id]) for p in players if p.team == "A")
+    assert b_counts == [2, 2]
+    assert a_counts == [1, 1, 2]
 
 
 def test_generate_schedule_rejects_quota_exceeding_team_size(client, db_session):
@@ -227,6 +244,21 @@ def test_generate_schedule_rejects_quota_exceeding_team_size(client, db_session)
         _add_player(client, headers, tournament.id, name, team="B")
 
     resp = _generate(client, tournament.id, headers, matches_per_player=3)  # only 2 players per team
+    assert resp.status_code == 400
+    assert "isn't possible" in resp.json()["detail"].lower()
+
+
+def test_generate_schedule_rejects_quota_exceeding_larger_team_size(client, db_session):
+    tournament = _create_team_friendly_tournament(db_session)
+    headers = {"Authorization": f"Bearer {_organiser_token(db_session)}"}
+    for name in ["A1", "A2"]:
+        _add_player(client, headers, tournament.id, name, team="A")
+    for name in ["B1", "B2", "B3", "B4", "B5"]:
+        _add_player(client, headers, tournament.id, name, team="B")
+
+    # The smaller team (A, 2 players) can't each face 6 distinct opponents when the other team
+    # (B) only has 5 players.
+    resp = _generate(client, tournament.id, headers, matches_per_player=6)
     assert resp.status_code == 400
     assert "isn't possible" in resp.json()["detail"].lower()
 

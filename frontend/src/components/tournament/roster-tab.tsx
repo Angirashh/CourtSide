@@ -4,7 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { toast } from 'sonner'
-import { Crown, FileUp, Info, Pencil, Plus, Search, Shuffle, Trash2, Upload, UserX, Users } from 'lucide-react'
+import { Check, Crown, FileUp, Info, Pencil, Plus, Search, Shuffle, Trash2, Upload, UserX, Users } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog'
@@ -17,6 +17,8 @@ import { InitialsAvatar } from '@/components/ui/avatar'
 import {
   useDeleteAllPlayers,
   useDeletePlayer,
+  useImportCandidates,
+  useImportPlayers,
   useRegisterPlayer,
   useSearchExistingPlayers,
   useUpdatePlayerTeamAssignments,
@@ -24,10 +26,10 @@ import {
   useUploadRoster,
   useWithdrawPlayer,
 } from '@/hooks/use-players'
-import { useAddTournamentTeam, useFinalizeSeeding, useUpdateTournamentTeam } from '@/hooks/use-tournaments'
+import { useAddTournamentTeam, useFinalizeSeeding, useTournaments, useUpdateTournamentTeam } from '@/hooks/use-tournaments'
 import { extractErrorMessage } from '@/lib/api/client'
-import { cn } from '@/lib/utils'
-import type { AthleteSearchResult, Player, TeamTieConfig, TournamentFormat, TournamentStatus, TournamentTeam, TournamentType } from '@/types/api'
+import { cn, formatPlainDate } from '@/lib/utils'
+import type { AthleteSearchResult, Player, TeamTieConfig, Tournament, TournamentFormat, TournamentStatus, TournamentTeam, TournamentType } from '@/types/api'
 
 export function RosterTab({
   tournamentId,
@@ -238,7 +240,7 @@ function TeamFriendlyPanel({
     const teamA = teamEligible.filter((p) => p.team === 'A')
     const teamB = teamEligible.filter((p) => p.team === 'B')
     const unassigned = teamEligible.filter((p) => !p.team)
-    const balanced = teamA.length === teamB.length && teamA.length > 0
+    const tooSmall = (teamA.length > 0 && teamA.length < 2) || (teamB.length > 0 && teamB.length < 2)
 
     return (
       <Card className="space-y-4 p-4">
@@ -258,8 +260,8 @@ function TeamFriendlyPanel({
         {unassigned.length > 0 && (
           <p className="text-xs font-medium text-ember-600">{unassigned.length} player(s) not yet assigned to a team.</p>
         )}
-        {!balanced && (teamA.length > 0 || teamB.length > 0) && (
-          <p className="text-xs font-medium text-ember-600">Teams must match in size to generate the schedule.</p>
+        {tooSmall && (
+          <p className="text-xs font-medium text-ember-600">Each team needs at least 2 players to generate the schedule.</p>
         )}
       </Card>
     )
@@ -267,15 +269,16 @@ function TeamFriendlyPanel({
 
   const draftTeamA = teamEligible.filter((p) => draft[p.id]?.team === 'A')
   const draftTeamB = teamEligible.filter((p) => draft[p.id]?.team === 'B')
-  const balanced = draftTeamA.length === draftTeamB.length && draftTeamA.length > 0
+  const draftTooSmall =
+    (draftTeamA.length > 0 && draftTeamA.length < 2) || (draftTeamB.length > 0 && draftTeamB.length < 2)
 
   return (
     <Card className="space-y-4 p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="text-sm font-bold text-court-cream">Edit team assignments</h3>
-        <span className={cn('text-xs font-semibold', balanced ? 'text-court-cream/45' : 'text-ember-600')}>
+        <span className={cn('text-xs font-semibold', draftTooSmall ? 'text-ember-600' : 'text-court-cream/45')}>
           Team A: {draftTeamA.length} · Team B: {draftTeamB.length}
-          {!balanced && ' — teams must match to generate'}
+          {draftTooSmall && ' — needs at least 2 per team'}
         </span>
       </div>
 
@@ -594,9 +597,10 @@ function AddPlayerDialog({ tournamentId, teamId, teamName }: { tournamentId: str
           {teamName && <DialogDescription>This player will also be added to the tournament roster.</DialogDescription>}
         </DialogHeader>
         <Tabs defaultValue="new">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="new">New player</TabsTrigger>
             <TabsTrigger value="existing">Find existing</TabsTrigger>
+            <TabsTrigger value="import">Import</TabsTrigger>
           </TabsList>
           <TabsContent value="new">
             <form onSubmit={onSubmit} className="space-y-3.5 pt-3.5">
@@ -631,6 +635,21 @@ function AddPlayerDialog({ tournamentId, teamId, teamName }: { tournamentId: str
           </TabsContent>
           <TabsContent value="existing" className="pt-3.5">
             <ExistingPlayerSearch tournamentId={tournamentId} onAdd={addExisting} adding={register.isPending} />
+            <DialogFooter className="mt-3.5">
+              <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
+                Close
+              </Button>
+            </DialogFooter>
+          </TabsContent>
+          <TabsContent value="import" className="pt-3.5">
+            <ImportFromTournament
+              tournamentId={tournamentId}
+              teamId={teamId}
+              onImported={(count) => {
+                toast.success(`${count} player${count === 1 ? '' : 's'} imported.`)
+                setOpen(false)
+              }}
+            />
             <DialogFooter className="mt-3.5">
               <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
                 Close
@@ -697,6 +716,120 @@ function ExistingPlayerSearch({
             </li>
           ))}
         </ul>
+      )}
+    </div>
+  )
+}
+
+function ImportFromTournament({
+  tournamentId,
+  teamId,
+  onImported,
+}: {
+  tournamentId: string
+  teamId?: string
+  onImported: (count: number) => void
+}) {
+  const [sourceId, setSourceId] = useState<string | undefined>(undefined)
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const { data: tournaments } = useTournaments()
+  const otherTournaments = (tournaments ?? []).filter((t: Tournament) => t.id !== tournamentId)
+  const { data: candidates, isFetching } = useImportCandidates(tournamentId, sourceId)
+  const importPlayers = useImportPlayers(tournamentId)
+
+  function toggle(athleteId: string) {
+    setSelected((prev) => {
+      const next = new Set(prev)
+      if (next.has(athleteId)) next.delete(athleteId)
+      else next.add(athleteId)
+      return next
+    })
+  }
+
+  function handleImport() {
+    importPlayers.mutate(
+      { athlete_ids: Array.from(selected), ...(teamId ? { team_id: teamId } : {}) },
+      {
+        onSuccess: (result) => onImported(result.added.length),
+        onError: (err) => toast.error(extractErrorMessage(err)),
+      }
+    )
+  }
+
+  if (otherTournaments.length === 0) {
+    return <EmptyState icon={Upload} title="No other tournaments yet" description="Import becomes available once you've run another tournament." />
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="space-y-1.5">
+        <Label>Import from</Label>
+        <Select value={sourceId} onValueChange={(v) => { setSourceId(v); setSelected(new Set()) }}>
+          <SelectTrigger>
+            <SelectValue placeholder="Choose a past tournament" />
+          </SelectTrigger>
+          <SelectContent>
+            {otherTournaments.map((t: Tournament) => (
+              <SelectItem key={t.id} value={t.id}>
+                {t.name} · {formatPlainDate(t.tournament_date)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {!sourceId ? null : isFetching ? (
+        <p className="px-1 text-xs text-court-cream/45">Loading roster…</p>
+      ) : !candidates || candidates.length === 0 ? (
+        <EmptyState icon={Users} title="Nothing to import" description="Everyone from that tournament is already on this roster." />
+      ) : (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-court-cream/45">{selected.size} selected</span>
+            <button
+              type="button"
+              className="text-xs font-semibold text-ember-500 hover:text-ember-400"
+              onClick={() => setSelected(selected.size === candidates.length ? new Set() : new Set(candidates.map((c) => c.id)))}
+            >
+              {selected.size === candidates.length ? 'Clear all' : 'Select all'}
+            </button>
+          </div>
+          <ul className="max-h-64 space-y-1.5 overflow-y-auto">
+            {candidates.map((r: AthleteSearchResult) => {
+              const isSelected = selected.has(r.id)
+              return (
+                <li key={r.id}>
+                  <button
+                    type="button"
+                    onClick={() => toggle(r.id)}
+                    className={cn(
+                      'flex w-full items-center gap-2.5 rounded-lg border px-2.5 py-2 text-left transition-colors',
+                      isSelected ? 'border-ember-500/50 bg-ember-500/10' : 'border-white/10 bg-white/[0.03] hover:bg-white/[0.06]'
+                    )}
+                  >
+                    <InitialsAvatar name={r.name} seed={r.id} size="sm" />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold text-court-cream">{r.name}</p>
+                      <p className="truncate text-xs text-court-cream/45">
+                        {[r.phone, r.club_or_city].filter(Boolean).join(' · ') || `${r.tournaments_played} tournaments played`}
+                      </p>
+                    </div>
+                    {isSelected && <Check className="size-4 shrink-0 text-ember-500" aria-hidden="true" />}
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
+          <Button
+            type="button"
+            className="w-full"
+            disabled={selected.size === 0}
+            loading={importPlayers.isPending}
+            onClick={handleImport}
+          >
+            Import {selected.size || ''} player{selected.size === 1 ? '' : 's'}
+          </Button>
+        </div>
       )}
     </div>
   )

@@ -134,7 +134,7 @@ export function ScheduleDialog({
               />
               <p className="text-xs text-court-cream/45">
                 {format === 'TEAM_FRIENDLY'
-                  ? 'Every player gets this many distinct cross-team opponents — Team A and Team B must be the same size.'
+                  ? "Players on the smaller team get this many distinct cross-team opponents each — the larger team's players split the same total as evenly as possible."
                   : 'Every player gets this many distinct opponents, drawn at random from the whole roster.'}
               </p>
             </div>

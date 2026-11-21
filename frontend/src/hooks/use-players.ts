@@ -31,6 +31,22 @@ export function useSearchExistingPlayers(tournamentId: string, query: string) {
   })
 }
 
+export function useImportCandidates(tournamentId: string, sourceTournamentId: string | undefined) {
+  return useQuery({
+    queryKey: ['players', tournamentId, 'import-candidates', sourceTournamentId],
+    queryFn: () => playersApi.importCandidates(tournamentId, sourceTournamentId!),
+    enabled: !!sourceTournamentId,
+  })
+}
+
+export function useImportPlayers(tournamentId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (payload: { athlete_ids: string[]; team_id?: string }) => playersApi.importPlayers(tournamentId, payload),
+    onSuccess: () => qc.invalidateQueries({ queryKey: tournamentKeys.detail(tournamentId) }),
+  })
+}
+
 export function useRegisterPlayersBatch(tournamentId: string) {
   const qc = useQueryClient()
   return useMutation({

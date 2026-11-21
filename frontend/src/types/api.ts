@@ -388,6 +388,11 @@ export interface WithdrawResponse {
   walkover_matches: Match[]
 }
 
+export interface PlayerImportResult {
+  added: Player[]
+  skipped_count: number
+}
+
 export interface MyRegistration {
   tournament_id: string
   tournament_name: string
