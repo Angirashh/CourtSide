@@ -60,7 +60,10 @@ export function TournamentLivePage() {
   const { id } = useParams<{ id: string }>()
   const { data: tournament, isLoading } = usePublicTournament(id)
   const { data: standings } = usePublicStandings(id)
-  useLiveTournamentEvents(id)
+  // Skip (or drop) the SSE connection once the tournament is COMPLETED -- nothing can change it
+  // further, so there's nothing left to push. Defaults to connected while status is still
+  // unknown (tournament not loaded yet) so live/upcoming tournaments connect immediately.
+  useLiveTournamentEvents(id, tournament?.status !== 'COMPLETED')
   const user = useAuthStore((state) => state.user)
   const isPlayer = user?.role === 'PLAYER'
   useCourtChangeAlerts(tournament?.courts ?? [], tournament?.matches ?? [])

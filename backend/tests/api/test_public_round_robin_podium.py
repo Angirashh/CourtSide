@@ -1,24 +1,10 @@
 import itertools
 
-import pytest
-
-from app.api import routes_public
 from app.core.security import create_access_token
 from app.db import models
 
 API = "/api/v1"
 _phone_seq = itertools.count(1)
-
-
-@pytest.fixture(autouse=True)
-def _clear_public_showcase_cache():
-    """`routes_public._cache` is a module-level singleton (a few seconds' TTL cache shared
-    across the whole test process, not per-test-DB) -- without clearing it, a test that hits
-    GET /public/tournaments shortly after another one could get back the other test's (by now
-    torn-down) in-memory DB's cached result instead of its own."""
-    routes_public._cache._store.clear()
-    yield
-    routes_public._cache._store.clear()
 
 
 def _unique_phone() -> str:

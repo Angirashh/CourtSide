@@ -112,7 +112,11 @@ def test_get_athlete_by_id_surfaces_profile_fields_without_auth(client, db_sessi
 def test_me_history_includes_per_tournament_win_rate(client, db_session, mock_phone_verify):
     token = _signup(client, "9200000006", "profile6@example.com")
     headers = {"Authorization": f"Bearer {token}"}
-    athlete_id = client.get(f"{API}/athletes/me", headers=headers).json()["id"]
+    # Looked up directly via the DB, not GET /athletes/me, so this test's own direct DB writes
+    # below aren't shadowed by a cache entry an earlier GET would have populated (the API has no
+    # way to know about a DB change made outside it, same as in real usage).
+    user = db_session.query(models.User).filter(models.User.email == "profile6@example.com").first()
+    athlete_id = user.athlete_id
 
     tournament = models.Tournament(
         name="History Open", format=models.TournamentFormat.KNOCKOUT, status=models.TournamentStatus.COMPLETED,

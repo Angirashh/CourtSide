@@ -73,11 +73,16 @@ export function usePublicHubStats() {
 // backend/app/api/routes_public.py) -- the event itself carries no data, it's just a wake-up;
 // the existing REST endpoints above stay the single source of truth for the actual payload.
 // EventSource reconnects automatically on its own if the connection drops.
-export function useLiveTournamentEvents(id: string | undefined) {
+//
+// `enabled` lets the caller skip connecting once a tournament is COMPLETED: nothing can ever
+// mutate it again, so a connection there is pure overhead that just sits open (often for a long
+// time, since people keep checking results after the event ends) competing for the backend's
+// limited connection capacity for no benefit.
+export function useLiveTournamentEvents(id: string | undefined, enabled: boolean = true) {
   const queryClient = useQueryClient()
 
   useEffect(() => {
-    if (!id) return
+    if (!id || !enabled) return
     const source = new EventSource(`/api/v1/public/tournaments/${id}/events`)
     source.addEventListener('update', () => {
       queryClient.invalidateQueries({ queryKey: publicKeys.tournament(id) })
@@ -85,5 +90,5 @@ export function useLiveTournamentEvents(id: string | undefined) {
       queryClient.invalidateQueries({ queryKey: publicKeys.teamStandings(id) })
     })
     return () => source.close()
-  }, [id, queryClient])
+  }, [id, enabled, queryClient])
 }
