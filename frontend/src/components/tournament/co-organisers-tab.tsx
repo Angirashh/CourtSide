@@ -10,7 +10,7 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { FieldError, Input, Label } from '@/components/ui/input'
 import { EmptyState } from '@/components/ui/empty-state'
-import { FullPageSpinner } from '@/components/ui/spinner'
+import { Skeleton, SkeletonCircle } from '@/components/ui/skeleton'
 import { useAddCoOrganiser, useCoOrganisers, useRemoveCoOrganiser } from '@/hooks/use-co-organisers'
 import { extractErrorMessage } from '@/lib/api/client'
 import { formatDate, initials } from '@/lib/utils'
@@ -92,7 +92,18 @@ export function CoOrganisersTab({ tournamentId }: { tournamentId: string }) {
       </div>
 
       {isLoading ? (
-        <FullPageSpinner />
+        <div className="space-y-3">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Card key={i} className="flex items-center gap-3 p-4">
+              <SkeletonCircle className="size-10 shrink-0" />
+              <div className="min-w-0 flex-1 space-y-1.5">
+                <Skeleton className="h-4 w-32" />
+                <Skeleton className="h-3 w-40" />
+              </div>
+              <Skeleton className="h-8 w-20 rounded-xl" />
+            </Card>
+          ))}
+        </div>
       ) : !coOrganisers || coOrganisers.length === 0 ? (
         <EmptyState
           icon={Users}

@@ -3,6 +3,7 @@ import { ArrowRight, CalendarDays, MapPin, Medal, Trophy, Users } from 'lucide-r
 import { InitialsAvatar } from '@/components/ui/avatar'
 import { Card } from '@/components/ui/card'
 import { InfoPill } from '@/components/ui/info-pill'
+import { Skeleton, SkeletonCard, SkeletonCircle } from '@/components/ui/skeleton'
 import { TournamentStatusBadge } from '@/components/ui/status-badge'
 import { categoryMeta } from '@/lib/tournament-category'
 import { formatMeta } from '@/lib/tournament-format'
@@ -147,5 +148,32 @@ export function PublicTournamentCard({ tournament, delayMs = 0 }: { tournament: 
         </div>
       </Card>
     </Link>
+  )
+}
+
+// Mirrors the loaded card's layout (header badges + title + status, venue/date pill row,
+// avatar stack + CTA) so a grid of these doesn't visibly jump height once real cards swap in.
+export function PublicTournamentCardSkeleton() {
+  return (
+    <SkeletonCard className="flex h-full flex-col gap-3 overflow-hidden bg-[#100C0B] p-0">
+      <div className="min-h-32 shrink-0 space-y-2.5 p-4">
+        <div className="flex gap-2">
+          <Skeleton className="h-6 w-24 rounded-full" />
+          <Skeleton className="h-6 w-20 rounded-full" />
+        </div>
+        <Skeleton className="h-6 w-3/4" />
+        <Skeleton className="h-5 w-20 rounded-full" />
+      </div>
+      <div className="flex flex-1 flex-col p-4 pt-0">
+        <Skeleton className="h-14 w-full rounded-2xl" />
+        <div className="mt-auto flex items-center justify-between gap-3 pt-6">
+          <div className="flex items-center gap-2">
+            <SkeletonCircle className="size-8" />
+            <Skeleton className="h-4 w-20" />
+          </div>
+          <Skeleton className="h-8 w-20 rounded-full" />
+        </div>
+      </div>
+    </SkeletonCard>
   )
 }

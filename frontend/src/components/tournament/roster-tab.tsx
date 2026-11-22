@@ -14,6 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { EmptyState } from '@/components/ui/empty-state'
 import { InitialsAvatar } from '@/components/ui/avatar'
+import { Skeleton, SkeletonCircle } from '@/components/ui/skeleton'
 import {
   useDeleteAllPlayers,
   useDeletePlayer,
@@ -662,6 +663,22 @@ function AddPlayerDialog({ tournamentId, teamId, teamName }: { tournamentId: str
   )
 }
 
+function PlayerRowsSkeleton({ count = 3 }: { count?: number }) {
+  return (
+    <ul className="space-y-1.5">
+      {Array.from({ length: count }).map((_, i) => (
+        <li key={i} className="flex items-center gap-2.5 rounded-lg border border-white/10 bg-white/[0.03] px-2.5 py-2">
+          <SkeletonCircle className="size-8 shrink-0" />
+          <div className="min-w-0 flex-1 space-y-1">
+            <Skeleton className="h-3.5 w-28" />
+            <Skeleton className="h-3 w-20" />
+          </div>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
 function ExistingPlayerSearch({
   tournamentId,
   onAdd,
@@ -696,7 +713,7 @@ function ExistingPlayerSearch({
       {query.trim().length < 2 ? (
         <p className="px-1 text-xs text-court-cream/45">Type at least 2 characters to search.</p>
       ) : isFetching ? (
-        <p className="px-1 text-xs text-court-cream/45">Searching…</p>
+        <PlayerRowsSkeleton />
       ) : !results || results.length === 0 ? (
         <p className="px-1 text-xs text-court-cream/45">No matching players found among your past rosters.</p>
       ) : (
@@ -779,7 +796,7 @@ function ImportFromTournament({
       </div>
 
       {!sourceId ? null : isFetching ? (
-        <p className="px-1 text-xs text-court-cream/45">Loading roster…</p>
+        <PlayerRowsSkeleton />
       ) : !candidates || candidates.length === 0 ? (
         <EmptyState icon={Users} title="Nothing to import" description="Everyone from that tournament is already on this roster." />
       ) : (

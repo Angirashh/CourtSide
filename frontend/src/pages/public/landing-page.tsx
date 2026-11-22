@@ -10,7 +10,8 @@ import { Countdown } from '@/components/ui/countdown'
 import { EmptyState } from '@/components/ui/empty-state'
 import { VsBadge } from '@/components/ui/vs-badge'
 import { NextMatchBar } from '@/components/public/sticky-next-match-bar'
-import { PublicTournamentCard } from '@/components/public/public-tournament-card'
+import { PublicTournamentCard, PublicTournamentCardSkeleton } from '@/components/public/public-tournament-card'
+import { Skeleton, SkeletonCard } from '@/components/ui/skeleton'
 import { MedalPodium } from '@/components/public/medal-podium'
 import { CourtLines } from '@/components/public/court-lines'
 // Hidden for now — didn't look good. import { MatchProgressBar } from '@/components/public/match-progress-bar'
@@ -40,17 +41,29 @@ export function LandingPage() {
     return (
       <div className="mx-auto max-w-[1400px] space-y-10">
         <div className="space-y-6">
-          <div className="h-64 rounded-2xl shimmer-bg sm:h-72" />
+          <SkeletonCard className="h-64 space-y-3 sm:h-72">
+            <Skeleton className="h-5 w-32 rounded-full" />
+            <Skeleton className="h-8 w-2/3" />
+            <Skeleton className="h-4 w-1/2" />
+          </SkeletonCard>
           <div className="grid gap-4 sm:grid-cols-2">
-            <div className="h-40 rounded-2xl shimmer-bg" />
-            <div className="h-40 rounded-2xl shimmer-bg" />
+            <SkeletonCard className="h-40 space-y-3">
+              <Skeleton className="h-5 w-24 rounded-full" />
+              <Skeleton className="h-6 w-3/4" />
+              <Skeleton className="h-4 w-1/2" />
+            </SkeletonCard>
+            <SkeletonCard className="h-40 space-y-3">
+              <Skeleton className="h-5 w-24 rounded-full" />
+              <Skeleton className="h-6 w-3/4" />
+              <Skeleton className="h-4 w-1/2" />
+            </SkeletonCard>
           </div>
         </div>
         <section>
           <ArchiveHeading />
           <div className="grid gap-4 sm:grid-cols-2">
             {Array.from({ length: 2 }).map((_, i) => (
-              <div key={i} className="h-52 rounded-2xl shimmer-bg" />
+              <PublicTournamentCardSkeleton key={i} />
             ))}
           </div>
         </section>

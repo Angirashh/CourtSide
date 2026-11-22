@@ -1,6 +1,7 @@
 import { Trophy } from 'lucide-react'
 import { usePublicTeamStandings } from '@/hooks/use-public'
 import { EmptyState } from '@/components/ui/empty-state'
+import { Skeleton } from '@/components/ui/skeleton'
 import type { TournamentFormat } from '@/types/api'
 
 export function TeamStandingsView({ tournamentId, format }: { tournamentId: string; format: TournamentFormat }) {
@@ -9,7 +10,22 @@ export function TeamStandingsView({ tournamentId, format }: { tournamentId: stri
   if (format === 'KNOCKOUT' || (!isLoading && groups.length === 0)) {
     return <EmptyState icon={Trophy} title="No standings table" description="Knockout tournaments are decided by the bracket." />
   }
-  if (isLoading) return <p className="py-8 text-center text-sm text-court-cream/45">Loading standings…</p>
+  if (isLoading) {
+    return (
+      <div className="grid gap-5 lg:grid-cols-2">
+        {Array.from({ length: 2 }).map((_, i) => (
+          <div key={i} className="overflow-hidden rounded-2xl border border-white/14 bg-ink-card p-4">
+            <Skeleton className="h-5 w-32" />
+            <div className="mt-4 space-y-2.5">
+              {Array.from({ length: 4 }).map((_, j) => (
+                <Skeleton key={j} className="h-6 w-full" />
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    )
+  }
   return (
     <div className="grid gap-5 lg:grid-cols-2">
       {groups.map(([group, rows]) => (

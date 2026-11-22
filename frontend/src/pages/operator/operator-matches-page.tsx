@@ -7,8 +7,8 @@ import { useTournament } from '@/hooks/use-tournaments'
 import { useMarkNoResult, useStartMatch } from '@/hooks/use-matches'
 import { useCourtChangeAlerts } from '@/hooks/use-court-change-alerts'
 import { useUrlParam } from '@/hooks/use-url-param'
-import { FullPageSpinner } from '@/components/ui/spinner'
 import { EmptyState } from '@/components/ui/empty-state'
+import { Skeleton, SkeletonCircle } from '@/components/ui/skeleton'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -21,6 +21,32 @@ import { cn, formatTime, isPlaceholderId, parseUtcTimestamp, playerLabel } from 
 import type { Court, Match, Player } from '@/types/api'
 
 type Tab = 'live' | 'upcoming' | 'completed'
+
+function OperatorMatchesSkeleton() {
+  return (
+    <div className="space-y-5">
+      <div className="flex gap-2">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <Skeleton key={i} className="h-9 w-24 rounded-xl" />
+        ))}
+      </div>
+      <div className="space-y-3">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <Card key={i} className="flex items-center gap-4 p-4">
+            <div className="flex flex-1 items-center gap-3">
+              <SkeletonCircle className="size-9" />
+              <Skeleton className="h-4 w-28" />
+              <Skeleton className="h-3 w-6" />
+              <SkeletonCircle className="size-9" />
+              <Skeleton className="h-4 w-28" />
+            </div>
+            <Skeleton className="h-8 w-20 rounded-xl" />
+          </Card>
+        ))}
+      </div>
+    </div>
+  )
+}
 
 export function OperatorMatchesPage() {
   const { id } = useParams<{ id: string }>()
@@ -38,7 +64,7 @@ export function OperatorMatchesPage() {
   const playersById = useMemo(() => new Map((tournament?.players ?? []).map((p) => [p.id, p])), [tournament])
   useCourtChangeAlerts(tournament?.courts ?? [], tournament?.matches ?? [])
 
-  if (isLoading) return <FullPageSpinner />
+  if (isLoading) return <OperatorMatchesSkeleton />
   if (!tournament) {
     return <EmptyState icon={Swords} title="No tournament found" description="Check that you have access to this tournament." />
   }

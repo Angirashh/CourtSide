@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { ChevronDown, Search, Trophy } from 'lucide-react'
 import { usePublicTournaments } from '@/hooks/use-public'
 import { useUrlParam } from '@/hooks/use-url-param'
-import { PublicTournamentCard } from '@/components/public/public-tournament-card'
+import { PublicTournamentCard, PublicTournamentCardSkeleton } from '@/components/public/public-tournament-card'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Button } from '@/components/ui/button'
 import type { TournamentFormat, TournamentStatus } from '@/types/api'
@@ -89,7 +89,7 @@ export function TournamentsBrowsePage() {
       {isLoading ? (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="h-52 rounded-2xl shimmer-bg" />
+            <PublicTournamentCardSkeleton key={i} />
           ))}
         </div>
       ) : filtered.length === 0 ? (

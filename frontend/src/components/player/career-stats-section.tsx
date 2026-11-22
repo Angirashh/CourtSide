@@ -2,10 +2,40 @@ import { useEffect, useRef, useState } from 'react'
 import { Trophy } from 'lucide-react'
 // import { Medal } from 'lucide-react' -- only used by the disabled TournamentHistoryChart below
 import { Card } from '@/components/ui/card'
+import { Skeleton, SkeletonCircle } from '@/components/ui/skeleton'
 import { usePrefersReducedMotion } from '@/hooks/use-reduced-motion'
 import { formatMeta } from '@/lib/tournament-format'
 import { cn } from '@/lib/utils'
 import type { AthleteTournamentHistoryEntry, TournamentFormat } from '@/types/api'
+
+// Mirrors the donut + legend + stat-tile grid below, for the moment before the athlete profile
+// query resolves.
+export function CareerStatsSectionSkeleton() {
+  return (
+    <div className="space-y-6">
+      <Card className="flex flex-col items-center gap-6 p-5 sm:flex-row sm:justify-between">
+        <div className="flex items-center gap-5">
+          <SkeletonCircle className="size-24" />
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <Skeleton className="size-2.5 rounded-full" />
+              <Skeleton className="h-3 w-16" />
+            </div>
+            <div className="flex items-center gap-2">
+              <Skeleton className="size-2.5 rounded-full" />
+              <Skeleton className="h-3 w-16" />
+            </div>
+          </div>
+        </div>
+        <div className="grid w-full grid-cols-2 gap-3 sm:w-auto">
+          <Skeleton className="h-16 w-full sm:w-36" />
+          <Skeleton className="h-16 w-full sm:w-36" />
+        </div>
+      </Card>
+      <Skeleton className="h-64 w-full rounded-2xl" />
+    </div>
+  )
+}
 
 /** Animates a value from 0 up to `target` shortly after mount (two rAFs so the browser commits
     the 0-state frame first and the subsequent change is a real transition, not a no-op). Used to

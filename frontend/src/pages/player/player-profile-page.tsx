@@ -11,9 +11,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { GoogleSignInButton } from '@/components/auth/google-signin-button'
 import { Badge } from '@/components/ui/badge'
 import { InitialsAvatar } from '@/components/ui/avatar'
-import { CareerStatsSection } from '@/components/player/career-stats-section'
+import { CareerStatsSection, CareerStatsSectionSkeleton } from '@/components/player/career-stats-section'
 import { EditProfileDialog } from '@/components/player/edit-profile-dialog'
 import { ProfileSummary } from '@/components/player/profile-summary'
+import { Skeleton } from '@/components/ui/skeleton'
 import { useMyAthleteProfile } from '@/hooks/use-athletes'
 import { useCompleteSignup, useGoogleAuth, useMyRegistrations } from '@/hooks/use-player-auth'
 import { useSelfRegister } from '@/hooks/use-players'
@@ -174,7 +175,7 @@ function LoggedInView() {
       {athleteProfile && <EditProfileDialog profile={athleteProfile} open={editingProfile} onOpenChange={setEditingProfile} />}
 
       {athleteLoading ? (
-        <div className="h-44 rounded-2xl shimmer-bg" />
+        <CareerStatsSectionSkeleton />
       ) : athleteProfile && athleteProfile.tournaments_played > 0 ? (
         <Tabs defaultValue="ALL">
           <TabsList>
@@ -203,8 +204,8 @@ function LoggedInView() {
         <h2 className="mb-3 font-display text-lg text-court-cream">My registrations</h2>
         {isLoading ? (
           <div className="grid gap-3 sm:grid-cols-2">
-            <div className="h-24 rounded-2xl shimmer-bg" />
-            <div className="h-24 rounded-2xl shimmer-bg" />
+            <TournamentCardSkeleton />
+            <TournamentCardSkeleton />
           </div>
         ) : upcomingRegistrations.length === 0 ? (
           <EmptyState icon={Trophy} title="No upcoming registrations" description="Join a tournament below to get started." />
@@ -241,8 +242,8 @@ function LoggedInView() {
         <h2 className="mb-3 font-display text-lg text-court-cream">Tournaments you can join</h2>
         {tournamentsLoading ? (
           <div className="grid gap-3 sm:grid-cols-2">
-            <div className="h-24 rounded-2xl shimmer-bg" />
-            <div className="h-24 rounded-2xl shimmer-bg" />
+            <TournamentCardSkeleton />
+            <TournamentCardSkeleton />
           </div>
         ) : joinable.length === 0 ? (
           <EmptyState icon={Trophy} title="Nothing open right now" description="Check back once a new tournament opens registration." />
@@ -255,6 +256,19 @@ function LoggedInView() {
         )}
       </section>
     </div>
+  )
+}
+
+function TournamentCardSkeleton() {
+  return (
+    <Card className="p-4">
+      <Skeleton className="h-5 w-2/3" />
+      <div className="mt-2 flex gap-4">
+        <Skeleton className="h-3 w-20" />
+        <Skeleton className="h-3 w-20" />
+      </div>
+      <Skeleton className="mt-3 h-8 w-full rounded-xl" />
+    </Card>
   )
 }
 
