@@ -20,7 +20,9 @@ export function ScoreDialog({
   playersById,
   open,
   onOpenChange,
+  onSubmitStart,
   onSubmitted,
+  onSubmitError,
   correcting = false,
 }: {
   tournamentId: string
@@ -31,7 +33,14 @@ export function ScoreDialog({
   playersById: Map<string, Player>
   open: boolean
   onOpenChange: (open: boolean) => void
+  /** Fires the instant a valid submission is confirmed, before the dialog closes and before the
+      mutation resolves -- lets the caller show a loading placeholder for this match/game while
+      the request (and bracket/standings progression) runs in the background. */
+  onSubmitStart?: () => void
   onSubmitted?: () => void
+  /** The background submission failed after the dialog already closed -- lets the caller clear
+      any loading placeholder it showed from onSubmitStart, since the card won't be updating. */
+  onSubmitError?: () => void
   /** Fixing a mis-entered score on an already-completed match -- the winner is locked to
       whatever's already recorded, since it may have already advanced into a bracket or
       Swiss pairing. Match-only (not offered for team games). */
@@ -85,15 +94,24 @@ export function ScoreDialog({
       toast.error('These scores don’t match the selected winner. Check each set is entered under the right player.')
       return
     }
+    // Fire-and-forget: dismiss the card the instant the operator confirms, instead of making
+    // them wait on the network round-trip. The mutation (and these onSuccess/onError callbacks)
+    // keep running after this component unmounts -- they're owned by the query client, not by
+    // this dialog -- so the result toast still lands correctly either way.
+    onSubmitStart?.()
+    onOpenChange(false)
+
     const callbacks = {
         onSuccess: () => {
           toast.success(correcting ? 'Score corrected.' : `${winnerId === p1Id ? p1Label : p2Label} wins.`)
-          onOpenChange(false)
-          setPickedWinnerId(lockedWinnerId)
-          setSets([{ p1: 0, p2: 0 }])
           onSubmitted?.()
         },
-        onError: (err: unknown) => toast.error(extractErrorMessage(err)),
+        // Longer duration than the default -- by the time this can fail, the operator has
+        // already moved on to the next court, so a normal 4s toast is easy to miss entirely.
+        onError: (err: unknown) => {
+          toast.error(extractErrorMessage(err), { duration: 8000 })
+          onSubmitError?.()
+        },
     }
     if (teamGame) {
       submitTeam.mutate({ gameId: teamGame.id, winnerTeamId: winnerId, scores: sets }, callbacks)

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { toast } from 'sonner'
-import { CalendarClock, CheckCircle2, MapPin, Play, Radio, Swords, Timer, UserX } from 'lucide-react'
+import { CalendarClock, CheckCircle2, ChevronRight, Loader2, MapPin, Play, Radio, Swords, UserX } from 'lucide-react'
 import { useAuthStore } from '@/stores/auth-store'
 import { useTournament } from '@/hooks/use-tournaments'
 import { useMarkNoResult, useStartMatch } from '@/hooks/use-matches'
@@ -9,6 +9,7 @@ import { useCourtChangeAlerts } from '@/hooks/use-court-change-alerts'
 import { useUrlParam } from '@/hooks/use-url-param'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Skeleton, SkeletonCircle } from '@/components/ui/skeleton'
+import { InitialsAvatar } from '@/components/ui/avatar'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -22,9 +23,48 @@ import type { Court, Match, Player } from '@/types/api'
 
 type Tab = 'live' | 'upcoming' | 'completed'
 
+// A single match card's loading placeholder -- mirrors OperatorMatchCard's own shape (header
+// meta/badges, avatar+name matchup row, full-width CTA) so it reads as "this exact card is still
+// loading" rather than a generic spinner. `label`, when given, swaps the plain CTA-shaped bar for
+// a readable status line (e.g. "Submitting score...") so it's clear *what's* in flight, not just
+// that something is.
+function OperatorMatchCardSkeleton({ label }: { label?: string }) {
+  return (
+    <Card className="p-3">
+      <div className="flex items-center justify-between gap-2">
+        <Skeleton className="h-3.5 w-24" />
+        <Skeleton className="h-5 w-16 rounded-full" />
+      </div>
+      <div className="mt-2.5 flex items-center gap-2">
+        <div className="flex min-w-0 flex-1 items-center gap-2">
+          <SkeletonCircle className="size-8" />
+          <Skeleton className="h-4 w-24" />
+        </div>
+        <Skeleton className="h-4 w-6 shrink-0 rounded" />
+        <div className="flex min-w-0 flex-1 items-center justify-end gap-2">
+          <Skeleton className="h-4 w-24" />
+          <SkeletonCircle className="size-8" />
+        </div>
+      </div>
+      {label ? (
+        <div className="mt-2.5 flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-white/5 text-xs font-semibold text-court-cream/50">
+          <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />
+          {label}
+        </div>
+      ) : (
+        <Skeleton className="mt-2.5 h-10 w-full rounded-lg" />
+      )}
+    </Card>
+  )
+}
+
 function OperatorMatchesSkeleton() {
   return (
     <div className="space-y-5">
+      <div>
+        <Skeleton className="h-6 w-40" />
+        <Skeleton className="mt-2 h-4 w-32" />
+      </div>
       <div className="flex gap-2">
         {Array.from({ length: 3 }).map((_, i) => (
           <Skeleton key={i} className="h-9 w-24 rounded-xl" />
@@ -32,16 +72,7 @@ function OperatorMatchesSkeleton() {
       </div>
       <div className="space-y-3">
         {Array.from({ length: 4 }).map((_, i) => (
-          <Card key={i} className="flex items-center gap-4 p-4">
-            <div className="flex flex-1 items-center gap-3">
-              <SkeletonCircle className="size-9" />
-              <Skeleton className="h-4 w-28" />
-              <Skeleton className="h-3 w-6" />
-              <SkeletonCircle className="size-9" />
-              <Skeleton className="h-4 w-28" />
-            </div>
-            <Skeleton className="h-8 w-20 rounded-xl" />
-          </Card>
+          <OperatorMatchCardSkeleton key={i} />
         ))}
       </div>
     </div>
@@ -63,6 +94,16 @@ export function OperatorMatchesPage() {
 
   const playersById = useMemo(() => new Map((tournament?.players ?? []).map((p) => [p.id, p])), [tournament])
   useCourtChangeAlerts(tournament?.courts ?? [], tournament?.matches ?? [])
+  // The start-match mutation invalidates the tournament query on success, but that just marks it
+  // stale -- the background refetch still has to round-trip before this match actually shows up
+  // as IN_PROGRESS here. Track it locally so the live tab can show a loading card in its place
+  // instead of the list looking like the match never started.
+  const [pendingStartId, setPendingStartId] = useState<string | null>(null)
+  // Same idea for a just-submitted score: the dialog closes instantly (see ScoreDialog's
+  // onSubmitStart), but this match still shows its pre-submission state until the invalidated
+  // query refetches -- track it so that card can show a loading placeholder instead in the
+  // meantime, wherever it currently sits (live or upcoming).
+  const [pendingScoreId, setPendingScoreId] = useState<string | null>(null)
 
   if (isLoading) return <OperatorMatchesSkeleton />
   if (!tournament) {
@@ -91,6 +132,16 @@ export function OperatorMatchesPage() {
     .filter((m) => m.is_completed && !m.is_bye)
     .sort((a, b) => (b.actual_end_time ?? '').localeCompare(a.actual_end_time ?? ''))
 
+  // The match we just started has caught up with the server (it's really here now) -- stop
+  // showing its loading placeholder. Safe to call during render: it only fires once, the moment
+  // this becomes true, and settles immediately since the next render sees pendingStartId cleared.
+  if (pendingStartId && live.some((m) => m.id === pendingStartId)) {
+    setPendingStartId(null)
+  }
+  if (pendingScoreId && completed.some((m) => m.id === pendingScoreId)) {
+    setPendingScoreId(null)
+  }
+
   const openCountByCourt = new Map<string, number>()
   for (const m of tournament.matches) {
     if (m.is_completed || !m.court_id || isPlaceholderId(m.player1_id) || isPlaceholderId(m.player2_id)) continue
@@ -108,6 +159,7 @@ export function OperatorMatchesPage() {
     startMatch.mutate(match.id, {
       onSuccess: () => {
         toast.success('Match started.')
+        setPendingStartId(match.id)
         goTo('live')
       },
       onError: (err) => toast.error(extractErrorMessage(err)),
@@ -121,6 +173,9 @@ export function OperatorMatchesPage() {
 
   const startingId = startMatch.isPending ? startMatch.variables : undefined
   const list = tab === 'live' ? live : tab === 'upcoming' ? upcoming : completed
+  // Still waiting for the just-started match to round-trip back into `live` (see pendingStartId
+  // above) -- show its card as loading rather than letting the live tab look empty/unchanged.
+  const showPendingSkeleton = tab === 'live' && !!pendingStartId && !live.some((m) => m.id === pendingStartId)
 
   return (
     <div className="space-y-4 pb-24">
@@ -149,7 +204,7 @@ export function OperatorMatchesPage() {
       )}
 
       <div key={`${tab}-${courtFilter}`} className="animate-fade-up space-y-3">
-        {list.length === 0 ? (
+        {list.length === 0 && !showPendingSkeleton ? (
           tab === 'live' ? (
             <EmptyState
               icon={Swords}
@@ -162,21 +217,28 @@ export function OperatorMatchesPage() {
             <EmptyState icon={CheckCircle2} title="No results yet" />
           )
         ) : (
-          list.map((m, i) => (
-            <OperatorMatchCard
-              key={m.id}
-              match={m}
-              playersById={playersById}
-              courtsById={courtsById}
-              nextUp={tab === 'upcoming' && i === 0}
-              starting={startingId === m.id}
-              onStart={() => handleStart(m)}
-              onScore={() => setScoreTarget({ match: m, correcting: false })}
-              onNoResult={() => setNoResultMatch(m)}
-              onEditScore={() => setScoreTarget({ match: m, correcting: true })}
-              readOnly={tab === 'completed'}
-            />
-          ))
+          <>
+            {showPendingSkeleton && <OperatorMatchCardSkeleton label="Starting match..." />}
+            {list.map((m, i) =>
+              m.id === pendingScoreId ? (
+                <OperatorMatchCardSkeleton key={m.id} label="Submitting score..." />
+              ) : (
+                <OperatorMatchCard
+                  key={m.id}
+                  match={m}
+                  playersById={playersById}
+                  courtsById={courtsById}
+                  nextUp={tab === 'upcoming' && i === 0}
+                  starting={startingId === m.id}
+                  onStart={() => handleStart(m)}
+                  onScore={() => setScoreTarget({ match: m, correcting: false })}
+                  onNoResult={() => setNoResultMatch(m)}
+                  onEditScore={() => setScoreTarget({ match: m, correcting: true })}
+                  readOnly={tab === 'completed'}
+                />
+              )
+            )}
+          </>
         )}
       </div>
 
@@ -200,7 +262,9 @@ export function OperatorMatchesPage() {
           playersById={playersById}
           open={!!scoreTarget}
           onOpenChange={(open) => !open && setScoreTarget(null)}
+          onSubmitStart={() => !scoreTarget.correcting && setPendingScoreId(scoreTarget.match.id)}
           onSubmitted={() => !scoreTarget.correcting && handleScored(scoreTarget.match)}
+          onSubmitError={() => setPendingScoreId(null)}
         />
       )}
 
@@ -416,15 +480,12 @@ function useMinuteTick() {
   return now
 }
 
+// Inline, plain-text elapsed time -- sits in the court/time meta line (replacing the now-stale
+// scheduled start time once a match goes live) rather than its own glowing pill on the card.
 function ElapsedTime({ since }: { since: string }) {
   const now = useMinuteTick()
   const minutes = Math.max(0, Math.floor((now - parseUtcTimestamp(since).getTime()) / 60_000))
-  return (
-    <span className="inline-flex items-center gap-1 text-xs font-semibold text-court-cream/55">
-      <Timer className="size-3.5" />
-      {minutes < 1 ? 'Just started' : `${minutes} min`}
-    </span>
-  )
+  return <>{minutes < 1 ? 'Just started' : `${minutes} min`}</>
 }
 
 function OperatorMatchCard({
@@ -462,18 +523,25 @@ function OperatorMatchCard({
   const canMarkNoResult = match.stage === 'ROUND_ROBIN' || match.stage === 'CROSSOVER'
 
   return (
-    <Card className={cn('p-4', isLive && 'border-ember-300/60 bg-ember-500/10')}>
+    <Card className={cn('p-3', isLive && 'border-ember-500/30 bg-ember-500/5')}>
       <div className="flex items-center justify-between gap-2">
         <div className="flex min-w-0 items-center gap-1.5 text-xs font-semibold text-court-cream/55">
           <MapPin className="size-3.5 shrink-0" />
           <span className="truncate">
             {court ? court.name : 'No court'}
-            {match.scheduled_start_time && <> · {formatTime(match.scheduled_start_time)}</>}
+            {isLive && match.actual_start_time ? (
+              <>
+                {' '}
+                · <ElapsedTime since={match.actual_start_time} />
+              </>
+            ) : (
+              match.scheduled_start_time && <> · {formatTime(match.scheduled_start_time)}</>
+            )}
           </span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2">
           {isLive ? (
-            <Badge variant="live" pulse>
+            <Badge variant="live" pulse className="whitespace-nowrap">
               LIVE
             </Badge>
           ) : match.is_no_result ? (
@@ -489,61 +557,82 @@ function OperatorMatchCard({
         </div>
       </div>
 
-      <div className="mt-3 space-y-2">
-        <PlayerLine
-          label={playerLabel(match.player1_id, playersById)}
-          isWinner={match.is_completed && match.winner_id === match.player1_id}
-          isWithdrawn={!!p1?.is_withdrawn}
-          score={match.scores?.map((s) => s.p1)}
-        />
-        <PlayerLine
-          label={playerLabel(match.player2_id, playersById)}
-          isWinner={match.is_completed && match.winner_id === match.player2_id}
-          isWithdrawn={!!p2?.is_withdrawn}
-          score={match.scores?.map((s) => s.p2)}
-        />
-      </div>
-
-      {isLive && match.actual_start_time && (
-        <div className="mt-3">
-          <ElapsedTime since={match.actual_start_time} />
+      {match.scores && match.scores.length > 0 ? (
+        <div className="mt-2.5 space-y-1">
+          <PlayerLine
+            playerId={match.player1_id}
+            label={playerLabel(match.player1_id, playersById)}
+            isWinner={match.is_completed && match.winner_id === match.player1_id}
+            isWithdrawn={!!p1?.is_withdrawn}
+            score={match.scores?.map((s) => s.p1)}
+          />
+          <PlayerLine
+            playerId={match.player2_id}
+            label={playerLabel(match.player2_id, playersById)}
+            isWinner={match.is_completed && match.winner_id === match.player2_id}
+            isWithdrawn={!!p2?.is_withdrawn}
+            score={match.scores?.map((s) => s.p2)}
+          />
+        </div>
+      ) : (
+        <div className="mt-2.5 flex items-center gap-2">
+          <MatchupSide playerId={match.player1_id} label={playerLabel(match.player1_id, playersById)} isWithdrawn={!!p1?.is_withdrawn} />
+          <span className="shrink-0 rounded bg-white/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-court-cream/40">
+            vs
+          </span>
+          <MatchupSide playerId={match.player2_id} label={playerLabel(match.player2_id, playersById)} isWithdrawn={!!p2?.is_withdrawn} align="right" />
         </div>
       )}
 
       {readOnly && canEditScore && (
-        <div className="mt-4">
-          <Button variant="ghost" size="sm" className="h-10 w-full text-court-cream/40 sm:h-10" onClick={onEditScore}>
-            Wrong score? Edit result
-          </Button>
-        </div>
+        <button
+          type="button"
+          className="mt-2.5 w-full text-center text-xs font-medium text-court-cream/40 transition-colors hover:text-court-cream/70"
+          onClick={onEditScore}
+        >
+          Wrong score? <span className="underline underline-offset-2">Edit result</span>
+        </button>
       )}
 
       {!readOnly && (
-        <div className="mt-4 space-y-1.5">
+        <div className="mt-2.5 space-y-1.5">
           {isLive ? (
             <>
-              <Button size="lg" className="w-full" onClick={onScore}>
+              <Button size="md" className="w-full rounded-lg text-white" onClick={onScore}>
                 Enter score
+                <ChevronRight className="size-4" />
               </Button>
               {canMarkNoResult && (
-                <Button variant="ghost" size="sm" className="h-10 w-full text-court-cream/40 sm:h-10" onClick={onNoResult}>
-                  Neither player showed up? No result
-                </Button>
+                <button
+                  type="button"
+                  className="w-full text-center text-xs font-medium text-court-cream/40 transition-colors hover:text-court-cream/70"
+                  onClick={onNoResult}
+                >
+                  Neither player showed up? <span className="underline underline-offset-2">No result</span>
+                </button>
               )}
             </>
           ) : (
             <>
-              <Button size="lg" className="w-full" loading={starting} onClick={onStart}>
+              <Button size="md" className="w-full rounded-lg text-white" loading={starting} onClick={onStart}>
                 <Play className="size-4" />
                 Start match
               </Button>
-              <Button variant="ghost" size="sm" className="h-10 w-full text-court-cream/55 sm:h-10" onClick={onScore}>
-                Already played? Enter result
-              </Button>
+              <button
+                type="button"
+                className="w-full text-center text-xs font-medium text-court-cream/55 transition-colors hover:text-court-cream/80"
+                onClick={onScore}
+              >
+                Already played? <span className="underline underline-offset-2">Enter result</span>
+              </button>
               {canMarkNoResult && (
-                <Button variant="ghost" size="sm" className="h-10 w-full text-court-cream/40 sm:h-10" onClick={onNoResult}>
-                  Neither player showed up? No result
-                </Button>
+                <button
+                  type="button"
+                  className="w-full text-center text-xs font-medium text-court-cream/40 transition-colors hover:text-court-cream/70"
+                  onClick={onNoResult}
+                >
+                  Neither player showed up? <span className="underline underline-offset-2">No result</span>
+                </button>
               )}
             </>
           )}
@@ -553,12 +642,49 @@ function OperatorMatchCard({
   )
 }
 
-function PlayerLine({ label, isWinner, isWithdrawn, score }: { label: string; isWinner: boolean; isWithdrawn: boolean; score?: number[] }) {
+function MatchupSide({
+  playerId,
+  label,
+  isWithdrawn,
+  align = 'left',
+}: {
+  playerId: string | null
+  label: string
+  isWithdrawn: boolean
+  align?: 'left' | 'right'
+}) {
   return (
-    <div className="flex items-center justify-between gap-3">
-      <span className={cn('min-w-0 truncate text-base', isWinner ? 'font-bold text-court-cream' : 'font-medium text-court-cream/70')}>
+    <div className={cn('flex min-w-0 flex-1 items-center gap-2', align === 'right' && 'flex-row-reverse text-right')}>
+      <InitialsAvatar name={label} seed={playerId ?? label} size="sm" variant="mono" />
+      <span className="min-w-0 truncate text-sm font-semibold text-court-cream">
         {label}
         {isWithdrawn && <UserX className="ml-1 inline size-3.5 text-danger" />}
+      </span>
+    </div>
+  )
+}
+
+function PlayerLine({
+  playerId,
+  label,
+  isWinner,
+  isWithdrawn,
+  score,
+}: {
+  playerId: string | null
+  label: string
+  isWinner: boolean
+  isWithdrawn: boolean
+  score?: number[]
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <span className="flex min-w-0 items-center gap-2">
+        <InitialsAvatar name={label} seed={playerId ?? label} size="sm" variant="mono" />
+        <span className={cn('min-w-0 truncate text-sm', isWinner ? 'font-bold text-court-cream' : 'font-medium text-court-cream/70')}>
+          {label}
+          {isWithdrawn && <UserX className="ml-1 inline size-3.5 text-danger" />}
+        </span>
       </span>
       {score && score.length > 0 && (
         <span className="flex shrink-0 gap-1">
@@ -566,7 +692,7 @@ function PlayerLine({ label, isWinner, isWithdrawn, score }: { label: string; is
             <span
               key={i}
               className={cn(
-                'flex h-6 min-w-6 items-center justify-center rounded px-1 font-display text-xs',
+                'flex h-5 min-w-5 items-center justify-center rounded px-1 font-display text-xs',
                 isWinner ? 'bg-ember-500 text-ink' : 'bg-white/10 text-court-cream/55'
               )}
             >
