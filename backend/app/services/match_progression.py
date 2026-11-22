@@ -10,6 +10,7 @@ from app.services.fixture_engine.datatypes import (
 )
 from app.services.fixture_engine.fixture_engine import FixtureEngine
 from app.services.standings import StandingsEngine
+from app.services import athlete_cache
 
 
 def finalize_match_result(
@@ -441,3 +442,6 @@ def finalize_athlete_career_stats(tournament_id: str, db: Session) -> None:
             athlete.matches_won += standing.matches_won
             athlete.matches_lost += standing.matches_lost
         athlete.tournaments_played += 1
+        # This is the one moment career totals/history change for this athlete -- drop their
+        # cached profile response (routes_athletes.py) so the next read rebuilds it fresh.
+        athlete_cache.invalidate(athlete.id)

@@ -8,6 +8,22 @@ from app.api.dependencies import get_db
 from app.db.models import Base
 from app.main import app
 from app.services.fixture_engine.datatypes import Player
+from app.services import athlete_cache
+from app.api import routes_public
+
+
+@pytest.fixture(autouse=True)
+def _clear_inprocess_caches():
+    """Both routes_public._cache (blind TTL) and athlete_cache (exact-invalidation) are
+    module-level singletons shared across the whole pytest process, not per-test-DB -- without
+    this, a cache entry written by one test's in-memory SQLite DB can leak into a later test
+    that reuses the same cache key (tournament_id / athlete_id) against a different DB."""
+    routes_public._cache._store.clear()
+    athlete_cache._cache.clear()
+    yield
+    routes_public._cache._store.clear()
+    athlete_cache._cache.clear()
+
 
 @pytest.fixture
 def generate_players():

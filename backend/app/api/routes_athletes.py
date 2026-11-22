@@ -6,6 +6,7 @@ from sqlalchemy import or_
 
 from app.api.dependencies import CurrentUser, get_db, require_organiser, require_player
 from app.db import models
+from app.services import athlete_cache
 from app.schemas.athlete import (
     AthleteCreate,
     AthleteUpdate,
@@ -176,11 +177,20 @@ def _build_athlete_detail(athlete_id: str, db: Session) -> AthleteDetailResponse
     if not athlete:
         raise HTTPException(status_code=404, detail="Athlete not found")
 
-    # Fetch tournament roster entries for this athlete
+    # Fetch tournament roster entries for this athlete. Scoped to COMPLETED tournaments only --
+    # career totals (athlete.matches_won/played, below) and stats_by_category are both only
+    # ever updated once the organiser closes a tournament (finalize_athlete_career_stats,
+    # match_progression.py), so an in-progress tournament's matches would otherwise show up
+    # here immediately while the headline numbers stay frozen until closure -- an inconsistency
+    # within this same response. The frontend already filtered history to COMPLETED client-side
+    # (CareerStatsSection's source data), so this just stops sending data it discarded anyway.
     roster_entries = (
         db.query(models.Player, models.Tournament)
         .join(models.Tournament, models.Player.tournament_id == models.Tournament.id)
-        .filter(models.Player.athlete_id == athlete_id)
+        .filter(
+            models.Player.athlete_id == athlete_id,
+            models.Tournament.status == models.TournamentStatus.COMPLETED,
+        )
         .order_by(models.Tournament.created_at.desc())
         .all()
     )
@@ -249,6 +259,15 @@ def _build_athlete_detail(athlete_id: str, db: Session) -> AthleteDetailResponse
     )
 
 
+def _get_athlete_detail_cached(athlete_id: str, db: Session) -> AthleteDetailResponse:
+    cached = athlete_cache.get(athlete_id)
+    if cached is not None:
+        return cached  # type: ignore[return-value]
+    detail = _build_athlete_detail(athlete_id, db)
+    athlete_cache.put(athlete_id, detail)
+    return detail
+
+
 @router.get("/me", response_model=AthleteDetailResponse)
 def get_my_athlete_profile(
     current_user: CurrentUser = Depends(require_player),
@@ -258,7 +277,7 @@ def get_my_athlete_profile(
     user = db.query(models.User).filter(models.User.id == current_user.id).first()
     if not user or not user.athlete_id:
         raise HTTPException(status_code=404, detail="No athlete record linked to this account.")
-    return _build_athlete_detail(user.athlete_id, db)
+    return _get_athlete_detail_cached(user.athlete_id, db)
 
 
 @router.patch("/me", response_model=AthleteDetailResponse)
@@ -287,7 +306,8 @@ def update_my_athlete_profile(
 
     db.commit()
     db.refresh(athlete)
-    return _build_athlete_detail(athlete.id, db)
+    athlete_cache.invalidate(athlete.id)
+    return _get_athlete_detail_cached(athlete.id, db)
 
 
 @router.get("/{athlete_id}", response_model=AthleteDetailResponse)
@@ -296,7 +316,7 @@ def get_athlete_profile(athlete_id: str, db: Session = Depends(get_db)):
     Returns detailed athlete career record, statistics,
     and a chronological timeline of all tournaments played.
     """
-    return _build_athlete_detail(athlete_id, db)
+    return _get_athlete_detail_cached(athlete_id, db)
 
 
 @router.patch("/{athlete_id}", response_model=AthleteResponse)
@@ -322,4 +342,5 @@ def update_athlete(
 
     db.commit()
     db.refresh(athlete)
+    athlete_cache.invalidate(athlete.id)
     return athlete
