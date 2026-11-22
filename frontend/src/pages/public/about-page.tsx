@@ -5,12 +5,13 @@ import type { LucideIcon } from 'lucide-react'
 import { usePublicHubStats, usePublicTournaments } from '@/hooks/use-public'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { Skeleton } from '@/components/ui/skeleton'
 
 const BadmintonCourt3D = lazy(() => import('@/components/three/badminton-court-3d'))
 
 export function AboutPage() {
   const { data: tournaments } = usePublicTournaments()
-  const { data: stats } = usePublicHubStats()
+  const { data: stats, isLoading: statsLoading } = usePublicHubStats()
   const [spinning, setSpinning] = useState(true)
 
   const categoryCounts = {
@@ -64,17 +65,31 @@ export function AboutPage() {
           </div>
         </div>
 
-        {stats && (
+        {statsLoading ? (
           <div className="relative mx-4 mb-4 rounded-lg border border-ember-500/40 bg-ink-card px-4 py-7 sm:mx-6 sm:mb-6 sm:px-6 sm:py-8 lg:mx-10 lg:mb-8 lg:px-10">
-            <p className="mb-5 font-mono text-[10px] uppercase tracking-[.2em] text-ember-600">
-              One community. Countless rallies.
-            </p>
+            <Skeleton className="mb-5 h-3 w-40" />
             <div className="grid grid-cols-3 divide-x divide-white/10">
-              <HeroStat value={stats.upcoming_tournaments} label="upcoming tournaments" />
-              <HeroStat value={stats.athletes_in_competition} label="athletes competing" />
-              <HeroStat value={stats.courts_in_use} label="courts in rotation" />
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="space-y-2 px-3 first:pl-0 sm:px-4">
+                  <Skeleton className="h-9 w-14" />
+                  <Skeleton className="h-3 w-20" />
+                </div>
+              ))}
             </div>
           </div>
+        ) : (
+          stats && (
+            <div className="relative mx-4 mb-4 rounded-lg border border-ember-500/40 bg-ink-card px-4 py-7 sm:mx-6 sm:mb-6 sm:px-6 sm:py-8 lg:mx-10 lg:mb-8 lg:px-10">
+              <p className="mb-5 font-mono text-[10px] uppercase tracking-[.2em] text-ember-600">
+                One community. Countless rallies.
+              </p>
+              <div className="grid grid-cols-3 divide-x divide-white/10">
+                <HeroStat value={stats.upcoming_tournaments} label="upcoming tournaments" />
+                <HeroStat value={stats.athletes_in_competition} label="athletes competing" />
+                <HeroStat value={stats.courts_in_use} label="courts in rotation" />
+              </div>
+            </div>
+          )
         )}
       </section>
 

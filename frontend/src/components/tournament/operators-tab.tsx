@@ -11,7 +11,7 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { FieldError, Input, Label, PhoneInput } from '@/components/ui/input'
 import { EmptyState } from '@/components/ui/empty-state'
-import { FullPageSpinner } from '@/components/ui/spinner'
+import { Skeleton, SkeletonCircle } from '@/components/ui/skeleton'
 import { useInviteOperator, useOperators, useRevokeOperator } from '@/hooks/use-operators'
 import { extractErrorMessage } from '@/lib/api/client'
 import { cn, formatDate, initials } from '@/lib/utils'
@@ -120,7 +120,19 @@ export function OperatorsTab({ tournamentId }: { tournamentId: string }) {
       </div>
 
       {isLoading ? (
-        <FullPageSpinner />
+        <div className="space-y-3">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Card key={i} className="flex items-center gap-3 p-4">
+              <SkeletonCircle className="size-10 shrink-0" />
+              <div className="min-w-0 flex-1 space-y-1.5">
+                <Skeleton className="h-4 w-32" />
+                <Skeleton className="h-3 w-40" />
+              </div>
+              <Skeleton className="h-6 w-16 rounded-full" />
+              <Skeleton className="h-8 w-24 rounded-xl" />
+            </Card>
+          ))}
+        </div>
       ) : !operators || operators.length === 0 ? (
         <EmptyState
           icon={UserPlus}

@@ -7,7 +7,7 @@ import { useCourtChangeAlerts } from '@/hooks/use-court-change-alerts'
 import { useMyRegistrations } from '@/hooks/use-player-auth'
 import { useSelfRegister } from '@/hooks/use-players'
 import { useAuthStore } from '@/stores/auth-store'
-import { FullPageSpinner } from '@/components/ui/spinner'
+import { Skeleton, SkeletonCard } from '@/components/ui/skeleton'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card } from '@/components/ui/card'
@@ -56,6 +56,38 @@ function disciplineLabel(tournament: PublicTournamentDetail, isTeamTournament: b
   return 'Singles'
 }
 
+function TournamentLiveSkeleton() {
+  return (
+    <div className="space-y-3">
+      <section className="-mx-4 -mt-7 bg-ink-deep px-4 pb-6 pt-7 sm:-mx-6 sm:px-6 lg:-mx-10 lg:-mt-9 lg:px-10 lg:pb-8 lg:pt-8">
+        <Skeleton className="h-4 w-28" />
+        <div className="mt-4 flex gap-2">
+          <Skeleton className="h-6 w-20 rounded-full" />
+          <Skeleton className="h-6 w-24 rounded-full" />
+        </div>
+        <Skeleton className="mt-3 h-9 w-2/3 max-w-[500px]" />
+        <div className="mt-7 grid max-w-[720px] grid-cols-2 gap-x-3 gap-y-5 rounded-2xl border border-white/10 bg-white/[0.06] p-5 sm:flex sm:flex-wrap sm:gap-3">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-10 w-full sm:w-32" />
+          ))}
+        </div>
+      </section>
+      <div className="mx-auto max-w-[680px] space-y-5">
+        <div className="flex gap-1">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton key={i} className="h-9 flex-1 rounded-full" />
+          ))}
+        </div>
+        <SkeletonCard className="space-y-4">
+          <Skeleton className="h-5 w-32" />
+          <Skeleton className="h-28 w-full" />
+          <Skeleton className="h-28 w-full" />
+        </SkeletonCard>
+      </div>
+    </div>
+  )
+}
+
 export function TournamentLivePage() {
   const { id } = useParams<{ id: string }>()
   const { data: tournament, isLoading } = usePublicTournament(id)
@@ -101,7 +133,7 @@ export function TournamentLivePage() {
     return `?${next.toString()}`
   }
 
-  if (isLoading) return <FullPageSpinner />
+  if (isLoading) return <TournamentLiveSkeleton />
   if (!tournament) {
     return <EmptyState icon={Trophy} title="Tournament not found" description="It may have been removed, or the link is off." />
   }

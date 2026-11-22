@@ -4,7 +4,8 @@ import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
 import { EmptyState } from '@/components/ui/empty-state'
 import { InitialsAvatar } from '@/components/ui/avatar'
-import { CareerStatsSection } from '@/components/player/career-stats-section'
+import { CareerStatsSection, CareerStatsSectionSkeleton } from '@/components/player/career-stats-section'
+import { Skeleton, SkeletonCircle } from '@/components/ui/skeleton'
 import { usePublicAthleteProfile } from '@/hooks/use-athletes'
 import { dominantHandMeta, genderMeta, preferredFormatMeta } from '@/lib/profile-meta'
 import { cn } from '@/lib/utils'
@@ -16,8 +17,20 @@ export function PublicPlayerProfilePage() {
   if (isLoading) {
     return (
       <div className="mx-auto max-w-3xl space-y-8 py-6">
-        <div className="h-24 rounded-2xl shimmer-bg" />
-        <div className="h-44 rounded-2xl shimmer-bg" />
+        <Card className="p-5">
+          <div className="flex items-start gap-4">
+            <SkeletonCircle className="size-14" />
+            <div className="flex-1 space-y-2">
+              <Skeleton className="h-6 w-40" />
+              <Skeleton className="h-4 w-28" />
+            </div>
+          </div>
+          <div className="mt-4 flex gap-2">
+            <Skeleton className="h-6 w-20 rounded-full" />
+            <Skeleton className="h-6 w-24 rounded-full" />
+          </div>
+        </Card>
+        <CareerStatsSectionSkeleton />
       </div>
     )
   }

@@ -3,8 +3,8 @@ import { Link, useParams } from 'react-router-dom'
 import { ArrowLeft, Check, Copy, Play, Trophy } from 'lucide-react'
 import { useTournament } from '@/hooks/use-tournaments'
 import { useUrlParam } from '@/hooks/use-url-param'
-import { FullPageSpinner } from '@/components/ui/spinner'
 import { EmptyState } from '@/components/ui/empty-state'
+import { Skeleton, SkeletonCard } from '@/components/ui/skeleton'
 import { RegistrationStatusBadge, TournamentStatusBadge } from '@/components/ui/status-badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { RosterTab } from '@/components/tournament/roster-tab'
@@ -27,6 +27,34 @@ import { toast } from 'sonner'
 import { extractErrorMessage } from '@/lib/api/client'
 import { formatLabel, formatPlainDate } from '@/lib/utils'
 
+function TournamentDetailSkeleton() {
+  return (
+    <div className="space-y-6">
+      <Skeleton className="h-4 w-28" />
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <Skeleton className="h-7 w-56" />
+            <Skeleton className="h-5 w-16 rounded-full" />
+          </div>
+          <Skeleton className="h-4 w-72" />
+        </div>
+        <Skeleton className="h-10 w-32 rounded-xl" />
+      </div>
+      <div className="flex gap-2 overflow-x-auto">
+        {Array.from({ length: 7 }).map((_, i) => (
+          <Skeleton key={i} className="h-8 w-24 shrink-0 rounded-xl" />
+        ))}
+      </div>
+      <SkeletonCard className="space-y-4">
+        <Skeleton className="h-5 w-40" />
+        <Skeleton className="h-32 w-full" />
+        <Skeleton className="h-32 w-full" />
+      </SkeletonCard>
+    </div>
+  )
+}
+
 export function TournamentDetailPage() {
   const { id } = useParams<{ id: string }>()
   const { data: tournament, isLoading } = useTournament(id)
@@ -34,7 +62,7 @@ export function TournamentDetailPage() {
   const unlockTie = useUnlockTeamTie(id ?? '')
   const [activeTab, setActiveTab] = useUrlParam('tab', 'fixtures')
 
-  if (isLoading) return <FullPageSpinner />
+  if (isLoading) return <TournamentDetailSkeleton />
   if (!tournament) {
     return <EmptyState icon={Trophy} title="Tournament not found" description="It may have been removed, or you don't have access to it." />
   }
