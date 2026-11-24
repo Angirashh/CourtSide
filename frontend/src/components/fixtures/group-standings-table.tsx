@@ -33,9 +33,10 @@ export function GroupStandingsTable({ title, rows, qualifySlots = 2 }: { title: 
           {rows.map((row, idx) => (
             <motion.tr
               key={row.playerId}
+              layout
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              transition={{ delay: idx * 0.03 }}
+              transition={{ opacity: { delay: idx * 0.03 }, layout: { type: 'spring', stiffness: 380, damping: 32 } }}
               className={cn(
                 'border-t border-white/[0.07] transition-colors',
                 qualifySlots > 0 && idx < qualifySlots && !row.isWithdrawn && 'bg-ember-500/[0.07]',

@@ -1,3 +1,4 @@
+import { motion } from 'framer-motion'
 import { Trophy } from 'lucide-react'
 import { usePublicTeamStandings } from '@/hooks/use-public'
 import { EmptyState } from '@/components/ui/empty-state'
@@ -42,7 +43,12 @@ export function TeamStandingsView({ tournamentId, format }: { tournamentId: stri
               </thead>
               <tbody>
                 {rows.map((row) => (
-                  <tr key={row.team_id} className="border-t border-white/[0.07] text-court-cream/70">
+                  <motion.tr
+                    key={row.team_id}
+                    layout
+                    transition={{ type: 'spring', stiffness: 380, damping: 32 }}
+                    className="border-t border-white/[0.07] text-court-cream/70"
+                  >
                     <td className="px-3 py-2.5 font-bold text-court-cream">{String(row.rank).padStart(2, '0')}</td>
                     <td className="max-w-0 px-3 py-2.5 font-sans text-[13px] font-semibold text-court-cream"><span className="block truncate">{row.team_name}</span></td>
                     <td className="px-3 py-2.5 text-center tabular-nums">{row.matches_played}</td>
@@ -52,7 +58,7 @@ export function TeamStandingsView({ tournamentId, format }: { tournamentId: stri
                     <td className="px-3 py-2.5 text-center tabular-nums">{row.games_won - row.games_lost}</td>
                     <td className="px-3 py-2.5 text-center tabular-nums">{row.points_won - row.points_lost}</td>
                     <td className="px-3 py-2.5 text-center font-bold tabular-nums text-court-cream">{row.match_points}</td>
-                  </tr>
+                  </motion.tr>
                 ))}
               </tbody>
             </table>

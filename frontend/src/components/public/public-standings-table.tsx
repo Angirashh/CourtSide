@@ -1,3 +1,4 @@
+import { motion } from 'framer-motion'
 import { ArrowDown, ArrowRight, ArrowUp, Minus } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { PublicStandingRow } from '@/types/api'
@@ -38,8 +39,10 @@ export function PublicStandingsTable({
           </thead>
           <tbody>
             {rows.map((row) => (
-              <tr
+              <motion.tr
                 key={row.player_id}
+                layout
+                transition={{ type: 'spring', stiffness: 380, damping: 32 }}
                 className={cn(
                   'border-t border-white/[0.07]',
                   qualifySlots > 0 && row.rank <= qualifySlots && 'bg-ember-500/[0.07]'
@@ -64,7 +67,7 @@ export function PublicStandingsTable({
                 <td className="px-2 py-2.5 text-center">
                   <DiffIndicator value={row.games_won - row.games_lost} />
                 </td>
-              </tr>
+              </motion.tr>
             ))}
           </tbody>
         </table>

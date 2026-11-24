@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { toast } from 'sonner'
+import { AnimatePresence, motion } from 'framer-motion'
 import { CalendarClock, CheckCircle2, ChevronRight, Loader2, MapPin, Play, Radio, Swords, UserX } from 'lucide-react'
 import { useAuthStore } from '@/stores/auth-store'
 import { useTournament } from '@/hooks/use-tournaments'
@@ -22,6 +23,16 @@ import { cn, formatTime, isPlaceholderId, parseUtcTimestamp, playerLabel } from 
 import type { Court, Match, Player } from '@/types/api'
 
 type Tab = 'live' | 'upcoming' | 'completed'
+
+// Shared enter/exit for match cards (and their loading placeholders) appearing in or dropping out
+// of a list -- e.g. a just-started match sliding into "On court", or a scored one sliding out.
+const cardMotion = {
+  layout: true,
+  initial: { opacity: 0, x: -16 },
+  animate: { opacity: 1, x: 0 },
+  exit: { opacity: 0, x: 16 },
+  transition: { duration: 0.22, ease: 'easeOut' },
+} as const
 
 // A single match card's loading placeholder -- mirrors OperatorMatchCard's own shape (header
 // meta/badges, avatar+name matchup row, full-width CTA) so it reads as "this exact card is still
@@ -217,28 +228,35 @@ export function OperatorMatchesPage() {
             <EmptyState icon={CheckCircle2} title="No results yet" />
           )
         ) : (
-          <>
-            {showPendingSkeleton && <OperatorMatchCardSkeleton label="Starting match..." />}
+          <AnimatePresence mode="popLayout" initial={false}>
+            {showPendingSkeleton && (
+              <motion.div key="pending-start" {...cardMotion}>
+                <OperatorMatchCardSkeleton label="Starting match..." />
+              </motion.div>
+            )}
             {list.map((m, i) =>
               m.id === pendingScoreId ? (
-                <OperatorMatchCardSkeleton key={m.id} label="Submitting score..." />
+                <motion.div key={`pending-score-${m.id}`} {...cardMotion}>
+                  <OperatorMatchCardSkeleton label="Submitting score..." />
+                </motion.div>
               ) : (
-                <OperatorMatchCard
-                  key={m.id}
-                  match={m}
-                  playersById={playersById}
-                  courtsById={courtsById}
-                  nextUp={tab === 'upcoming' && i === 0}
-                  starting={startingId === m.id}
-                  onStart={() => handleStart(m)}
-                  onScore={() => setScoreTarget({ match: m, correcting: false })}
-                  onNoResult={() => setNoResultMatch(m)}
-                  onEditScore={() => setScoreTarget({ match: m, correcting: true })}
-                  readOnly={tab === 'completed'}
-                />
+                <motion.div key={m.id} {...cardMotion}>
+                  <OperatorMatchCard
+                    match={m}
+                    playersById={playersById}
+                    courtsById={courtsById}
+                    nextUp={tab === 'upcoming' && i === 0}
+                    starting={startingId === m.id}
+                    onStart={() => handleStart(m)}
+                    onScore={() => setScoreTarget({ match: m, correcting: false })}
+                    onNoResult={() => setNoResultMatch(m)}
+                    onEditScore={() => setScoreTarget({ match: m, correcting: true })}
+                    readOnly={tab === 'completed'}
+                  />
+                </motion.div>
               )
             )}
-          </>
+          </AnimatePresence>
         )}
       </div>
 
